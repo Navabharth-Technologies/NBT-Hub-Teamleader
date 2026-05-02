@@ -1,6 +1,6 @@
-export const BASE_URL = 'http://192.168.1.3:5000';
+export const BASE_URL = 'http://192.168.1.17:5000';
 
-const cleanId = (id) => {
+export const cleanId = (id) => {
   if (!id) return '';
   let s = String(id).trim();
 
@@ -10,12 +10,20 @@ const cleanId = (id) => {
   }
 
   // Handle triple repetition bug (e.g. 202516202516202516)
-  if (s.length >= 6 && s.length % 3 === 0) {
+  if (s.length >= 9 && s.length % 3 === 0) {
     const partLen = s.length / 3;
     const p1 = s.substring(0, partLen);
     const p2 = s.substring(partLen, partLen * 2);
     const p3 = s.substring(partLen * 2);
     if (p1 === p2 && p1 === p3) return p1;
+  }
+
+  // Handle double repetition bug (e.g. 202512202512)
+  if (s.length >= 6 && s.length % 2 === 0) {
+    const partLen = s.length / 2;
+    const p1 = s.substring(0, partLen);
+    const p2 = s.substring(partLen);
+    if (p1 === p2) return p1;
   }
 
   return s;
@@ -95,6 +103,7 @@ export const API_ENDPOINTS = {
   UPDATE_LEAVE_STATUS: (id) => `${BASE_URL}/api/leaves/${cleanId(id)}/status`,
   MY_LEAVES_GET: (userId) => `${BASE_URL}/api/leaves/my?userId=${cleanId(userId)}`,
   ALL_LEAVES: `${BASE_URL}/api/leaves`,
+  ALL_LEAVES_COMPREHENSIVE: `${BASE_URL}/api/leaves/comprehensive`,
   RESIGNATIONS: `${BASE_URL}/api/resignations`,
   TEAM_RESIGNATIONS: (tlId) => `${BASE_URL}/api/resignations/team/${cleanId(tlId)}`,
   REVOKE_RESIGNATION: (id) => `${BASE_URL}/api/resignations/revoke/${cleanId(id)}`,

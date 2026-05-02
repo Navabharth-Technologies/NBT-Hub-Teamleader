@@ -41,6 +41,7 @@ export default function ThreadScreen() {
     const isTablet = winWidth < 1024;
     const [reactorModal, setReactorModal] = useState(null); // { postId, emoji, users, count }
     const [loadingReactors, setLoadingReactors] = useState(false);
+    const [fullscreenMedia, setFullscreenMedia] = useState(null); // { src, type }
 
     useEffect(() => {
         fetchProfiles();
@@ -459,7 +460,16 @@ export default function ThreadScreen() {
                             }
                             return (
                                 <div style={styles.postMedia}>
-                                    {isVideo ? ( <video src={src} controls style={{ maxWidth: '100%', maxHeight: '380px', display: 'block' }} /> ) : ( <img src={src} style={{ maxWidth: '100%', maxHeight: '380px', objectFit: 'contain', display: 'block' }} /> )}
+                                    {isVideo ? ( 
+                                        <video src={src} controls style={{ maxWidth: '100%', maxHeight: '380px', display: 'block' }} /> 
+                                    ) : ( 
+                                        <img 
+                                            src={src} 
+                                            style={{ maxWidth: '100%', maxHeight: '380px', objectFit: 'contain', display: 'block', cursor: 'zoom-in' }} 
+                                            alt="" 
+                                            onClick={() => setFullscreenMedia({ src, type: 'image' })}
+                                        /> 
+                                    )}
                                 </div>
                             );
                         })()}
@@ -691,6 +701,38 @@ export default function ThreadScreen() {
                                 )}
                             </div>
                         </motion.div>
+                    </motion.div>
+                )}
+
+                {fullscreenMedia && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setFullscreenMedia(null)}
+                        style={{
+                            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', 
+                            zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'zoom-out', padding: '20px'
+                        }}
+                    >
+                        <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => setFullscreenMedia(null)}
+                            style={{ position: 'absolute', top: '30px', right: '30px', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', padding: '10px', borderRadius: '50%', cursor: 'pointer' }}
+                        >
+                            <X size={24} />
+                        </motion.button>
+
+                        <motion.img
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            src={fullscreenMedia.src}
+                            alt="Fullscreen"
+                            style={{ maxWidth: '95%', maxHeight: '95%', borderRadius: '12px', boxShadow: '0 30px 100px rgba(0,0,0,0.5)', objectFit: 'contain' }}
+                            onClick={(e) => e.stopPropagation()}
+                        />
                     </motion.div>
                 )}
             </AnimatePresence>

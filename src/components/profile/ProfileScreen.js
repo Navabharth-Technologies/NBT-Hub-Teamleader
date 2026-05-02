@@ -432,6 +432,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
       maxWidth: '100%',
       margin: '0',
       padding: isMobile ? '15px' : (isTablet ? '25px' : '40px'),
+      marginTop: isMobile ? '5px' : '15px',
     },
     banner: {
       height: isMobile ? '160px' : (isTablet ? '200px' : '180px'),
@@ -803,7 +804,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                     <>
                       {[{ label: 'Old Password', key: 'old' }, { label: 'New Password', key: 'new' }, { label: 'Confirm Password', key: 'confirm' }].map(f => (
                          <div key={f.key}>
-                           <label style={{ fontSize: '11px', fontWeight: '1000', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block', paddingLeft: '4px' }}>{f.label}</label>
+                           <label style={{ fontSize: '11px', fontWeight: '1000', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block', paddingLeft: '4px' }}>{f.label} <span style={{ color: '#ef4444' }}>*</span></label>
                            <input 
                              type="password" 
                              style={{ width: '100%', padding: '16px 20px', borderRadius: '18px', border: '2px solid #f1f5f9', fontSize: '15px', fontWeight: '700', outline: 'none', backgroundColor: '#f8fafc', transition: '0.2s' }}
@@ -833,7 +834,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                       ) : !otpVerified ? (
                         <>
                           <div style={{ textAlign: 'center' }}>
-                            <label style={{ fontSize: '11px', fontWeight: '1000', color: '#64748b', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>AUTHORIZATION CODE</label>
+                            <label style={{ fontSize: '11px', fontWeight: '1000', color: '#64748b', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>AUTHORIZATION CODE <span style={{ color: '#ef4444' }}>*</span></label>
                             <input 
                               type="text" 
                               maxLength={6}
@@ -858,7 +859,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                           </div>
                           {[{ label: 'Vault Signature (New Password)', key: 'new' }, { label: 'Confirm Signature', key: 'confirm' }].map(f => (
                             <div key={f.key} style={{ marginBottom: '15px' }}>
-                              <label style={{ fontSize: '11px', fontWeight: '1000', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block', paddingLeft: '4px' }}>{f.label}</label>
+                              <label style={{ fontSize: '11px', fontWeight: '1000', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block', paddingLeft: '4px' }}>{f.label} <span style={{ color: '#ef4444' }}>*</span></label>
                               <input 
                                 type="password" 
                                 style={{ width: '100%', padding: '16px 20px', borderRadius: '18px', border: '2px solid #f1f5f9', fontSize: '15px', fontWeight: '700', outline: 'none', backgroundColor: '#f8fafc' }}
@@ -915,7 +916,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
             {[
               { id: 'slip', title: 'MONTHLY PAY SLIP', desc: 'Download salary statement', icon: <FileText size={22} />, color: '#16a34a', darkBorder: true },
               { id: 'exp', title: 'EXPERIENCE LETTER', desc: 'Apply for service certificate', icon: <Fingerprint size={22} />, color: '#2563eb', highlight: true },
-              { id: 'res', title: 'RESIGNATION LETTER', desc: 'Submit formal exit notice', icon: <LogOut size={22} />, color: '#dc2626' }
+              { id: 'res', title: 'RESIGNATION LETTER', desc: 'Submit formal exit notice', icon: <LogOut size={22} />, color: '#dc2626', darkBorder: true }
             ].map((doc, idx) => (
               <DocCard key={idx} doc={doc} onNavigate={onNavigate} />
             ))}

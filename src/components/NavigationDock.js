@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, BookOpen, MessageSquare, AlertCircle, User, Palmtree, Clock, Gamepad2 } from 'lucide-react';
+import { Home, BookOpen, MessageSquare, AlertCircle, User, Palmtree, Clock, Gamepad2, CalendarClock } from 'lucide-react';
 import { useThread } from '../context/ThreadContext';
 import { useAuth } from '../context/AuthContext';
 import { getTheme } from '../constants/Theme';
@@ -65,12 +65,12 @@ const NavigationDock = ({ activeTab, onTabChange }) => {
   }, [unreadCount]);
 
   const navItems = [
-    { id: 'HOME', icon: <Home className="nav-icon" style={{ strokeWidth: '2.5px' }} />, label: 'HOME' },
-    { id: 'COURSES', icon: <BookOpen className="nav-icon" style={{ strokeWidth: '2.5px' }} />, label: 'COURSES' },
-    { id: 'THREAD', icon: <MessageSquare className="nav-icon" style={{ strokeWidth: '2.5px' }} />, label: 'THREAD' },
-    { id: 'FUN', icon: <Gamepad2 className="nav-icon" style={{ strokeWidth: '2.5px' }} />, label: 'FUN' },
-    { id: 'LEAVE', icon: <Palmtree className="nav-icon" style={{ strokeWidth: '2.5px' }} />, label: 'LEAVES' },
-    { id: 'PROFILE', icon: <User className="nav-icon" style={{ strokeWidth: '2.5px' }} />, label: 'PROFILE' },
+    { id: 'HOME', icon: <Home className="nav-icon" style={{ strokeWidth: '2.5px' }} />, label: 'Home' },
+    { id: 'COURSES', icon: <BookOpen className="nav-icon" style={{ strokeWidth: '2.5px' }} />, label: 'Courses' },
+    { id: 'THREAD', icon: <MessageSquare className="nav-icon" style={{ strokeWidth: '2.5px' }} />, label: 'Thread' },
+    { id: 'FUN', icon: <Gamepad2 className="nav-icon" style={{ strokeWidth: '2.5px' }} />, label: 'Fun' },
+    { id: 'LEAVE', icon: <CalendarClock className="nav-icon" style={{ strokeWidth: '2.5px' }} />, label: 'Leaves' },
+    { id: 'PROFILE', icon: <User className="nav-icon" style={{ strokeWidth: '2.5px' }} />, label: 'Profile' },
   ];
 
   return (
@@ -86,7 +86,7 @@ const NavigationDock = ({ activeTab, onTabChange }) => {
           exit={{ opacity: 0, y: 50, x: '-50%' }}
           transition={{ duration: 0.3, ease: "easeOut" }}
         >
-          <div className="nav-dock" style={{ backgroundColor: theme.headerBg, borderRadius: '40px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: winWidth < 768 ? '10px 12px' : '10px 20px', gap: winWidth < 768 ? '4px' : '20px', boxShadow: '0 10px 40px rgba(0,0,0,0.08)', border: '1.5px solid rgba(255,255,255,0.4)', backdropFilter: 'blur(15px)' }}>
+          <div className="nav-dock" style={{ backgroundColor: theme.headerBg, borderRadius: '40px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', padding: winWidth < 768 ? '10px 12px' : '20px 25px', gap: winWidth < 768 ? '4px' : '20px', boxShadow: '0 10px 40px rgba(0,0,0,0.08)', border: '1.5px solid rgba(11, 30, 63, 0.15)', backdropFilter: 'blur(15px)' }}>
             {navItems.map((item) => (
               <div
                 key={item.id}
@@ -109,7 +109,7 @@ const NavigationDock = ({ activeTab, onTabChange }) => {
                     </div>
                   )}
                 </div>
-                <span className="nav-label" style={{ fontWeight: '800', fontSize: winWidth < 768 ? '9px' : '11px', color: '#0B1E3F', fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '0.5px' }}>{item.label}</span>
+                <span className="nav-label" style={{ fontWeight: '800', fontSize: winWidth < 768 ? '10px' : '13px', color: '#0B1E3F', fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: '0.5px' }}>{item.label}</span>
               </div>
             ))}
           </div>

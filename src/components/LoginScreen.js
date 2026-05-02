@@ -154,7 +154,7 @@ export default function LoginScreen() {
         {error && <div style={s.error}>{error}</div>}
 
         <div style={s.inputGroup}>
-          <label style={s.label}>Official Identity (Email)</label>
+          <label style={s.label}>Official Identity (Email) <span style={{ color: '#ef4444' }}>*</span></label>
           <div style={s.inputWrapper}>
             <Mail size={18} color="#94a3b8" />
             <input
@@ -169,7 +169,7 @@ export default function LoginScreen() {
         </div>
 
         <div style={s.inputGroup}>
-          <label style={s.label}>Identity Passkey</label>
+          <label style={s.label}>Identity Passkey <span style={{ color: '#ef4444' }}>*</span></label>
           <div style={s.inputWrapper}>
             <Lock size={18} color="#94a3b8" />
             <input

@@ -95,7 +95,7 @@ function App() {
         ref={scrollRef}
         className="main-content"
         style={{
-          paddingTop: winWidth < 768 ? '75px' : '95px',
+          paddingTop: winWidth < 768 ? '75px' : '115px',
           overflowY: 'auto'
         }}
       >

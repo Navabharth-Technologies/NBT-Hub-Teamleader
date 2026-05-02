@@ -22,7 +22,7 @@ export default function AppHeader() {
 
   const styles = {
     header: {
-      height: winWidth < 768 ? '60px' : '80px',
+      height: winWidth < 768 ? '60px' : '100px',
       backgroundColor: theme.headerBg || '#ffffff',
       display: 'flex',
       alignItems: 'center',
@@ -249,7 +249,7 @@ export default function AppHeader() {
             >
               <div
                 onClick={() => navigate('/documents')}
-                style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden' }}
+                style={{ width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 {profilePicUrl ? (
                   <img src={profilePicUrl} alt="Profile" style={styles.photo} />

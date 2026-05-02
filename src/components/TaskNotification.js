@@ -85,6 +85,14 @@ const TaskNotification = ({ onNavigate }) => {
     const d = new Date(dateStr);
     return isNaN(d.getTime()) ? new Date() : d;
   };
+  
+  const calculateDays = (start, end) => {
+    if (!start || !end) return 0;
+    const s = new Date(start);
+    const e = new Date(end);
+    const diff = e - s;
+    return Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
+  };
 
   const fetchNotifications = async () => {
     const uid = user?.id || user?.empId || user?.userId || user?.employee_id;
@@ -300,7 +308,7 @@ const TaskNotification = ({ onNavigate }) => {
                 id: rid,
                 type: 'LEAVE',
                 title: 'New Leave Request',
-                description: `${ename} has requested ${l.leave_type || 'Leave'} for ${l.no_of_days || 'some'} days.`,
+                description: `${ename} has requested ${l.leave_type || 'Leave'} from ${l.start_date?.split('T')[0] || 'N/A'} to ${l.end_date?.split('T')[0] || 'N/A'} (${l.no_of_days || calculateDays(l.start_date, l.end_date)} days).`,
                 formattedTime: formatDate(createdDate, l.created_at || l.applied_on),
                 isNew: !isRead,
                 rawDate: createdDate,
@@ -402,7 +410,18 @@ const TaskNotification = ({ onNavigate }) => {
       localStorage.setItem(`seen_approvals_${uid}`, JSON.stringify(updatedApprovals));
       localStorage.setItem(`seen_leave_requests_${uid}`, JSON.stringify(updatedRequests));
 
-      const merged = [...mappedTasks, ...mappedLeaves, ...mappedRewards, ...quizNotifs, ...dbNotifs].sort((a, b) => {
+      // Deduplicate: If we already have a specialized notification for a leave or task,
+      // skip the generic database record for that same ID to avoid double-entry.
+      const primaryLeaveIds = new Set(mappedLeaves.map(l => l.leaveId).filter(id => id));
+      const primaryTaskIds = new Set(mappedTasks.map(t => t.taskId).filter(id => id));
+      
+      const filteredDbNotifs = dbNotifs.filter(dn => {
+        if (dn.type === 'LEAVE' && dn.leaveId && primaryLeaveIds.has(dn.leaveId)) return false;
+        if (dn.type === 'TASK' && dn.taskId && primaryTaskIds.has(dn.taskId)) return false;
+        return true;
+      });
+
+      const merged = [...mappedTasks, ...mappedLeaves, ...mappedRewards, ...quizNotifs, ...filteredDbNotifs].sort((a, b) => {
         const dateA = a.rawDate instanceof Date ? a.rawDate.getTime() : 0;
         const dateB = b.rawDate instanceof Date ? b.rawDate.getTime() : 0;
         return dateB - dateA;

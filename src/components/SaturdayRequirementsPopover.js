@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, MessageSquare, Send, X, ClipboardList, Lightbulb, Bell } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { BASE_URL, API_ENDPOINTS } from '../config';
+import { BASE_URL, API_ENDPOINTS, cleanId } from '../config';
 
 const SaturdayRequirementsPopover = () => {
     const [show, setShow] = useState(false);
@@ -11,11 +11,11 @@ const SaturdayRequirementsPopover = () => {
     const [feedback, setFeedback] = useState({ requirements: '', suggestions: '' });
 
     const userData = JSON.parse(localStorage.getItem('user') || '{}');
-    const uid = userData.employee_id || userData.userId || userData.id || 'unknown';
+    const uid = cleanId(userData.employee_id || userData.userId || userData.id || 'unknown');
 
     const isSaturday = new Date().getDay() === 6; // 0=Sun, 6=Sat
     const today = new Date().toDateString();
-    
+
     const submittedKey = `saturdayReflectionSubmittedDate_${uid}`;
     const dismissedKey = `saturdayReflectionDismissedDate_${uid}`;
 

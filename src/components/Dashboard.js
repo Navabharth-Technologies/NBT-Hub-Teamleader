@@ -157,19 +157,32 @@ const Dashboard = ({ setActiveTab }) => {
       const historyResp = await fetch(API_ENDPOINTS.TASK_UPDATES_USER(uid), fetchOptions);
       if (historyResp.ok) {
         const raw = await historyResp.json();
+        const todayStr = new Date().toLocaleDateString('en-CA');
+        const yesterdayStr = new Date(Date.now() - 86400000).toLocaleDateString('en-CA');
+
         const list = (Array.isArray(raw) ? raw : (raw.value || raw.data || []))
-          .filter(r => String(r.userId || r.employee_id) === String(uid))
+          .map(r => {
+            // Handle JSON stringified tasks from backend
+            if (typeof r.tasks === 'string' && r.tasks.trim().startsWith('[')) {
+              try { r.tasks = JSON.parse(r.tasks); } catch (e) { r.tasks = []; }
+            }
+            return r;
+          })
+          .filter(r => String(r.userId || r.employee_id || r.uid) === String(uid))
           .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-        const today = new Date().toDateString();
-        const yesterday = new Date(Date.now() - 86400000).toDateString();
-
-        const todayRec = list.find(r => new Date(r.timestamp).toDateString() === today);
-        const yesterdayRec = list.find(r => new Date(r.timestamp).toDateString() === yesterday);
+        const todayRec = list.find(r => {
+          if (!r.timestamp) return false;
+          return new Date(r.timestamp).toLocaleDateString('en-CA') === todayStr;
+        });
+        const yesterdayRec = list.find(r => {
+          if (!r.timestamp) return false;
+          return new Date(r.timestamp).toLocaleDateString('en-CA') === yesterdayStr;
+        });
 
         if (todayRec) {
-          setTodayTasks(todayRec.tasks || []);
-          setOverallStatus(todayRec.overallStatus || 'Pending');
+          setTodayTasks(Array.isArray(todayRec.tasks) ? todayRec.tasks : []);
+          setOverallStatus(todayRec.overallStatus || todayRec.overall_status || 'Pending');
         } else {
           setTodayTasks([{ id: Date.now(), text: '' }]);
           setOverallStatus('Pending');
@@ -224,7 +237,14 @@ const Dashboard = ({ setActiveTab }) => {
 
         // Filter to only show team members and sort by newest first
         const memberIds = new Set(membersList.map(m => String(m.id || m.employee_id)));
+        memberIds.add(String(uid)); // Include self in activity feed
         const filteredReports = rList
+          .map(r => {
+            if (typeof r.tasks === 'string' && r.tasks.trim().startsWith('[')) {
+              try { r.tasks = JSON.parse(r.tasks); } catch (e) { r.tasks = []; }
+            }
+            return r;
+          })
           .filter(r => memberIds.has(String(r.userId || r.user_id || r.employee_id || r.uid)))
           .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         setTeamReports(filteredReports);
@@ -384,7 +404,7 @@ const Dashboard = ({ setActiveTab }) => {
 
   const s = {
     container: { backgroundColor: '#fcfdfe', minHeight: '100vh', padding: '0', fontFamily: "'Inter', sans-serif", overflowX: 'hidden' },
-    main: { margin: '0', display: 'flex', flexDirection: 'column', gap: '40px', padding: isMobile ? '16px' : '40px', boxSizing: 'border-box' },
+    main: { margin: '0', display: 'flex', flexDirection: 'column', gap: '40px', padding: isMobile ? '10px 16px 16px' : '15px 40px 40px', boxSizing: 'border-box' },
     bigCard: { backgroundColor: 'white', borderRadius: isMobile ? '24px' : '40px', padding: isMobile ? '20px' : '35px', boxShadow: '0 10px 40px rgba(0,0,0,0.02)', border: '1.5px solid #94a3b8', width: isMobile ? '95%' : '100%', boxSizing: 'border-box' },
     focusHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' },
     focusTitle: { display: 'flex', alignItems: 'center', gap: '12px', fontSize: isMobile ? '16px' : '20px', fontWeight: '900', color: '#0B1E3F' },
@@ -492,8 +512,8 @@ const Dashboard = ({ setActiveTab }) => {
       <main style={s.main}>
         {/* ────── ATTENDANCE PORTAL SECTION ────── */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
-          <div style={{ fontSize: isMobile ? '18px' : '20px', fontWeight: '800', color: '#3B5998', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Calendar size={20} color="#3B5998" /> Attendance Overview
+          <div style={{ fontSize: isMobile ? '22px' : '26px', fontWeight: '900', color: '#3B5998', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Calendar size={24} color="#3B5998" /> Attendance Overview
           </div>
           <div
             onClick={() => navigate('/attendance')}
@@ -507,8 +527,8 @@ const Dashboard = ({ setActiveTab }) => {
               <Calendar size={24} color="#2563eb" />
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: isMobile ? '9px' : '10px', fontWeight: '1000', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.8px' }}>My Attendance</div>
-              <div style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: '900', color: '#1e3a8a' }}>Attendance History</div>
+              <div style={{ fontSize: isMobile ? '11px' : '13px', fontWeight: '1000', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.8px' }}>My Attendance</div>
+              <div style={{ fontSize: isMobile ? '22px' : '28px', fontWeight: '900', color: '#1e3a8a' }}>Attendance History</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: isMobile ? '6px 12px' : '8px 16px', backgroundColor: 'white', borderRadius: '15px' }}>
               <span style={{ fontSize: isMobile ? '8px' : '10px', fontWeight: '900', color: '#16a34a' }}>● LIVE UPDATES</span>

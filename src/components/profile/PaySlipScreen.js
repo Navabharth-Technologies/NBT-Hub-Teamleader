@@ -103,8 +103,8 @@ const PaySlipScreen = ({ onBack }) => {
   }
 
   return (
-    <div style={{ padding: isMobile ? '15px' : '40px', maxWidth: '100%', margin: '0', fontFamily: "'Inter', sans-serif" }}>
-      <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '12px' : '20px', marginBottom: '30px', flexDirection: isMobile ? 'column' : 'row' }}>
+    <div style={{ padding: isMobile ? '0 15px 40px 15px' : '0 40px 60px 40px', maxWidth: '100%', marginTop: '15px', fontFamily: "'Inter', sans-serif" }}>
+      <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '12px' : '20px', marginBottom: '10px', flexDirection: isMobile ? 'column' : 'row' }}>
         <button onClick={onBack} style={{ padding: '12px', borderRadius: '15px', backgroundColor: 'white', border: '1px solid #e2e8f0', cursor: 'pointer' }}><ChevronLeft size={24} color="#10274A" /></button>
         <h1 style={{ fontSize: isMobile ? '24px' : '32px', fontWeight: '900', color: '#10274A', margin: 0 }}>Salary Statements</h1>
       </div>
@@ -168,23 +168,23 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
 
   const handleDownload = async (type) => {
     setShowDownloadMenu(false);
-    
+
     if (type === 'PDF') {
       const element = document.getElementById('printable-area');
       if (!element) return;
-      
+
       try {
         const canvas = await html2canvas(element, {
           scale: 2, // High resolution
           useCORS: true,
           backgroundColor: '#ffffff'
         });
-        
+
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF('p', 'mm', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        
+
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
         pdf.save(`payslip_${data.name.replace(/\s+/g, '_')}_${data.month}_${data.year}.pdf`);
       } catch (err) {
@@ -199,7 +199,7 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
       csv += `Month,${data.month} ${data.year}\n`;
       csv += `Employee,${data.name} (${data.empCode})\n`;
       csv += `Designation,${data.designation}\n\n`;
-      
+
       csv += "EARNINGS,Amount,DEDUCTIONS,Amount\n";
       csv += `Basic,${data.earnings.basic},PF,${data.deductions.pf}\n`;
       csv += `HRA,${data.earnings.hra},ESI,${data.deductions.esi}\n`;
@@ -208,10 +208,10 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
       csv += `,,Income Tax,${data.deductions.incomeTax}\n`;
       csv += `Performance Incentive,${data.incentives.performance},,\n`;
       csv += `Yearly Incentive,${data.incentives.yearly},,\n\n`;
-      
+
       csv += `TOTAL EARNINGS,${totalEarnings + totalIncentives},TOTAL DEDUCTIONS,${totalDeductions}\n`;
       csv += `,,NET PAYABLE,${netPayable}\n\n`;
-      
+
       csv += "ATTENDANCE SUMMARY\n";
       csv += `Present,${data.attendance.present},Weekly Off,${data.attendance.wo}\n`;
       csv += `Holidays,${data.attendance.hl},Leaves,${data.attendance.leave}\n`;
@@ -282,7 +282,7 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
   const fmt = (v) => (Number(v) || 0).toLocaleString('en-IN');
 
   const s = {
-    docWrapper: { backgroundColor: '#fcfdfe', minHeight: '100vh', padding: isMobile ? '10px' : '40px' },
+    docWrapper: { backgroundColor: '#fcfdfe', minHeight: '100vh', padding: isMobile ? '0 10px 40px 10px' : '0 40px 40px 40px' },
     topNav: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', maxWidth: '900px', margin: '0 auto 20px', flexDirection: isMobile ? 'column' : 'row', gap: '15px' },
     backBtn: { background: 'white', padding: '10px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '13px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', width: isMobile ? '100%' : 'auto', justifyContent: 'center' },
     actionBtn: { padding: '10px 25px', borderRadius: '10px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', border: 'none', display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center' },
@@ -317,13 +317,12 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
     gridTable: {
       width: '100%',
       borderCollapse: 'collapse',
-      marginBottom: '20px',
+      marginBottom: '12px',
       fontSize: '11px',
       border: '1px solid #e2e8f0'
     },
     cell: {
       padding: '12px 15px',
-      border: '1px solid #e2e8f0',
       textAlign: 'left'
     },
     label: { color: '#64748b', fontWeight: '800', textTransform: 'uppercase' },
@@ -345,10 +344,10 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
       {/* Top Controls */}
       <div style={s.topNav}>
         <button onClick={onBack} style={s.backBtn}><ChevronLeft size={16} /> Back to Profile</button>
-        
+
         {/* UNIFIED DOWNLOAD DROPDOWN */}
         <div style={{ position: 'relative' }} ref={dropdownRef}>
-          <button 
+          <button
             onClick={() => setShowDownloadMenu(!showDownloadMenu)}
             style={{ ...s.actionBtn, background: '#0B1E3F', color: 'white', minWidth: '220px' }}
           >
@@ -368,11 +367,11 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
                   minWidth: '220px', border: '1px solid #f1f5f9'
                 }}
               >
-                <div 
+                <div
                   onClick={() => handleDownload('PDF')}
-                  style={{ 
-                    padding: '12px 15px', borderRadius: '10px', display: 'flex', alignItems: 'center', 
-                    gap: '12px', cursor: 'pointer', transition: '0.2s', color: '#1e293b' 
+                  style={{
+                    padding: '12px 15px', borderRadius: '10px', display: 'flex', alignItems: 'center',
+                    gap: '12px', cursor: 'pointer', transition: '0.2s', color: '#1e293b'
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -386,11 +385,11 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
 
                 <div style={{ height: '1px', background: '#f1f5f9', margin: '5px 0' }} />
 
-                <div 
+                <div
                   onClick={() => handleDownload('EXCEL')}
-                  style={{ 
-                    padding: '12px 15px', borderRadius: '10px', display: 'flex', alignItems: 'center', 
-                    gap: '12px', cursor: 'pointer', transition: '0.2s', color: '#1e293b' 
+                  style={{
+                    padding: '12px 15px', borderRadius: '10px', display: 'flex', alignItems: 'center',
+                    gap: '12px', cursor: 'pointer', transition: '0.2s', color: '#1e293b'
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -415,7 +414,7 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
 
         {/* Content */}
         <div style={s.header}>
-          <img src="/image.png" alt="Logo" style={{ height: '190px', marginBottom: '15px', objectFit: 'contain' }} />
+          <img src="/image.png" alt="Logo" style={{ height: '120px', marginBottom: '15px', objectFit: 'contain' }} />
           <div style={s.companyName}>NAVABHARATH TECHNOLOGIES</div>
           <div style={s.tagline}>Smarter Solutions for Better Future</div>
 
@@ -425,25 +424,27 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
         </div>
 
         {/* Profile Info Grid - Modernized to 2 rows and 12 column layout */}
-        <div style={{ border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+        <div style={{ border: '1px solid #e2e8f0', marginBottom: '12px' }}>
           <div style={{
             display: 'grid',
             gridTemplateColumns: isMobile ? '1fr' : 'repeat(12, 1fr)',
-            gridAutoRows: 'minmax(45px, auto)'
+            gridAutoRows: 'minmax(45px, auto)',
+            backgroundColor: '#e2e8f0',
+            gap: '1px'
           }}>
-            <div style={{ ...s.cell, gridColumn: isMobile ? 'auto' : 'span 6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRight: isMobile ? 'none' : '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}>
+            <div style={{ ...s.cell, backgroundColor: 'white', gridColumn: isMobile ? 'auto' : 'span 6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={s.label}>Empcode</span>
               <span style={s.value}>{data.empCode}</span>
             </div>
-            <div style={{ ...s.cell, gridColumn: isMobile ? 'auto' : 'span 6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0' }}>
+            <div style={{ ...s.cell, backgroundColor: 'white', gridColumn: isMobile ? 'auto' : 'span 6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={s.label}>Department</span>
               <span style={s.value}>{data.department}</span>
             </div>
-            <div style={{ ...s.cell, gridColumn: isMobile ? 'auto' : 'span 6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRight: isMobile ? 'none' : '1px solid #e2e8f0' }}>
+            <div style={{ ...s.cell, backgroundColor: 'white', gridColumn: isMobile ? 'auto' : 'span 6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={s.label}>Emp. Name</span>
               <span style={s.value}>{data.name}</span>
             </div>
-            <div style={{ ...s.cell, gridColumn: isMobile ? 'auto' : 'span 6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ ...s.cell, backgroundColor: 'white', gridColumn: isMobile ? 'auto' : 'span 6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={s.label}>Designation</span>
               <span style={s.value}>{data.designation}</span>
             </div>
@@ -454,16 +455,16 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
         <table style={s.gridTable}>
           <tbody>
             <tr>
-              <td style={s.cell}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOT. PRE:</span><span style={s.value}>{data.attendance.present}</span></div></td>
-              <td style={s.cell}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOT. WO:-</span><span style={s.value}>{data.attendance.wo}</span></div></td>
-              <td style={s.cell}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOT. HL:-</span><span style={s.value}>{data.attendance.hl}</span></div></td>
-              <td style={s.cell}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOT. LEAVE:-</span><span style={s.value}>{data.attendance.leave}</span></div></td>
+              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOT. PRE:</span><span style={s.value}>{data.attendance.present}</span></div></td>
+              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOT. WO:-</span><span style={s.value}>{data.attendance.wo}</span></div></td>
+              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOT. HL:-</span><span style={s.value}>{data.attendance.hl}</span></div></td>
+              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOT. LEAVE:-</span><span style={s.value}>{data.attendance.leave}</span></div></td>
             </tr>
             <tr>
-              <td style={s.cell}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOTAL ABSENT</span><span style={s.value}>{data.attendance.absent}</span></div></td>
-              <td style={s.cell}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOTAL WORK+OT</span><span style={s.value}>{data.attendance.totalWork}</span></div></td>
-              <td style={s.cell}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOTAL OT</span><span style={s.value}>{data.attendance.totalOT}</span></div></td>
-              <td style={s.cell}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>BS/REFERENCE AMT.</span><span style={s.value}>{data.attendance.refAmt}</span></div></td>
+              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOTAL ABSENT</span><span style={s.value}>{data.attendance.absent}</span></div></td>
+              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOTAL WORK+OT</span><span style={s.value}>{data.attendance.totalWork}</span></div></td>
+              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOTAL OT</span><span style={s.value}>{data.attendance.totalOT}</span></div></td>
+              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>BS/REFERENCE AMT.</span><span style={s.value}>{data.attendance.refAmt}</span></div></td>
             </tr>
           </tbody>
         </table>

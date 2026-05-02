@@ -381,7 +381,14 @@ html, body {
 }
 
 .nav-item.active {
-  color: #0d2137;
+  color: #0B1E3F;
+  border-bottom: 3.5px solid #ff8c00;
+  background-color: transparent;
+  border-radius: 0;
+}
+
+.nav-item:active {
+  transform: scale(0.92);
 }
 
 .nav-icon {
@@ -393,7 +400,7 @@ html, body {
 .nav-label {
   font-size: 9px;
   font-weight: 800;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 @media (max-width: 768px) {

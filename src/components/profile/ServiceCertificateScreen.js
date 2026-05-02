@@ -416,7 +416,7 @@ const ServiceCertificateScreen = ({ onBack }) => {
             ) : (
               <form onSubmit={handleSubmit}>
                 <div style={{ marginBottom: '25px' }}>
-                  <label style={s.label}>Purpose of Request</label>
+                  <label style={s.label}>Purpose of Request <span style={{ color: '#ef4444' }}>*</span></label>
                   <select
                     style={s.select}
                     value={purpose}
@@ -434,7 +434,7 @@ const ServiceCertificateScreen = ({ onBack }) => {
 
                 {purpose === 'Other' && (
                   <div style={{ marginBottom: '25px' }}>
-                    <label style={s.label}>Specify Reason</label>
+                    <label style={s.label}>Specify Reason <span style={{ color: '#ef4444' }}>*</span></label>
                     <textarea
                       style={s.textarea}
                       placeholder="Describe why you need the certificate..."
@@ -543,7 +543,7 @@ const ServiceCertificateScreen = ({ onBack }) => {
               <form onSubmit={handleAssetSubmit}>
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
                   <div>
-                    <label style={s.label}>Laptop Brand / Model</label>
+                    <label style={s.label}>Laptop Brand / Model <span style={{ color: '#ef4444' }}>*</span></label>
                     <input
                       type="text"
                       style={s.select}
@@ -554,7 +554,7 @@ const ServiceCertificateScreen = ({ onBack }) => {
                     />
                   </div>
                   <div>
-                    <label style={s.label}>Serial Number</label>
+                    <label style={s.label}>Serial Number <span style={{ color: '#ef4444' }}>*</span></label>
                     <input
                       type="text"
                       style={s.select}

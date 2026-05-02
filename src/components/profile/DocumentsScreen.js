@@ -7,6 +7,7 @@ import {
   Briefcase, MapPin, Mail, Phone, GraduationCap, History, DollarSign,
   FileCheck, Users, Calendar, Heart, Globe, Trash2, Pencil, Camera, Image as ImageIcon, Eye, Check, X
 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { BASE_URL, API_ENDPOINTS } from '../../config';
 
@@ -38,8 +39,8 @@ const SECTIONS = [
       { key: 'father_husband_name', label: "Father/Husband's Name", type: 'text' },
       { key: 'category', label: 'Category', type: 'select', options: ['General', 'OBC', 'SC', 'ST', 'Other'] },
       { key: 'pan_number', label: 'PAN Number', type: 'text', placeholder: 'ABCDE1234F' },
-      { key: 'pan_card_copy', label: 'PAN Card Proof', type: 'file' },
       { key: 'aadhar_number', label: 'Aadhar Number', type: 'text', placeholder: '1234 5678 9012' },
+      { key: 'pan_card_copy', label: 'PAN Card Proof', type: 'file' },
       { key: 'aadhar_card_copy', label: 'Aadhar Card Proof', type: 'file' },
     ]
   },
@@ -114,7 +115,8 @@ const SECTIONS = [
       { key: 'separation', label: 'Separation Date', type: 'text', placeholder: 'YYYY-MM-DD' },
       { key: 'lwd', label: 'Last Working Day (LWD)', type: 'text' },
       { key: 'attrition_bucket', label: 'Attrition Bucket', type: 'select', options: ['N/A', 'Resignation', 'Performance', 'Behavioral', 'Medical'] },
-      { key: 'reason', label: 'Reason of Separation', type: 'text' },
+      { key: 'reason', label: 'Primary Reason', type: 'text' },
+      { key: 'detailed_reason', label: 'Formal Letter / Detailed Reason', type: 'textarea' },
     ]
   },
   {
@@ -176,7 +178,7 @@ export default function DocumentsScreen({ onBack }) {
   const { employeeId } = useParams();
 
   const [form, setForm] = useState({
-    emp_name: '', gender: 'Male', dob: '', age: '', religion: '', blood_group: '', marital_status: 'Single', nationality: 'Indian', father_husband_name: '', pan_number: '', aadhar_number: '', category: 'General',
+    emp_name: '', gender: '', dob: '', age: '', religion: '', blood_group: '', marital_status: 'Single', nationality: 'Indian', father_husband_name: '', pan_number: '', aadhar_number: '', category: 'General',
     designation: '', department: '', process: '', supervisor_l1: '', supervisor_l2: '', doj: '', ft_pt: 'Full Time', status: 'Active', place: '', moved: '', official_email_id: '',
     contact_no: '', emergency_contact_no: '', personal_email_id: '', present_address: '', permanent_address: '', state: '',
     qualification: '', edu_completion_year: '', college: '', university: '', previous_organization: '', previous_experience: '', source: '', languages_known: '',
@@ -204,7 +206,7 @@ export default function DocumentsScreen({ onBack }) {
     if (tabsRef.current) {
       console.log(`[Nav] Scrolling ${direction}`);
       const { clientWidth } = tabsRef.current;
-      const scrollAmount = clientWidth * 0.7; 
+      const scrollAmount = clientWidth * 0.7;
       tabsRef.current.scrollBy({
         left: direction === 'left' ? -scrollAmount : scrollAmount,
         behavior: 'smooth'
@@ -270,12 +272,12 @@ export default function DocumentsScreen({ onBack }) {
           if (lowerKey === 'pendrive') assetUpdates['has_pendrive'] = toYesNo(val);
           if (lowerKey === 'mobile' || lowerKey === 'company_mobile') assetUpdates['has_mobile'] = toYesNo(val);
           if (lowerKey === 'camera' || lowerKey === 'external_camera') assetUpdates['has_camera'] = toYesNo(val);
-          if (lowerKey === 'headphone' || lowerKey === 'earphone') assetUpdates['has_headphone'] = toYesNo(val);
+          if (lowerKey === 'earphone_headphone' || lowerKey === 'earphone') assetUpdates['has_headphone'] = toYesNo(val);
           if (lowerKey === 'tablet') assetUpdates['has_tablet'] = toYesNo(val);
         });
 
         console.log("[Assets Debug] Calculated updates:", assetUpdates);
-        
+
         setForm(prev => {
           const merged = { ...prev, ...assetUpdates };
           // Prevent overwriting a good name with an empty one
@@ -299,8 +301,8 @@ export default function DocumentsScreen({ onBack }) {
       if (res.ok) {
         const usersList = await res.json();
         const searchId = targetId || employeeId || user?.employee_id || user?.id;
-        
-        const foundUser = usersList.find(u => 
+
+        const foundUser = usersList.find(u =>
           String(u.employee_id || u.id || u.userId || '').toLowerCase() === String(searchId || '').toLowerCase() ||
           (u.email && user?.email && String(u.email).toLowerCase() === String(user?.email).toLowerCase())
         );
@@ -369,11 +371,11 @@ export default function DocumentsScreen({ onBack }) {
           // Aggressive Name Resolution
           const isOwnProfile = !employeeId || String(employeeId) === String(user?.employee_id) || String(employeeId) === String(user?.id);
           if (isOwnProfile && (!cleanData.emp_name || cleanData.emp_name === 'Not Provided')) {
-             cleanData.emp_name = user?.name || user?.userName || '';
+            cleanData.emp_name = user?.name || user?.userName || '';
           }
-          
+
           if (isOwnProfile && (!cleanData.emp_id || cleanData.emp_id === 'Not Provided')) {
-             cleanData.emp_id = user?.employee_id || user?.empId || user?.id || '';
+            cleanData.emp_id = user?.employee_id || user?.empId || user?.id || '';
           }
 
           if (!cleanData.designation) cleanData.designation = user?.role || user?.designation || '';
@@ -381,22 +383,48 @@ export default function DocumentsScreen({ onBack }) {
 
           console.log(`%c [Profile Feed] Loaded core attributes for: ${cleanData.emp_name || 'User'}`, 'color: #0ea5e9; font-weight: bold;');
           setForm(prev => ({ ...prev, ...cleanData }));
+
+          // NEW: Fetch latest resignation details if not already in cleanData
+          try {
+            const uid = empIdVal || user?.id || employeeId;
+            if (uid) {
+              const resigResp = await fetch(`${BASE_URL}/api/resignations/my?userId=${uid}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              if (resigResp.ok) {
+                const resigData = await resigResp.json();
+                const latest = Array.isArray(resigData) ? resigData[0] : resigData;
+                if (latest) {
+                  setForm(prev => ({
+                    ...prev,
+                    separation: latest.resignation_date || latest.resignationDate || prev.separation,
+                    lwd: latest.last_working_day || latest.lastWorkingDay || prev.lwd,
+                    reason: latest.reason || prev.reason,
+                    detailed_reason: latest.letter_content || latest.detailedReason || latest.detailed_reason || prev.detailed_reason,
+                    attrition_bucket: (latest.status === 'PENDING' || latest.status === 'Approved') ? 'Resignation' : prev.attrition_bucket
+                  }));
+                }
+              }
+            }
+          } catch (resigErr) {
+            console.warn("Failed to fetch resignation details for profile:", resigErr);
+          }
         } else {
-           // Fallback if record is empty but user exists in context
-           if (!employeeId && user) {
-             setForm(prev => ({ 
-               ...prev, 
-               emp_name: user.name || user.userName || '',
-               emp_id: user.employee_id || user.empId || user.id || '',
-               designation: user.role || user.designation || '',
-               official_email_id: user.email || ''
-             }));
-           }
+          // Fallback if record is empty but user exists in context
+          if (!employeeId && user) {
+            setForm(prev => ({
+              ...prev,
+              emp_name: user.name || user.userName || '',
+              emp_id: user.employee_id || user.empId || user.id || '',
+              designation: user.role || user.designation || '',
+              official_email_id: user.email || ''
+            }));
+          }
         }
       } else if (!employeeId && user) {
         // Handle failed request by using context data
-        setForm(prev => ({ 
-          ...prev, 
+        setForm(prev => ({
+          ...prev,
           emp_name: user.name || user.userName || '',
           emp_id: user.employee_id || user.empId || user.id || '',
           designation: user.role || user.designation || '',
@@ -411,7 +439,7 @@ export default function DocumentsScreen({ onBack }) {
   useEffect(() => {
     if (user || employeeId) {
       const init = async () => {
-        await loadDocs(); 
+        await loadDocs();
         await loadAssets();
         await fetchUserDataFromUsersTable();
       };
@@ -422,8 +450,8 @@ export default function DocumentsScreen({ onBack }) {
   useEffect(() => {
     const isOwnProfile = !employeeId || String(employeeId) === String(user?.employee_id) || String(employeeId) === String(user?.id);
     if (isOwnProfile && user && (!form.emp_name || form.emp_name === 'Not Provided')) {
-      setForm(prev => ({ 
-        ...prev, 
+      setForm(prev => ({
+        ...prev,
         emp_name: user.name || user.userName || prev.emp_name,
         emp_id: user.employee_id || user.empId || user.id || prev.emp_id,
         designation: user.role || user.designation || prev.designation,
@@ -630,15 +658,16 @@ export default function DocumentsScreen({ onBack }) {
 
   return (
     <div style={{
-      height: '100vh',
+      height: '90vh',
       backgroundColor: '#f4f7fa',
       fontFamily: "'Inter', sans-serif",
-      padding: isMobile ? '15px 0' : (isTablet ? '25px' : '20px 40px'),
+      padding: isMobile ? '0 0 15px 0' : (isTablet ? '0 25px 25px 25px' : '0 40px 20px 40px'),
       boxSizing: 'border-box',
       overflow: 'hidden',
       width: '100%',
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      marginTop: '0'
     }}>
       {/* Toast */}
       <AnimatePresence>
@@ -648,7 +677,7 @@ export default function DocumentsScreen({ onBack }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -30 }}
             style={{
-              position: 'fixed', top: isMobile ? '70px' : '90px', left: '50%', transform: 'translateX(-50%)',
+              position: 'fixed', top: isMobile ? '70px' : '100px', left: '50%', transform: 'translateX(-50%)',
               zIndex: 9999, backgroundColor: toast.type === 'success' ? '#0B1E3F' : '#ef4444',
               color: 'white', padding: isMobile ? '10px 20px' : '14px 28px', borderRadius: '16px',
               display: 'flex', alignItems: 'center', gap: '10px', width: isMobile ? '90%' : 'auto',
@@ -692,28 +721,37 @@ export default function DocumentsScreen({ onBack }) {
       {/* Header & Mobile Nav */}
       <div style={{
         position: 'sticky',
-        top: isMobile ? '60px' : '80px',
+        top: '0',
         zIndex: 1000,
         backgroundColor: '#f4f7fa',
-        padding: isMobile ? '10px 15px 20px 15px' : '20px 40px',
+        padding: isMobile ? '10px 15px 10px 15px' : '0px 40px 0px 0px',
         display: 'flex',
         flexDirection: (isMobile || isTablet) ? 'column' : 'row',
         alignItems: (isMobile || isTablet) ? 'stretch' : 'center',
         justifyContent: 'space-between',
-        marginBottom: isMobile ? '10px' : '20px',
-        gap: '15px'
+        marginBottom: '15px',
+        gap: isMobile ? '15px' : '20px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px', justifyContent: 'space-between', width: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '16px' }}>
-            <button onClick={onBack} style={{ padding: isMobile ? '8px' : '12px', borderRadius: '12px', backgroundColor: 'white', border: '1.5px solid #e2e8f0', cursor: 'pointer', flexShrink: 0 }}>
-              <ChevronLeft size={isMobile ? 16 : 22} color="#0B1E3F" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '12px' : '16px' }}>
+            <button onClick={onBack} style={{
+              padding: isMobile ? '8px' : '12px',
+              borderRadius: '12px',
+              backgroundColor: 'white',
+              border: '1.5px solid #e2e8f0',
+              cursor: 'pointer',
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+            }}>
+              <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
             </button>
-            {!isMobile && !isTablet && (
-              <div>
-                <h1 style={{ fontSize: '32px', fontWeight: '900', color: '#0B1E3F', margin: 0, lineHeight: 1 }}>Profile Info</h1>
-                <p style={{ fontSize: '14px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '600' }}>Employee metadata record</p>
-              </div>
-            )}
+            <div>
+              <h1 style={{ fontSize: isMobile ? '20px' : '32px', fontWeight: '900', color: '#0B1E3F', margin: 0, lineHeight: 1 }}>Profile Info</h1>
+              <p style={{ fontSize: isMobile ? '11px' : '14px', color: '#64748b', margin: '2px 0 0 0', fontWeight: '600' }}>Employee metadata record</p>
+            </div>
           </div>
 
           {isEditing ? (
@@ -749,17 +787,18 @@ export default function DocumentsScreen({ onBack }) {
 
         {/* Categories Bar (Mobile Only) */}
         {(isMobile || isTablet) && (
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '12px', 
-            width: '100%', 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            width: '100%',
             padding: '0 5px',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            marginBottom: '10px'
           }}>
-            <button 
+            <button
               onClick={() => scrollTabs('left')}
-              style={{ 
+              style={{
                 color: '#0B1E3F', cursor: 'pointer', border: '1.5px solid #e2e8f0',
                 backgroundColor: 'white', borderRadius: '50%', width: '36px', height: '36px',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -768,7 +807,7 @@ export default function DocumentsScreen({ onBack }) {
               }}>
               <ChevronLeft size={18} strokeWidth={3} />
             </button>
-            <div 
+            <div
               ref={tabsRef}
               style={{
                 display: 'flex',
@@ -779,7 +818,8 @@ export default function DocumentsScreen({ onBack }) {
                 msOverflowStyle: 'none',
                 WebkitOverflowScrolling: 'touch',
                 padding: '8px 0',
-                margin: '0 -2px' 
+                margin: '0 -2px',
+
               }}>
               {SECTIONS.map(sec => {
                 const isActive = activeSection === sec.id;
@@ -789,7 +829,7 @@ export default function DocumentsScreen({ onBack }) {
                     key={sec.id}
                     onClick={() => setActiveSection(sec.id)}
                     style={{
-                      padding: '10px 20px',
+                      padding: '10px 10px',
                       borderRadius: '12px',
                       backgroundColor: isActive ? '#0B1E3F' : 'white',
                       color: isActive ? 'white' : '#0B1E3F',
@@ -802,7 +842,8 @@ export default function DocumentsScreen({ onBack }) {
                       alignItems: 'center',
                       gap: '8px',
                       transition: 'all 0.2s',
-                      boxShadow: isActive ? '0 8px 20px rgba(11,30,63,0.1)' : 'none'
+                      boxShadow: isActive ? '0 8px 20px rgba(11,30,63,0.1)' : 'none',
+
                     }}
                   >
                     {cloneElement(sec.icon, { size: 14 })}
@@ -811,9 +852,9 @@ export default function DocumentsScreen({ onBack }) {
                 );
               })}
             </div>
-            <button 
+            <button
               onClick={() => scrollTabs('right')}
-              style={{ 
+              style={{
                 color: '#0B1E3F', cursor: 'pointer', border: '1.5px solid #e2e8f0',
                 backgroundColor: 'white', borderRadius: '50%', width: '36px', height: '36px',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
@@ -834,6 +875,7 @@ export default function DocumentsScreen({ onBack }) {
         padding: isMobile ? '0 15px' : '0',
         width: '100%',
         margin: '0 auto',
+        marginTop: '0',
         flex: 1,
         minHeight: 0,
         overflow: 'hidden'
@@ -849,15 +891,17 @@ export default function DocumentsScreen({ onBack }) {
             overflowY: 'auto',
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
-            paddingBottom: '20px'
+            paddingBottom: '20px',
+
           }}>
-            <div 
+            <div
               ref={tabsRef}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '12px',
-                padding: '0'
+                padding: '0',
+
               }}>
               {SECTIONS.map(sec => {
                 const isActive = activeSection === sec.id;
@@ -912,7 +956,7 @@ export default function DocumentsScreen({ onBack }) {
             style={{
               backgroundColor: 'white',
               padding: isMobile ? '20px' : '40px 40px 80px 40px',
-              border: '1.5px solid #e2e8f0',
+              border: 'none',
               borderRadius: isMobile ? '22px' : '28px',
               boxSizing: 'border-box',
               width: '100%',
@@ -953,11 +997,11 @@ export default function DocumentsScreen({ onBack }) {
                     opacity: isLockedForRole ? 0.7 : 1,
                     gridColumn: !isMobile && field.fullWidth ? '1 / -1' : 'auto',
                     padding: '16px 0',
-                    borderBottom: '1px solid #000000'
+                    borderBottom: '1.5px solid #f1f5f9'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '120px' }}>
                       <label style={{ fontSize: isMobile ? '11px' : '12px', fontWeight: '900', color: '#000000', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-                        {field.label}
+                        {field.label} {['emp_name', 'dob', 'pan_number', 'aadhar_number', 'contact_no', 'designation', 'department', 'official_email_id'].includes(field.key) && <span style={{ color: '#ef4444' }}>*</span>}
                       </label>
                       {isLockedForRole && <Shield size={10} color="#000000" />}
                     </div>

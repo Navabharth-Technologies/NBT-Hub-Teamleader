@@ -3,7 +3,7 @@ import { LogOut, Send, Calendar, FileText, ChevronLeft, AlertCircle, History, Us
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { getTheme } from '../constants/Theme';
-import { API_ENDPOINTS, BASE_URL } from '../config';
+import { API_ENDPOINTS, BASE_URL, cleanId } from '../config';
 
 export default function ResignationScreen({ onBack }) {
   const { user } = useAuth();
@@ -197,7 +197,18 @@ export default function ResignationScreen({ onBack }) {
     select: { width: '100%', padding: '16px 20px', borderRadius: '15px', backgroundColor: '#f8fafc', border: '1.5px solid #f1f5f9', fontSize: '14px', color: '#0B1E3F', fontWeight: '600', outline: 'none', cursor: 'pointer', marginBottom: '25px', appearance: 'none' },
     submitBtn: { width: '100%', padding: '18px', borderRadius: '18px', backgroundColor: '#dc2626', color: 'white', border: 'none', fontSize: '15px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: '0 10px 25px rgba(220, 38, 38, 0.2)' },
     historyItem: { padding: isMobile ? '20px' : '25px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1px solid #f1f5f9', marginBottom: '15px' },
-    statusBadge: (s) => ({ padding: '6px 14px', borderRadius: '10px', fontSize: '10px', fontWeight: '900', textTransform: 'uppercase', backgroundColor: s === 'PENDING' ? '#fffbeb' : (s === 'REVOKED' ? '#f1f5f9' : '#f0fdf4'), color: s === 'PENDING' ? '#d97706' : (s === 'REVOKED' ? '#64748b' : '#16a34a') }),
+    statusBadge: (s) => {
+      const status = (s || '').toUpperCase();
+      return { 
+        padding: '6px 14px', 
+        borderRadius: '10px', 
+        fontSize: '10px', 
+        fontWeight: '900', 
+        textTransform: 'uppercase', 
+        backgroundColor: status === 'PENDING' ? '#fffbeb' : (status === 'REVOKED' || status === 'REJECTED' ? '#f1f5f9' : '#f0fdf4'), 
+        color: status === 'PENDING' ? '#d97706' : (status === 'REVOKED' || status === 'REJECTED' ? '#64748b' : '#16a34a') 
+      };
+    },
     revokeBtn: { padding: '10px 20px', borderRadius: '12px', backgroundColor: 'transparent', color: '#dc2626', border: '1.5px solid #dc2626', fontSize: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', width: isMobile ? '100%' : 'auto', justifyContent: 'center' },
     
     // Detail View Styles
@@ -236,12 +247,12 @@ export default function ResignationScreen({ onBack }) {
                     <input type="date" style={s.input} value={resignationDate} disabled />
                   </div>
                   <div style={{ position: 'relative' }}>
-                    <label style={s.label}>Proposed Last Working Day</label>
+                    <label style={s.label}>Proposed Last Working Day <span style={{ color: '#ef4444' }}>*</span></label>
                     <input type="date" style={s.input} value={lastWorkingDay} onChange={e => setLastWorkingDay(e.target.value)} />
                   </div>
                 </div>
 
-                <label style={s.label}>Primary Reason</label>
+                <label style={s.label}>Primary Reason <span style={{ color: '#ef4444' }}>*</span></label>
                 <select style={s.select} value={reason} onChange={e => setReason(e.target.value)}>
                   <option value="">Select a reason</option>
                   <option value="Better Career Opportunity">Better Career Opportunity</option>
@@ -250,7 +261,7 @@ export default function ResignationScreen({ onBack }) {
                   <option value="Other">Other</option>
                 </select>
 
-                <label style={s.label}>Formal Letter Content</label>
+                <label style={s.label}>Formal Letter Content <span style={{ color: '#ef4444' }}>*</span></label>
                 <textarea style={s.textarea} placeholder="Write your formal letter..." value={detailedReason} onChange={e => setDetailedReason(e.target.value)} />
 
                 <button style={{ ...s.submitBtn, opacity: loading ? 0.7 : 1 }} onClick={handleSubmit}>
@@ -273,11 +284,11 @@ export default function ResignationScreen({ onBack }) {
                     <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: '10px' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F', marginBottom: '4px' }}>{r.reason}</div>
-                        <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700' }}>Submitted: {r.resignationDate} • LWD: {r.lastWorkingDay}</div>
+                        <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700' }}>Submitted: {r.resignation_date || r.resignationDate} • LWD: {r.last_working_day || r.lastWorkingDay}</div>
                       </div>
                       <div style={s.statusBadge(r.status)}>{r.status}</div>
                     </div>
-                    {r.status === 'PENDING' && (
+                    {((r.status || '').toUpperCase() === 'PENDING' || (r.status || '').toUpperCase() === 'NEW') && (
                       <button style={s.revokeBtn} onClick={() => { setRevokeData({ id: r.id, reason: '' }); setShowRevokeModal(true); }}>
                         <RefreshCcw size={14} /> Revoke Notice
                       </button>
@@ -308,9 +319,10 @@ export default function ResignationScreen({ onBack }) {
                   >
                     <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: '12px' }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: isMobile ? '14px' : '15px', fontWeight: '900', color: '#0B1E3F', marginBottom: '4px' }}>{r.userName}</div>
+                        <div style={{ fontSize: isMobile ? '14px' : '15px', fontWeight: '900', color: '#0B1E3F', marginBottom: '2px' }}>{r.employee_name || r.userName || r.name}</div>
+                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '800', marginBottom: '6px' }}>ID: {r.employee_id || r.emp_id || r.id}</div>
                         <div style={{ fontSize: '12px', color: '#dc2626', fontWeight: '800', marginBottom: '8px' }}>Reason: {r.reason}</div>
-                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Submitted: {r.resignationDate} • LWD: <strong>{r.lastWorkingDay}</strong></div>
+                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Submitted: {r.resignation_date || r.resignationDate} • LWD: <strong>{r.last_working_day || r.lastWorkingDay}</strong></div>
                       </div>
                       <div style={s.statusBadge(r.status)}>{r.status}</div>
                     </div>
@@ -348,19 +360,20 @@ export default function ResignationScreen({ onBack }) {
                   <User size={isMobile ? 24 : 32} />
                 </div>
                 <div>
-                  <h2 style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: '900', color: '#0B1E3F', margin: 0 }}>{selectedResignation.userName}</h2>
-                  <div style={{ ...s.statusBadge(selectedResignation.status), display: 'inline-block', marginTop: '4px' }}>{selectedResignation.status}</div>
+                  <h2 style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: '900', color: '#0B1E3F', margin: 0 }}>{selectedResignation.employee_name || selectedResignation.userName || selectedResignation.name}</h2>
+                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#64748b', marginTop: '2px' }}>Employee ID: {cleanId(selectedResignation.employee_id || selectedResignation.emp_id || selectedResignation.id)}</div>
+                  <div style={{ ...s.statusBadge(selectedResignation.status), display: 'inline-block', marginTop: '8px' }}>{selectedResignation.status}</div>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '15px', marginBottom: '35px' }}>
                 <div style={{ padding: '20px', backgroundColor: '#f8fafc', borderRadius: '20px', border: '1px solid #f1f5f9' }}>
                   <div style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '5px' }}>Submitted On</div>
-                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#0B1E3F' }}>{selectedResignation.resignationDate}</div>
+                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#0B1E3F' }}>{selectedResignation.resignation_date || selectedResignation.resignationDate}</div>
                 </div>
                 <div style={{ padding: '20px', backgroundColor: '#f8fafc', borderRadius: '20px', border: '1px solid #f1f5f9' }}>
                   <div style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '5px' }}>Last Working Day</div>
-                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#dc2626' }}>{selectedResignation.lastWorkingDay}</div>
+                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#dc2626' }}>{selectedResignation.last_working_day || selectedResignation.lastWorkingDay}</div>
                 </div>
               </div>
 
@@ -374,7 +387,7 @@ export default function ResignationScreen({ onBack }) {
               <div style={{ marginBottom: '40px' }}>
                 <div style={s.label}>Formal Letter Content</div>
                 <div style={{ padding: '25px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1.5px solid #f1f5f9', fontSize: '14px', color: '#475569', lineHeight: '1.7', whiteSpace: 'pre-wrap', minHeight: '150px' }}>
-                  {selectedResignation.detailedReason}
+                  {selectedResignation.letter_content || selectedResignation.detailed_reason || selectedResignation.detailedReason}
                 </div>
               </div>
 
