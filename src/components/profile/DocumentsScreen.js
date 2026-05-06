@@ -39,9 +39,12 @@ const SECTIONS = [
       { key: 'father_husband_name', label: "Father/Husband's Name", type: 'text' },
       { key: 'category', label: 'Category', type: 'select', options: ['General', 'OBC', 'SC', 'ST', 'Other'] },
       { key: 'pan_number', label: 'PAN Number', type: 'text', placeholder: 'ABCDE1234F' },
+      { key: 'pancard_photo', label: 'PAN Card Proof', type: 'file' },
       { key: 'aadhar_number', label: 'Aadhar Number', type: 'text', placeholder: '1234 5678 9012' },
-      { key: 'pan_card_copy', label: 'PAN Card Proof', type: 'file' },
-      { key: 'aadhar_card_copy', label: 'Aadhar Card Proof', type: 'file' },
+      { key: 'adharcard_photo', label: 'Aadhar Card Proof', type: 'file' },
+      { key: 'voter_id', label: 'Voter ID Number', type: 'text' },
+      { key: 'voter_id_photo', label: 'Voter ID Proof', type: 'file' },
+      { key: 'passport_photo', label: 'Passport Photo', type: 'file' },
     ]
   },
   {
@@ -87,36 +90,23 @@ const SECTIONS = [
       { key: 'edu_completion_year', label: 'EDU Completion Year', type: 'text' },
       { key: 'college', label: 'College', type: 'text' },
       { key: 'university', label: 'University', type: 'text' },
-      { key: 'languages_known', label: 'Languages Known', type: 'text' },
+      {
+        key: 'languages_known',
+        label: 'Languages Known',
+        type: 'multiselect',
+        options: ['English', 'Hindi', 'Kannada', 'Telugu', 'Tamil', 'Malayalam', 'Marathi', 'Gujarati', 'Punjabi', 'Bengali', 'Odia', 'Urdu']
+      },
 
       { type: 'header', label: 'Academic Milestones & Proofs' },
-      { key: 'sslc_percentage', label: 'SSLC Percentage', type: 'text' },
-      { key: 'sslc_marks_card', label: 'SSLC Marks Card', type: 'file' },
+      { key: 'sslc_percentage', label: 'SSLC Percentage', type: 'text', placeholder: 'Enter SSLC Percentage' },
+      { key: 'puc_percentage', label: '12th or equivalent Percentage', type: 'text', placeholder: 'Enter 12th or equivalent Percentage' },
 
-      { key: 'puc_percentage', label: 'PUC / 12th Percentage', type: 'text' },
-      { key: 'puc_marks_card', label: 'PUC Marks Card / 12th', type: 'file' },
+      { key: 'sslc_markscard', label: 'SSLC Marks Card', type: 'file' },
+      { key: 'puc_markscard', label: '12th or equivalent Marks Card', type: 'file' },
 
-      { key: 'graduation_percentage', label: 'Graduation Percentage / CGPA', type: 'text' },
-      { key: 'graduation_certificate', label: 'Graduation Certificate', type: 'file' },
-
-      { type: 'header', label: 'Professional History & Proofs' },
-      { key: 'previous_organization', label: 'Previous Organization', type: 'text' },
-      { key: 'previous_experience', label: 'Previous Experience (Years)', type: 'text' },
-      { key: 'exp_letter_copy', label: 'Experience Letter', type: 'file' },
+      { key: 'ug_pg_percentage', label: 'Graduation Percentage / CGPA', type: 'text', placeholder: 'Enter Graduation Percentage / CGPA' },
+      { key: 'ug_pg_markscard', label: 'Graduation Certificate', type: 'file' },
       { key: 'source', label: 'Source (How you found us)', type: 'text' },
-    ]
-  },
-  {
-    id: 'exit',
-    label: 'Exit & Retention',
-    icon: <History size={20} />,
-    color: '#ef4444',
-    fields: [
-      { key: 'separation', label: 'Separation Date', type: 'text', placeholder: 'YYYY-MM-DD' },
-      { key: 'lwd', label: 'Last Working Day (LWD)', type: 'text' },
-      { key: 'attrition_bucket', label: 'Attrition Bucket', type: 'select', options: ['N/A', 'Resignation', 'Performance', 'Behavioral', 'Medical'] },
-      { key: 'reason', label: 'Primary Reason', type: 'text' },
-      { key: 'detailed_reason', label: 'Formal Letter / Detailed Reason', type: 'textarea' },
     ]
   },
   {
@@ -132,6 +122,7 @@ const SECTIONS = [
       { key: 'gross_salary_a', label: 'Gross Salary (A)', type: 'text' },
       { key: 'salary', label: 'Net Salary', type: 'text' },
       { key: 'pt', label: 'Professional Tax (PT)', type: 'text' },
+      { key: 'passbook_photo', label: 'Bank Passbook / Cancelled Cheque', type: 'file' },
     ]
   },
   {
@@ -170,6 +161,24 @@ const SECTIONS = [
       { key: 'has_headphone', label: 'Earphone/Headphone', type: 'boolean' },
       { key: 'has_tablet', label: 'Tablet', type: 'boolean' },
     ]
+  },
+  {
+    id: 'exit',
+    label: 'Experience',
+    icon: <History size={20} />,
+    color: '#ef4444',
+    fields: [
+      { key: 'previous_organization', label: 'Previous Organization', type: 'text' },
+      { key: 'previous_experience', label: 'Previous Experience (Years)', type: 'text' },
+      { key: 'total_experience', label: 'Total Experience (Years)', type: 'text' },
+      { key: 'experience_letter_photo', label: 'Experience Letter', type: 'file' },
+      { key: 'separation', label: 'Separation Date', type: 'text', placeholder: 'YYYY-MM-DD' },
+      { key: 'lwd', label: 'Last Working Day (LWD)', type: 'text' },
+      { key: 'attrition_bucket', label: 'Attrition Bucket', type: 'select', options: ['N/A', 'Resignation', 'Performance', 'Behavioral', 'Medical'] },
+      { key: 'reason', label: 'Primary Reason', type: 'text' },
+      { type: 'header', label: 'Salary Proof' },
+      { key: 'previous_company_payslip', label: 'Last 3 months payslip (Consolidated PDF)', type: 'file' },
+    ]
   }
 ];
 
@@ -187,8 +196,11 @@ export default function DocumentsScreen({ onBack }) {
     bgv_status: 'Pending', appointment_letter: 'Not Sent', approved_by_ceo: 'No', onboarding_doc_completed: 'No', id_card: 'Not Issued', onboarding_link: '',
     emp_id: '', doj: '', lwd: '', asset_name: '',
     has_mouse: 'No', has_keyboard: 'No', has_laptop_stand: 'No', has_ruf_pad: 'No', has_pendrive: 'No', has_mobile: 'No', has_camera: 'No', has_headphone: 'No', has_tablet: 'No',
-    pan_card_copy: '', aadhar_card_copy: '', exp_letter_copy: '', sslc_marks_card: '', graduation_certificate: '',
-    sslc_percentage: '', puc_percentage: '', graduation_percentage: '', puc_marks_card: ''
+    pancard_photo: '', adharcard_photo: '', experience_letter_photo: '', sslc_markscard: '', ug_pg_markscard: '',
+    sslc_percentage: '', puc_percentage: '', ug_pg_percentage: '', puc_markscard: '',
+    total_experience: '',
+    previous_company_payslip: '',
+    voter_id: '', voter_id_photo: '', passport_photo: '', passbook_photo: ''
   });
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -346,12 +358,7 @@ export default function DocumentsScreen({ onBack }) {
           const cleanData = {};
           Object.keys(docData).forEach(key => {
             let val = docData[key];
-            if (typeof val === 'string' && (val.includes(',') || val.includes(';'))) {
-              const parts = val.split(/[;,]/).map(p => p.trim()).filter(p => p.length > 0);
-              const unique = Array.from(new Set(parts.map(p => p.toLowerCase())));
-              if (unique.length > 0) val = parts.find(p => p.toLowerCase() === unique[0]);
-            }
-            if (typeof val === 'string' && val.includes('T') && val.length > 10) {
+            if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(val)) {
               val = val.substring(0, 10);
             }
             cleanData[key.toLowerCase().replace(/\s/g, '_')] = val === null ? '' : val;
@@ -381,6 +388,7 @@ export default function DocumentsScreen({ onBack }) {
           if (!cleanData.designation) cleanData.designation = user?.role || user?.designation || '';
           if (!cleanData.department) cleanData.department = user?.department || user?.dept || '';
 
+          // No manual mapping needed anymore as keys are aligned with backend columns
           console.log(`%c [Profile Feed] Loaded core attributes for: ${cleanData.emp_name || 'User'}`, 'color: #0ea5e9; font-weight: bold;');
           setForm(prev => ({ ...prev, ...cleanData }));
 
@@ -503,12 +511,12 @@ export default function DocumentsScreen({ onBack }) {
         // Support multiple backend field naming conventions (uppercase/lowercase)
         const branch = data.BRANCH || data.branch;
         const bank = data.BANK || data.bank;
-        
+
         if (branch) {
-          setForm(prev => ({ 
-            ...prev, 
+          setForm(prev => ({
+            ...prev,
             bank_branch: branch,
-            bank_name: bank || prev.bank_name 
+            bank_name: bank || prev.bank_name
           }));
         }
       }
@@ -571,9 +579,9 @@ export default function DocumentsScreen({ onBack }) {
     reader.readAsDataURL(file);
 
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('file', file);
     formData.append('userId', employeeId || user?.employee_id || user?.id);
-    formData.append('fieldKey', key);
+    formData.append('docType', key);
 
     try {
       const res = await fetch(`${BASE_URL}/api/profile/upload-document`, {
@@ -583,25 +591,7 @@ export default function DocumentsScreen({ onBack }) {
       });
 
       if (res.ok) {
-        const data = await res.json();
-        const serverPath = data.path || data.url;
-
-        if (serverPath) {
-          // 1. Update local state
-          setForm(prev => ({ ...prev, [key]: serverPath }));
-
-          // 2. Automatically persist to individual record to ensure it "stores"
-          const uid = employeeId || user?.employee_id || user?.id;
-          const token = localStorage.getItem('token');
-
-          await fetch(API_ENDPOINTS.UPDATE_EMPLOYEE_PROFILE, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ [key]: serverPath, employee_id: uid })
-          });
-
-          setToast({ type: 'success', msg: `${key.replace(/_/g, ' ').toUpperCase()} stored permanently!` });
-        }
+        setToast({ type: 'success', msg: `${key.replace(/_/g, ' ').toUpperCase()} uploaded successfully!` });
       } else {
         if (res.status === 404) {
           console.warn('Backend upload endpoint not found. Image kept in local state for preview.');
@@ -620,16 +610,22 @@ export default function DocumentsScreen({ onBack }) {
   };
 
   const handleSave = async () => {
-    // Perform final exhaustive validation
+    // Perform validation for the current section to allow incremental saves
     const newErrors = {};
-    Object.keys(form).forEach(key => {
-      const error = validateField(key, form[key]);
-      if (error) newErrors[key] = error;
-    });
+    const currentSectionConfig = SECTIONS.find(s => s.id === activeSection);
+
+    if (currentSectionConfig && currentSectionConfig.fields) {
+      currentSectionConfig.fields.forEach(field => {
+        if (field.key) {
+          const error = validateField(field.key, form[field.key]);
+          if (error) newErrors[field.key] = error;
+        }
+      });
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      setToast({ type: 'error', msg: 'Please fix the highlighted errors before saving.' });
+      setToast({ type: 'error', msg: 'Please fix the highlighted errors in this section before saving.' });
       setTimeout(() => setToast(null), 3000);
       return;
     }
@@ -643,11 +639,7 @@ export default function DocumentsScreen({ onBack }) {
       const sanitizedForm = {};
       Object.keys(form).forEach(key => {
         let val = form[key];
-        if (typeof val === 'string' && val.includes(',')) {
-          const parts = val.split(',').map(p => p.trim()).filter(p => p.length > 0);
-          const unique = Array.from(new Set(parts));
-          if (unique.length > 0) val = unique[0];
-        } else if (typeof val === 'string') {
+        if (typeof val === 'string') {
           val = val.trim();
         }
 
@@ -1001,7 +993,7 @@ export default function DocumentsScreen({ onBack }) {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '24px' : '40px' }}>
               {currentSection.fields.map((field, fIdx) => {
                 if (field.type === 'header') {
                   return (
@@ -1024,8 +1016,8 @@ export default function DocumentsScreen({ onBack }) {
                     gap: '12px',
                     opacity: isLockedForRole ? 0.7 : 1,
                     gridColumn: !isMobile && field.fullWidth ? '1 / -1' : 'auto',
-                    padding: '16px 0',
-                    borderBottom: '1.5px solid #f1f5f9'
+                    padding: '12px 0',
+                    alignSelf: 'start'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '120px' }}>
                       <label style={{ fontSize: isMobile ? '11px' : '12px', fontWeight: '900', color: '#000000', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
@@ -1101,6 +1093,41 @@ export default function DocumentsScreen({ onBack }) {
                           opacity: isDisabled ? 1 : 1
                         }}
                       />
+                    ) : field.type === 'multiselect' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {field.options.map(opt => {
+                            const currentVals = (form[field.key] || '').split(',').map(v => v.trim()).filter(v => v);
+                            const isSelected = currentVals.includes(opt);
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                disabled={isDisabled}
+                                onClick={() => {
+                                  let next;
+                                  if (isSelected) {
+                                    next = currentVals.filter(v => v !== opt).join(', ');
+                                  } else {
+                                    next = [...currentVals, opt].join(', ');
+                                  }
+                                  handleChange(field.key, next);
+                                }}
+                                style={{
+                                  padding: '8px 16px', borderRadius: '12px', fontSize: '13px', fontWeight: '800',
+                                  backgroundColor: isSelected ? '#315A9E' : '#f1f5f9',
+                                  color: isSelected ? 'white' : '#64748b',
+                                  border: isSelected ? '2px solid #315A9E' : '2px solid transparent',
+                                  cursor: isDisabled ? 'default' : 'pointer', transition: '0.2s',
+                                  boxShadow: isSelected ? '0 4px 12px rgba(49,90,158,0.2)' : 'none'
+                                }}
+                              >
+                                {opt}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     ) : field.type === 'file' ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div style={{
@@ -1117,7 +1144,14 @@ export default function DocumentsScreen({ onBack }) {
                         }}>
                           {form[field.key] ? (
                             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                              <img src={form[field.key].startsWith('http') || form[field.key].startsWith('data:') ? form[field.key] : `${BASE_URL}${form[field.key]}`} alt={field.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              {String(form[field.key]).toLowerCase().endsWith('.pdf') ? (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
+                                  <FileText size={48} color="#ef4444" />
+                                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#1e293b', marginTop: '8px' }}>PDF DOCUMENT</span>
+                                </div>
+                              ) : (
+                                <img src={form[field.key].startsWith('http') || form[field.key].startsWith('data:') ? form[field.key] : `${BASE_URL}${form[field.key]}`} alt={field.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              )}
                               <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, hover: { opacity: 1 }, transition: '0.2s' }}>
                                 <Eye size={24} color="white" />
                               </div>
@@ -1131,11 +1165,11 @@ export default function DocumentsScreen({ onBack }) {
                               }}>
                                 <Camera size={18} /> UPLOAD
                               </div>
-                              <p style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700', margin: 0 }}>Select from Gallery or Camera</p>
+                              <p style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700', margin: 0 }}>Image or PDF supported</p>
                             </div>
                           )}
                           <input
-                            type="file" id={`upload-${field.key}`} style={{ display: 'none' }} accept="image/*"
+                            type="file" id={`upload-${field.key}`} style={{ display: 'none' }} accept="image/*,application/pdf"
                             onChange={(e) => handleFileUpload(field.key, e.target.files[0])}
                           />
                         </div>
@@ -1148,14 +1182,19 @@ export default function DocumentsScreen({ onBack }) {
                               }}
                               style={{ fontSize: '11px', color: '#ef4444', fontWeight: '800', border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                             >
-                              <RefreshCw size={12} /> Update Photo
+                              <RefreshCw size={12} /> Update File
                             </button>
                           )}
                           {form[field.key] && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setViewImage(form[field.key].startsWith('http') || form[field.key].startsWith('data:') ? form[field.key] : `${BASE_URL}${form[field.key]}`)
+                                const url = form[field.key].startsWith('http') || form[field.key].startsWith('data:') ? form[field.key] : `${BASE_URL}${form[field.key]}`;
+                                if (url.toLowerCase().endsWith('.pdf')) {
+                                  window.open(url, '_blank');
+                                } else {
+                                  setViewImage(url);
+                                }
                               }}
                               style={{ fontSize: '11px', color: '#315A9E', fontWeight: '800', border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                             >
@@ -1164,11 +1203,25 @@ export default function DocumentsScreen({ onBack }) {
                           )}
                         </div>
                       </div>
+                    ) : field.type === 'textarea' ? (
+                      <textarea
+                        value={form[field.key]}
+                        readOnly={isDisabled}
+                        onChange={e => handleChange(field.key, e.target.value)}
+                        placeholder={isEditing ? (field.placeholder || `Enter ${field.label}`) : 'Not Provided'}
+                        style={{
+                          width: '100%', padding: '16px 20px', borderRadius: '16px', fontSize: isMobile ? '14px' : '16px',
+                          fontWeight: '800', color: '#000000', backgroundColor: isDisabled ? '#f1f5f9' : '#f8fafc',
+                          border: errors[field.key] ? '2px solid #ef4444' : (!isDisabled ? '2px solid #315A9E' : '2px solid #e2e8f0'),
+                          outline: 'none', boxSizing: 'border-box', minHeight: '120px',
+                          transition: 'all 0.2s', cursor: isDisabled ? 'default' : 'text', resize: 'vertical', fontFamily: 'inherit'
+                        }}
+                      />
                     ) : (
                       <div style={{ position: 'relative', width: '100%' }}>
                         <input
                           type="text"
-                          value={form[field.key] || ''}
+                          value={(form[field.key] && typeof form[field.key] === 'string' && form[field.key].includes('T') && form[field.key].length > 15) ? form[field.key].split('T')[0] : (form[field.key] || '')}
                           readOnly={isDisabled}
                           onChange={e => handleChange(field.key, e.target.value)}
                           placeholder={isEditing ? (field.placeholder || `Enter ${field.label}`) : 'Not Provided'}
@@ -1178,8 +1231,7 @@ export default function DocumentsScreen({ onBack }) {
                             fontWeight: '800', color: '#000000', backgroundColor: isDisabled ? '#f1f5f9' : '#f8fafc',
                             border: errors[field.key] ? '2px solid #ef4444' : (!isDisabled ? '2px solid #315A9E' : '2px solid #e2e8f0'),
                             outline: 'none', boxSizing: 'border-box',
-                            transition: 'all 0.2s', cursor: isDisabled ? 'default' : 'text',
-                            opacity: isDisabled ? 1 : 1
+                            transition: 'all 0.2s', cursor: isDisabled ? 'default' : 'text'
                           }}
                         />
                       </div>

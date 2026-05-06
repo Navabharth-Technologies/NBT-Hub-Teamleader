@@ -35,7 +35,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     }
 
     if (!dateStr || dateStr === 'N/A' || dateStr === 'Add Date of Birth' || dateStr === 'Add Joining Date') return null;
-    
+
     // 1. Handle numeric timestamps (represented as strings or numbers)
     if (!isNaN(dateStr) && !isNaN(parseFloat(dateStr))) {
       const timestamp = Number(dateStr);
@@ -47,7 +47,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     // 2. Standard JS Parsing
     let date = new Date(dateStr);
     if (!isNaN(date.getTime())) return date;
-    
+
     // 3. Robust Delimiter Parsing (DD/MM/YYYY, YYYY/MM/DD, etc.)
     if (typeof dateStr === 'string') {
       const delimiters = ['/', '-', '.'];
@@ -68,7 +68,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         }
       }
     }
-    
+
     console.warn('parseSafeDate FAILED to parse:', dateStr);
     return null;
   };
@@ -77,7 +77,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     const joinDate = parseSafeDate(date);
     if (!joinDate) return 'N/A';
     const now = new Date();
-    
+
     let years = now.getFullYear() - joinDate.getFullYear();
     let months = now.getMonth() - joinDate.getMonth();
     let days = now.getDate() - joinDate.getDate();
@@ -96,7 +96,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     if (years > 0) parts.push(`${years}Y`);
     if (months > 0) parts.push(`${months}M`);
     if (days >= 0 || parts.length === 0) parts.push(`${days}D`);
-    
+
     return parts.join(' ');
   };
 
@@ -105,7 +105,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     return path.startsWith('http') || path.startsWith('data:') ? path : `${BASE_URL}${path}`;
   };
 
-  const [profileImage, setProfileImage] = useState(() => 
+  const [profileImage, setProfileImage] = useState(() =>
     resolveImagePath(user?.profileImage || user?.profile_image || user?.profilePicture || user?.profile_picture || user?.avatar || user?.profile_pic)
   );
   const [designation, setDesignation] = useState(user?.designation || '');
@@ -149,54 +149,17 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     return () => window.removeEventListener('resize', handleResize);
   }, [user]);
 
-  const fetchUserDataFromUsersTable = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(API_ENDPOINTS.USERS, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const usersList = await res.json();
-        // Match by email to find the true record, even if context ID is corrupted
-        const currentUser = usersList.find(u => 
-          String(u.email || '').toLowerCase() === String(user?.email || '').toLowerCase()
-        );
-        if (currentUser) {
-          // 1. Sync Date of Joining
-          const jd = currentUser['joining date'] || currentUser.joining_date || currentUser.joiningDate || currentUser.doj;
-          if (jd) {
-            const cleanJd = Array.isArray(jd) ? jd[0] : jd;
-            setJoiningDate(cleanJd);
-          }
-          // 2. Sync Clean Employee ID
-          const eid = currentUser.employee_id || currentUser.id || currentUser.empId;
-          if (eid) {
-             setCleanEmployeeId(eid);
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Fetch Users Table Error:', err);
-    }
-  };
-
   const fetchReportingManager = async () => {
     try {
-      const identifier = user?.employee_id || user?.id || user?.userId || user?.email;
-      if (!identifier) return;
-
       const token = localStorage.getItem('token');
-      const email = user?.email;
       const empId = user?.employee_id || user?.id || user?.userId;
+      if (!empId && !user?.email) return;
 
-      if (!email && !empId) return;
-
-      // Fetch base profile using the "MY" endpoint for the most accurate/updated data
+      // 1. Fetch Primary Profile
       const resp = await fetch(API_ENDPOINTS.MY_EMPLOYEE_PROFILE, {
         headers: { 'Authorization': `Bearer ${token?.trim()}` }
       });
       
-      // Also fetch metadata if needed (though MY_EMPLOYEE_PROFILE should cover it)
       let metaResp = { ok: false };
       if (empId) {
         metaResp = await fetch(API_ENDPOINTS.EMPLOYEE_PROFILE(empId), {
@@ -204,81 +167,73 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         });
       }
 
+      // 2. Fetch Users List for correct ID mapping (requested source)
+      const uResp = await fetch(API_ENDPOINTS.USERS, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      let mName = '';
+      let mId = '';
+
       if (resp.ok) {
         const data = await resp.json();
-        console.log('Profile DB Response:', data); // DEBUG LOG
-        
         if (data.phone_number) setPhone(data.phone_number);
         if (data.date_of_birth) setDob(data.date_of_birth);
         if (data.about_me) setAboutMe(data.about_me);
         if (data.designation) setDesignation(data.designation);
-        
-        const jd = data.joining_date || data.joiningDate || data['joining date'] || data.doj || data.date_of_joining;
-        if (jd) {
-          const cleanJd = Array.isArray(jd) ? jd[0] : jd;
-          console.log('Found Joining Date in Profile:', cleanJd);
-          setJoiningDate(cleanJd);
-        }
-        
+        const jd = data.joining_date || data.joiningDate || data.doj;
+        if (jd) setJoiningDate(Array.isArray(jd) ? jd[0] : jd);
         if (data.team) setTeamName(data.team);
-        const img = data.profileImage || data.profile_image || data.profilePicture || data.profile_picture || data.avatar;
+        const img = data.profileImage || data.profile_image || data.avatar;
         if (img) setProfileImage(resolveImagePath(img));
-
-        const managerName = data.reportingManagerName || data.reporting_manager || data.reporting_manager_name || data.manager_name || data.manager || 'Unassigned';
-        const managerId = data.reporting_manager_id || data.reportingManagerId || data.manager_id || '';
-        setReportingManager({ name: managerName, id: managerId });
+        mId = data.reporting_manager_id || data.manager_id || '';
+        mName = data.reporting_manager_name || data.manager_name || '';
       }
 
-      // Merge with meta data from employee_profiles if available
       if (metaResp.ok) {
         const metaList = await metaResp.json();
-        console.log('Employee Profile Meta Response:', metaList); // DEBUG LOG
-        
         const rawMeta = Array.isArray(metaList) ? metaList[0] : metaList;
         if (rawMeta) {
-          const metaData = {};
-          Object.keys(rawMeta).forEach(k => {
-            if (rawMeta[k] !== null) metaData[k.toLowerCase()] = rawMeta[k];
-          });
-
-          if (metaData.dob) setDob(metaData.dob);
-          if (metaData.contact_no) setPhone(metaData.contact_no);
-          if (metaData.designation) setDesignation(metaData.designation);
-          
-          const mjd = metaData.joining_date || metaData.doj || metaData.joiningdate;
-          if (mjd) {
-            const cleanMjd = Array.isArray(mjd) ? mjd[0] : mjd;
-            console.log('Found Joining Date in Meta:', cleanMjd);
-            setJoiningDate(cleanMjd);
-          }
-          
-          if (metaData.process) setTeamName(metaData.process);
-          if (metaData.phone_number) setPhone(metaData.phone_number);
-          if (metaData.date_of_birth) setDob(metaData.date_of_birth);
+          if (rawMeta.dob) setDob(rawMeta.dob);
+          if (rawMeta.contact_no) setPhone(rawMeta.contact_no);
+          if (rawMeta.designation) setDesignation(rawMeta.designation);
+          if (rawMeta.process) setTeamName(rawMeta.process);
+          if (rawMeta.reporting_manager_id && !mId) mId = rawMeta.reporting_manager_id;
         }
       }
 
-      if (!resp.ok && !metaResp.ok) {
-        // Fallback: specifically fetch manager if profile fetch was not 'ok' or incomplete
-        if (user?.email) {
-          const mResp = await fetch(API_ENDPOINTS.MANAGER(user.email), {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (mResp.ok) {
-            const mData = await mResp.json();
-            setReportingManager({
-              name: mData.name || mData.reporting_manager || mData.manager || 'Unassigned',
-              id: mData.id || mData.manager_id || ''
-            });
+      if (uResp.ok) {
+        const usersList = await uResp.json();
+        const currentUser = usersList.find(u => 
+          String(u.email || '').toLowerCase() === String(user?.email || '').toLowerCase()
+        );
+        if (currentUser) {
+          const jd = currentUser['joining date'] || currentUser.joining_date || currentUser.doj;
+          if (jd) setJoiningDate(Array.isArray(jd) ? jd[0] : jd);
+          const eid = currentUser.employee_id || currentUser.id;
+          if (eid) setCleanEmployeeId(eid);
+          
+          // Reporting Manager Lookup in users list
+          const targetRmId = currentUser.reporting_manager_id || currentUser.manager_id || mId;
+          if (targetRmId) {
+            mId = targetRmId;
+            const mgr = usersList.find(u => String(u.id || u.employee_id) === String(targetRmId));
+            if (mgr) mName = mgr.name || mgr.emp_name;
           }
         }
       }
+
+      setReportingManager({ name: mName || 'Unassigned', id: mId });
+
     } catch (err) {
       console.error('Fetch Profile Error:', err);
+      setReportingManager({ name: 'Unassigned', id: '' });
     }
   };
 
-
+  const fetchUserDataFromUsersTable = () => {
+     // Logic merged into fetchReportingManager to prevent race conditions
+  };
 
   const fetchTeamReports = async () => {
     try {
@@ -323,10 +278,10 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         const data = await res.json();
         triggerToast('Profile image updated successfully!');
         if (data.profileImage) {
-           const finalImg = data.profileImage.startsWith('http') ? data.profileImage : `${BASE_URL}${data.profileImage}`;
-           setProfileImage(finalImg);
-           // Update Context for building-wide sync
-           updateProfile('profileImage', data.profileImage);
+          const finalImg = data.profileImage.startsWith('http') ? data.profileImage : `${BASE_URL}${data.profileImage}`;
+          setProfileImage(finalImg);
+          // Update Context for building-wide sync
+          updateProfile('profileImage', data.profileImage);
         }
       } else {
         triggerToast('Failed to upload image.', 'error');
@@ -372,7 +327,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
   const handleResetWithOTP = async () => {
     if (!passData.otp || !passData.new || !passData.confirm) return triggerToast('All fields required', 'error');
     if (passData.new !== passData.confirm) return triggerToast('Passwords do not match', 'error');
-    
+
     try {
       const res = await fetch(API_ENDPOINTS.RESET_PASSWORD_OTP, {
         method: 'POST',
@@ -396,15 +351,15 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
     if (!passData.old || !passData.new || !passData.confirm) return triggerToast('All fields required', 'error');
     if (passData.new !== passData.confirm) return triggerToast('Passwords do not match', 'error');
-    
+
     try {
       const res = await fetch(API_ENDPOINTS.CHANGE_PASSWORD, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ 
-          email: user.email, 
-          oldPassword: passData.old, 
-          newPassword: passData.new 
+        body: JSON.stringify({
+          email: user.email,
+          oldPassword: passData.old,
+          newPassword: passData.new
         })
       });
       if (res.ok) {
@@ -597,9 +552,9 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
         <AnimatePresence>
           {showFullScreen && profileImage && (
-            <FullScreenImageModal 
-                src={profileImage} 
-                onClose={() => setShowFullScreen(false)} 
+            <FullScreenImageModal
+              src={profileImage}
+              onClose={() => setShowFullScreen(false)}
             />
           )}
         </AnimatePresence>
@@ -607,7 +562,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         <div style={styles.masterCard}>
           <div style={styles.headerRow}>
             <div style={styles.avatarContainer}>
-              <div 
+              <div
                 style={{ ...styles.avatar, cursor: 'pointer' }}
                 onClick={() => profileImage && setShowFullScreen(true)}
               >
@@ -646,7 +601,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                   ID: {cleanEmployeeId}
                 </div>
               </div>
-              
+
               {/* ROW 2: Info bar */}
               <div style={{ display: 'flex', flexDirection: (isMobile || isTablet) ? 'column' : 'row', alignItems: (isMobile || isTablet) ? (isMobile ? 'center' : 'flex-start') : 'center', gap: (isMobile || isTablet) ? '12px' : '30px', padding: '15px 0 0', width: '100%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#3863a8', fontSize: '13px', fontWeight: '800', textTransform: 'uppercase' }}>
@@ -657,7 +612,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                 {winWidth >= 1024 && <div style={{ width: '1.5px', height: '14px', backgroundColor: '#e2e8f0' }} />}
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px', fontWeight: '700' }}>
-                  <Phone size={14} /> 
+                  <Phone size={14} />
                   <span onClick={() => setIsEditingPhone(true)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {phone} <Edit3 size={11} opacity={0.6} />
                   </span>
@@ -666,7 +621,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                 {winWidth >= 1024 && <div style={{ width: '1.5px', height: '14px', backgroundColor: '#e2e8f0' }} />}
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px', fontWeight: '700' }}>
-                  <Calendar size={14} /> 
+                  <Calendar size={14} />
                   <span onClick={() => setIsEditingDob(true)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {dob} <Edit3 size={11} opacity={0.6} />
                   </span>
@@ -680,7 +635,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', lineHeight: 1 }}>RM NAME</div>
-                    <div style={{ fontSize: '13px', color: '#1e293b', fontWeight: '800' }}>{reportingManager.name}</div>
+                    <div style={{ fontSize: '13px', color: '#1e293b', fontWeight: '800' }}>{reportingManager.name} {reportingManager.id && `(${reportingManager.id})`}</div>
                   </div>
                 </div>
               </div>
@@ -722,9 +677,9 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
 
         <div style={styles.infoGrid}>
-          <motion.div 
+          <motion.div
             whileHover={{ y: -5 }}
-            style={{ ...styles.infoCard, cursor: 'pointer', borderColor: '#bfdbfe', backgroundColor: '#eff6ff' }} 
+            style={{ ...styles.infoCard, cursor: 'pointer', borderColor: '#bfdbfe', backgroundColor: '#eff6ff' }}
             onClick={() => setShowPasswordModal(true)}
           >
             <div style={{ ...styles.iconCircle, backgroundColor: '#dbeafe' }}><Shield size={18} color="#1e40af" /></div>
@@ -735,9 +690,9 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
             <ChevronRight size={16} color="#1e40af" />
           </motion.div>
 
-          <motion.div 
+          <motion.div
             whileHover={{ y: -5 }}
-            style={{ ...styles.infoCard, cursor: 'pointer', borderColor: '#fed7aa', backgroundColor: '#fff7ed' }} 
+            style={{ ...styles.infoCard, cursor: 'pointer', borderColor: '#fed7aa', backgroundColor: '#fff7ed' }}
             onClick={() => setShowTicketModal(true)}
           >
             <div style={{ ...styles.iconCircle, backgroundColor: '#ffedd5' }}><AlertCircle size={18} color="#f97316" /></div>
@@ -749,9 +704,9 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           </motion.div>
 
           {/* TENURITY CARD */}
-          <motion.div 
+          <motion.div
             whileHover={{ y: -5 }}
-            style={{ ...styles.infoCard, borderColor: '#bbf7d0', backgroundColor: '#f0fdf4' }} 
+            style={{ ...styles.infoCard, borderColor: '#bbf7d0', backgroundColor: '#f0fdf4' }}
           >
             <div style={{ ...styles.iconCircle, backgroundColor: '#dcfce7' }}><Clock size={18} color="#15803d" /></div>
             <div style={{ flex: 1 }}>
@@ -765,31 +720,31 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         {showPasswordModal && (
           <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(11, 30, 63, 0.7)', backdropFilter: 'blur(15px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
             <motion.div initial={{ scale: 0.9, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }} style={{ backgroundColor: 'white', borderRadius: '40px', padding: 0, maxWidth: '500px', width: '100%', boxShadow: '0 40px 100px rgba(0,0,0,0.4)', overflow: 'hidden' }}>
-              
+
               {/* INDUSTRIAL HEADER */}
               <div style={{ backgroundColor: '#0B1E3F', padding: '30px 40px', position: 'relative' }}>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <h2 style={{ fontSize: '24px', fontWeight: '900', color: 'white', margin: 0, letterSpacing: '-0.5px' }}>
-                        Security Vault
-                      </h2>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                         <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 10px #10b981' }} />
-                         <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Backend Synced: Active</span>
-                      </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <h2 style={{ fontSize: '24px', fontWeight: '900', color: 'white', margin: 0, letterSpacing: '-0.5px' }}>
+                      Security Vault
+                    </h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 10px #10b981' }} />
+                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' }}>Backend Synced: Active</span>
                     </div>
-                    <X size={24} color="rgba(255,255,255,0.4)" onClick={() => { setShowPasswordModal(false); setOtpRequested(false); setOtpVerified(false); setPasswordMode('change'); }} style={{ cursor: 'pointer' }} />
-                 </div>
+                  </div>
+                  <X size={24} color="rgba(255,255,255,0.4)" onClick={() => { setShowPasswordModal(false); setOtpRequested(false); setOtpVerified(false); setPasswordMode('change'); }} style={{ cursor: 'pointer' }} />
+                </div>
               </div>
 
               <div style={{ padding: '40px' }}>
                 <div style={{ display: 'flex', gap: '10px', marginBottom: '30px', backgroundColor: '#f1f5f9', padding: '6px', borderRadius: '18px' }}>
-                  <button 
+                  <button
                     onClick={() => { setPasswordMode('change'); setOtpRequested(false); setOtpVerified(false); }}
                     style={{ flex: 1, padding: '12px', borderRadius: '14px', border: 'none', fontSize: '12px', fontWeight: '1000', cursor: 'pointer', backgroundColor: passwordMode === 'change' ? 'white' : 'transparent', color: passwordMode === 'change' ? '#3863a8' : '#64748b', boxShadow: passwordMode === 'change' ? '0 4px 12px rgba(0,0,0,0.08)' : 'none', transition: '0.2s' }}>
                     WITH OLD PASSWORD
                   </button>
-                  <button 
+                  <button
                     onClick={() => setPasswordMode('reset')}
                     style={{ flex: 1, padding: '12px', borderRadius: '14px', border: 'none', fontSize: '12px', fontWeight: '1000', cursor: 'pointer', backgroundColor: passwordMode === 'reset' ? 'white' : 'transparent', color: passwordMode === 'reset' ? '#3863a8' : '#64748b', boxShadow: passwordMode === 'reset' ? '0 4px 12px rgba(0,0,0,0.08)' : 'none', transition: '0.2s' }}>
                     WITHOUT OLD PASSWORD (OTP)
@@ -800,17 +755,17 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                   {passwordMode === 'change' ? (
                     <>
                       {[{ label: 'Old Password', key: 'old' }, { label: 'New Password', key: 'new' }, { label: 'Confirm Password', key: 'confirm' }].map(f => (
-                         <div key={f.key}>
-                           <label style={{ fontSize: '11px', fontWeight: '1000', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block', paddingLeft: '4px' }}>{f.label} <span style={{ color: '#ef4444' }}>*</span></label>
-                           <input 
-                             type="password" 
-                             style={{ width: '100%', padding: '16px 20px', borderRadius: '18px', border: '2px solid #f1f5f9', fontSize: '15px', fontWeight: '700', outline: 'none', backgroundColor: '#f8fafc', transition: '0.2s' }}
-                             onFocus={(e) => { e.target.style.borderColor = '#3863a8'; e.target.style.backgroundColor = 'white'; }}
-                             onBlur={(e) => { e.target.style.borderColor = '#f1f5f9'; e.target.style.backgroundColor = '#f8fafc'; }}
-                             value={passData[f.key]}
-                             onChange={e => setPassData({ ...passData, [f.key]: e.target.value })}
-                           />
-                         </div>
+                        <div key={f.key}>
+                          <label style={{ fontSize: '11px', fontWeight: '1000', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block', paddingLeft: '4px' }}>{f.label} <span style={{ color: '#ef4444' }}>*</span></label>
+                          <input
+                            type="password"
+                            style={{ width: '100%', padding: '16px 20px', borderRadius: '18px', border: '2px solid #f1f5f9', fontSize: '15px', fontWeight: '700', outline: 'none', backgroundColor: '#f8fafc', transition: '0.2s' }}
+                            onFocus={(e) => { e.target.style.borderColor = '#3863a8'; e.target.style.backgroundColor = 'white'; }}
+                            onBlur={(e) => { e.target.style.borderColor = '#f1f5f9'; e.target.style.backgroundColor = '#f8fafc'; }}
+                            value={passData[f.key]}
+                            onChange={e => setPassData({ ...passData, [f.key]: e.target.value })}
+                          />
+                        </div>
                       ))}
                     </>
                   ) : (
@@ -832,8 +787,8 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                         <>
                           <div style={{ textAlign: 'center' }}>
                             <label style={{ fontSize: '11px', fontWeight: '1000', color: '#64748b', textTransform: 'uppercase', marginBottom: '12px', display: 'block' }}>AUTHORIZATION CODE <span style={{ color: '#ef4444' }}>*</span></label>
-                            <input 
-                              type="text" 
+                            <input
+                              type="text"
                               maxLength={6}
                               placeholder="0 0 0 0 0 0"
                               style={{ width: '100%', padding: '20px', borderRadius: '24px', border: '3.5px solid #3863a8', fontSize: '28px', fontWeight: '1000', outline: 'none', textAlign: 'center', letterSpacing: '8px', color: '#0B1E3F', backgroundColor: '#f0f9ff', marginBottom: '20px' }}
@@ -845,7 +800,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                               VERIFY AUTHORIZATION
                             </button>
                             <button onClick={() => setOtpRequested(false)} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '12px', fontWeight: '800', cursor: 'pointer', marginTop: '20px' }}>
-                               Resend Code?
+                              Resend Code?
                             </button>
                           </div>
                         </>
@@ -857,8 +812,8 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                           {[{ label: 'Vault Signature (New Password)', key: 'new' }, { label: 'Confirm Signature', key: 'confirm' }].map(f => (
                             <div key={f.key} style={{ marginBottom: '15px' }}>
                               <label style={{ fontSize: '11px', fontWeight: '1000', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block', paddingLeft: '4px' }}>{f.label} <span style={{ color: '#ef4444' }}>*</span></label>
-                              <input 
-                                type="password" 
+                              <input
+                                type="password"
                                 style={{ width: '100%', padding: '16px 20px', borderRadius: '18px', border: '2px solid #f1f5f9', fontSize: '15px', fontWeight: '700', outline: 'none', backgroundColor: '#f8fafc' }}
                                 value={passData[f.key]}
                                 onChange={e => setPassData({ ...passData, [f.key]: e.target.value })}
@@ -869,17 +824,17 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                       )}
                     </>
                   )}
-                  
+
                   {(passwordMode === 'change' || otpVerified) && (
                     <button onClick={handlePasswordSubmit} style={{ marginTop: '10px', padding: '20px', borderRadius: '20px', backgroundColor: '#0B1E3F', color: 'white', fontWeight: '900', border: 'none', cursor: 'pointer', fontSize: '15px', boxShadow: '0 15px 30px rgba(11, 30, 63, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
                       <Fingerprint size={20} />
                       {passwordMode === 'change' ? 'COMMIT SECURITY UPDATE' : 'RE-ESTABLISH VAULT ACCESS'}
                     </button>
                   )}
-                  
+
                   {passwordMode === 'reset' && otpRequested && (
                     <div style={{ textAlign: 'center' }}>
-                       <button onClick={() => setOtpRequested(false)} style={{ background: 'none', border: 'none', color: '#3863a8', fontSize: '12px', fontWeight: '900', cursor: 'pointer', textDecoration: 'underline' }}>
+                      <button onClick={() => setOtpRequested(false)} style={{ background: 'none', border: 'none', color: '#3863a8', fontSize: '12px', fontWeight: '900', cursor: 'pointer', textDecoration: 'underline' }}>
                         RESEND NEW AUTHORIZATION CODE
                       </button>
                     </div>
@@ -889,11 +844,11 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
               {/* TECHNICAL FOOTER */}
               <div style={{ backgroundColor: '#f8fafc', padding: '20px 40px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-                    <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>AES-256 ENCRYPTION</span>
-                 </div>
-                 <span style={{ fontSize: '10px', color: '#cbd5e1', fontWeight: '800' }}>NBT SECURITY v4.0</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                  <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>AES-256 ENCRYPTION</span>
+                </div>
+                <span style={{ fontSize: '10px', color: '#cbd5e1', fontWeight: '800' }}>NBT SECURITY v4.0</span>
               </div>
             </motion.div>
           </div>
@@ -1089,21 +1044,21 @@ const FullScreenImageModal = ({ src, onClose }) => {
 
 const DocCard = ({ doc, onNavigate }) => {
   const [isHovered, setIsHovered] = useState(false);
-  
+
   const isActive = isHovered || doc.highlight;
-  
+
   return (
-    <div 
+    <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      style={{ 
-        padding: '24px', 
-        backgroundColor: isActive ? '#10274A' : 'white', 
-        borderRadius: '24px', 
+      style={{
+        padding: '24px',
+        backgroundColor: isActive ? '#10274A' : 'white',
+        borderRadius: '24px',
         border: `1.5px solid ${isActive ? '#10274A' : (doc.darkBorder ? '#10274A' : '#f1f5f9')}`,
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '20px', 
+        display: 'flex',
+        alignItems: 'center',
+        gap: '20px',
         cursor: 'pointer',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         boxShadow: isActive ? '0 15px 35px rgba(16, 39, 74, 0.2)' : '0 4px 10px rgba(0,0,0,0.02)',
@@ -1119,11 +1074,11 @@ const DocCard = ({ doc, onNavigate }) => {
         }
       }}
     >
-      <div style={{ 
-        backgroundColor: isActive ? 'rgba(255,255,255,0.1)' : '#f8fafc', 
-        padding: '12px', 
-        borderRadius: '15px', 
-        color: isActive ? 'white' : doc.color, 
+      <div style={{
+        backgroundColor: isActive ? 'rgba(255,255,255,0.1)' : '#f8fafc',
+        padding: '12px',
+        borderRadius: '15px',
+        color: isActive ? 'white' : doc.color,
         boxShadow: isActive ? 'none' : '0 2px 8px rgba(0,0,0,0.05)',
         transition: 'all 0.3s'
       }}>
