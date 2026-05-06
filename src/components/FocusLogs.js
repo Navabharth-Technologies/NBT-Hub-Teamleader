@@ -83,34 +83,28 @@ export default function FocusLogs({ onBack }) {
     setEndDate(lastDay);
   };
 
-  const formatDateTime = (timestamp) => {
-    if (!timestamp) return { day: '', month: '', time: '--:--', fullDate: '--/--/----' };
+  const formatDateTime = (timestamp, updatedAt) => {
+    const timeSource = updatedAt || timestamp;
+    if (!timeSource) return { day: '', month: '', time: '--:--', fullDate: '--/--/----' };
     try {
-      // Manual parsing to honor backend time exactly as is (no timezone shifts)
-      // Standard formats: "2026-04-22T17:11:11Z" or "2026-04-22 17:11:11"
-      const raw = String(timestamp).replace('T', ' ').replace('Z', '').split('.')[0];
-      const [datePart, timePart] = raw.split(' ');
+      const date = new Date(timeSource);
+      const day = String(date.getDate()).padStart(2, '0');
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthShort = monthNames[date.getMonth()];
+      const year = date.getFullYear();
       
-      let d = '', m = '', y = '', fullDate = '';
-      if (datePart && datePart.includes('-')) {
-        [y, m, d] = datePart.split('-');
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const monthIndex = parseInt(m, 10) - 1;
-        const monthShort = monthNames[monthIndex] || '---';
-        fullDate = `${d}/${m}/${y}`;
-        m = monthShort;
-      }
+      const time = date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      }).toLowerCase();
 
-      let formattedTime = '--:--';
-      if (timePart) {
-        const [hh, mm] = timePart.split(':');
-        const hour = parseInt(hh, 10);
-        const ampm = hour >= 12 ? 'pm' : 'am';
-        const hour12 = hour % 12 || 12;
-        formattedTime = `${String(hour12).padStart(2, '0')}:${mm} ${ampm}`;
-      }
-
-      return { day: d, month: m, time: formattedTime, fullDate };
+      return {
+        day,
+        month: monthShort,
+        time,
+        fullDate: `${day}/${String(date.getMonth() + 1).padStart(2, '0')}/${year}`
+      };
     } catch (e) {
       return { day: '', month: '', time: '--:--', fullDate: '--/--/----' };
     }
@@ -121,7 +115,7 @@ export default function FocusLogs({ onBack }) {
     let csvContent = "data:text/csv;charset=utf-8,";
     csvContent += "Date,Time,Status,Tasks\n";
     filteredLogs.forEach(log => {
-      const { fullDate, time } = formatDateTime(log.timestamp);
+      const { fullDate, time } = formatDateTime(log.timestamp, log.updated_at);
       const status = log.overallStatus || "PENDING";
       const tasksStr = (log.tasks || []).map(t => t.text.replace(/"/g, '""')).join('; ');
 
@@ -148,7 +142,7 @@ export default function FocusLogs({ onBack }) {
     const tableRows = [];
 
     filteredLogs.forEach(log => {
-      const { fullDate, time } = formatDateTime(log.timestamp);
+      const { fullDate, time } = formatDateTime(log.timestamp, log.updated_at);
       const logData = [
         fullDate,
         time,
@@ -332,7 +326,7 @@ export default function FocusLogs({ onBack }) {
               <div style={s.emptyState}>Fetching your logs...</div>
             ) : filteredLogs.length > 0 ? (
               filteredLogs.map((log, idx) => {
-                const { day, month, time } = formatDateTime(log.timestamp);
+                const { day, month, time } = formatDateTime(log.timestamp, log.updated_at);
                 return (
                   <div key={log.id || `log-${idx}`} style={s.entry}>
                     <div style={s.dateBox}>

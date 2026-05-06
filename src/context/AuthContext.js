@@ -16,8 +16,8 @@ export const AuthProvider = ({ children }) => {
       const parsed = JSON.parse(savedUser);
       setUser(parsed);
       // Fetch latest profile to ensure name/designation are up to date
-      fetch(`${API_ENDPOINTS.PROFILE(parsed.email)}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      fetch(`${API_ENDPOINTS.MY_EMPLOYEE_PROFILE}`, {
+        headers: { 'Authorization': `Bearer ${token?.trim()}` }
       })
       .then(async (res) => {
         if (res.status === 401) {

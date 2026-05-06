@@ -494,6 +494,29 @@ export default function DocumentsScreen({ onBack }) {
     return error;
   };
 
+  const verifyIFSC = async (code) => {
+    if (!code || code.length !== 11) return;
+    try {
+      const res = await fetch(API_ENDPOINTS.BANK_IFSC(code));
+      if (res.ok) {
+        const data = await res.json();
+        // Support multiple backend field naming conventions (uppercase/lowercase)
+        const branch = data.BRANCH || data.branch;
+        const bank = data.BANK || data.bank;
+        
+        if (branch) {
+          setForm(prev => ({ 
+            ...prev, 
+            bank_branch: branch,
+            bank_name: bank || prev.bank_name 
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn("IFSC Verification failed:", e);
+    }
+  };
+
   const handleChange = (key, value) => {
     // Immediate cleaning for specific fields
     let cleanValue = value;
@@ -523,6 +546,11 @@ export default function DocumentsScreen({ onBack }) {
         }
         if (age >= 0) updates.age = String(age);
       }
+    }
+
+    if (key === 'ifsc_code' && cleanValue.length === 11) {
+      setForm(prev => ({ ...prev, bank_branch: 'Fetching...' }));
+      verifyIFSC(cleanValue);
     }
 
     setForm(prev => ({ ...prev, ...updates }));

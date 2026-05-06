@@ -822,9 +822,9 @@ const Dashboard = ({ setActiveTab }) => {
               {(() => {
                 const todayStr = new Date().toLocaleDateString('en-CA');
                 const todaysReports = teamReports.filter(r => {
-                  if (!r || !r.timestamp) return false;
-                  const raw = String(r.timestamp).replace('T', ' ').replace('Z', '').split('.')[0];
-                  return raw.split(' ')[0] === todayStr;
+                  const timeSource = r.updated_at || r.timestamp;
+                  if (!r || !timeSource) return false;
+                  return new Date(timeSource).toLocaleDateString('en-CA') === todayStr;
                 });
                 return todaysReports.length > 0 ? (
                   todaysReports.map((r, i) => {
@@ -850,15 +850,12 @@ const Dashboard = ({ setActiveTab }) => {
                               <div style={{ fontSize: '14px', fontWeight: '900', color: '#0B1E3F' }}>{r.userName || r.employee_name || 'Resource'}</div>
                               <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>
                                 {(() => {
-                                  if (!r.timestamp) return '';
-                                  const raw = String(r.timestamp).replace('T', ' ').replace('Z', '').split('.')[0];
-                                  const [, timePart] = raw.split(' ');
-                                  if (!timePart) return raw;
-                                  const [hh, mm] = timePart.split(':');
-                                  const hour = parseInt(hh, 10);
-                                  const ampm = hour >= 12 ? 'PM' : 'AM';
-                                  const hour12 = hour % 12 || 12;
-                                  return `${String(hour12).padStart(2, '0')}:${mm} ${ampm}`;
+                                  const timeSource = r.updated_at || r.timestamp;
+                                  return timeSource ? new Date(timeSource).toLocaleTimeString('en-US', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: true
+                                  }) : '';
                                 })()}
                               </div>
                             </div>

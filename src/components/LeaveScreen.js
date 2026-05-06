@@ -44,7 +44,7 @@ const LeaveScreen = ({ onBack }) => {
 
   const currentD = new Date();
   const defMonth = `${currentD.getFullYear()}-${(currentD.getMonth() + 1).toString().padStart(2, '0')}`;
-  const [filterMonth, setFilterMonth] = useState('');
+  const [filterMonth, setFilterMonth] = useState('all');
 
   const [formData, setFormData] = useState({
     type: 'Casual Leave',
@@ -183,109 +183,59 @@ const LeaveScreen = ({ onBack }) => {
     const token = localStorage.getItem('token');
     const uid = cleanId(user?.employee_id || user?.empId || user?.id || user?.userId);
 
+    if (!uid) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Fetch from /api/leaves/my which returns BOTH own leaves AND team leaves for the TL
-      const mainRes = await fetch(`${BASE_URL}/api/leaves/my`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      let allLeaves = [];
-      if (mainRes.ok) {
-        const data = await mainRes.json();
-        allLeaves = Array.isArray(data) ? data : (data.data || data.leaves || data.all || []);
-      } else {
-        console.error('[Leave] Fetch my leaves failed:', mainRes.status);
-      }
-
-      if (isLeader) {
-        // Fetch explicitly from pending leaves endpoint to guarantee missing pending records are included
-        const pendRes = await fetch(`${BASE_URL}/api/leaves/pending`, {
+      // 1. Fetch My Leaves (Using dedicated endpoint with userId)
+      try {
+        const myRes = await fetch(API_ENDPOINTS.MY_LEAVES_GET, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-
-        if (pendRes.ok) {
-          const pendData = await pendRes.json();
-          const pendArr = Array.isArray(pendData) ? pendData : (pendData.data || pendData.leaves || []);
-          const existingIds = new Set(allLeaves.map(l => l.id));
-          pendArr.forEach(p => {
-            if (!existingIds.has(p.id)) allLeaves.push(p);
-          });
+        if (myRes.ok) {
+          const data = await myRes.json();
+          const leavesArray = Array.isArray(data) ? data : (data.data || data.leaves || data.history || []);
+          setMyLeaves(leavesArray);
         }
+      } catch (myErr) {
+        console.error("Error fetching personal leaves:", myErr);
+      }
 
-        // Fetch explicitly from team leaves endpoint to get previously approved history
+      // 2. Fetch Team Leaves (if Leader)
+      if (isLeader) {
         try {
-          const teamRes = await fetch(`${BASE_URL}/api/leaves/team`, {
+          // We fetch from the specific team leave endpoint
+          const allRes = await fetch(API_ENDPOINTS.TEAM_LEAVES, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
-          if (teamRes.ok) {
-            const teamData = await teamRes.json();
-            const teamArr = Array.isArray(teamData) ? teamData : (teamData.data || teamData.leaves || []);
-            const existingIds = new Set(allLeaves.map(l => l.id));
-            teamArr.forEach(p => {
-              if (!existingIds.has(p.id)) allLeaves.push(p);
+          if (allRes.ok) {
+            const rawData = await allRes.json();
+            const allLeaves = Array.isArray(rawData) ? rawData : (rawData.data || rawData.leaves || rawData.history || []);
+
+            // Filter Team Pending: status is Pending and it's NOT the current user
+            const teamPendingData = allLeaves.filter(req => {
+              const currentRmStatus = (req.rm_status || req.rmStatus || req.status || 'Pending').toString().trim().toUpperCase();
+              return currentRmStatus === 'PENDING' && cleanId(req.user_id || req.userId || req.employee_id) !== uid;
             });
+
+            // Filter Team History: status is NOT Pending and it's NOT the current user
+            const teamHistoryData = allLeaves.filter(req => {
+              const currentRmStatus = (req.rm_status || req.rmStatus || req.status || '').toString().trim().toUpperCase();
+              return currentRmStatus !== 'PENDING' && currentRmStatus !== '' && cleanId(req.user_id || req.userId || req.employee_id) !== uid;
+            });
+
+            setPendingRequests(teamPendingData);
+            setTeamHistory(teamHistoryData);
           }
-        } catch (error) {
-          console.error('[Leave] Error fetching team history leaves:', error);
+        } catch (teamErr) {
+          console.error("Error fetching team leaves:", teamErr);
         }
-      }
-
-      // Apply local optimistic overrides
-      const activeAllLeaves = allLeaves.map(req => {
-        if (handledLeavesRef.current[req.id]) {
-          return { ...req, rm_status: handledLeavesRef.current[req.id], rmStatus: handledLeavesRef.current[req.id], status: handledLeavesRef.current[req.id] };
-        }
-        return req;
-      });
-
-      // ✅ MY HISTORY: Strictly own records only
-      const myLeavesData = activeAllLeaves.filter(req =>
-        cleanId(req.user_id || req.userId || req.employee_id || req.employeeId) === uid
-      );
-
-      setMyLeaves(myLeavesData);
-
-      if (isLeader) {
-        // Team records = fetch it based on manager/rm/pm matching the TL's id
-        const teamRecords = activeAllLeaves.filter(req => {
-          const mId = cleanId(req.manager_id);
-          const rId = cleanId(req.rm_id);
-          const pId = cleanId(req.pm_id);
-          return mId === uid || rId === uid || pId === uid;
-        });
-
-          // ✅ TEAM PENDING: pending team requests only
-          const teamPendingData = teamRecords.filter(req => {
-            const rawStatus = String(req.status || req.leave_status || 'Pending').trim().toUpperCase();
-            
-            const rm = String(req.rm_status || req.rmStatus || '').toUpperCase();
-            const pm = String(req.pm_status || req.pmStatus || '').toUpperCase();
-
-            const isRM = cleanId(req.manager_id) === uid;
-            const isPM = cleanId(req.pm_id) === uid;
-
-            const isRMPending = isRM && rm !== 'APPROVED' && rm !== 'REJECTED' && rawStatus.includes('PENDING');
-            const isPMPending = isPM && pm !== 'APPROVED' && pm !== 'REJECTED' && rawStatus.includes('PENDING');
-
-            return isRMPending || isPMPending;
-          });
-
-          // ✅ TEAM HISTORY: ALL team records (all statuses)
-          setPendingRequests(teamPendingData);
-          setTeamHistory(prev => {
-             const newHistory = [...teamRecords];
-             // Preserve optimistic approvals that the backend might have stopped returning
-             prev.forEach(p => {
-               if (handledLeavesRef.current[p.id] && !newHistory.find(r => r.id === p.id)) {
-                 newHistory.push(p);
-               }
-             });
-             return newHistory;
-          });
       }
     } catch (error) {
-      console.error('[Leave] Error fetching data:', error);
+      console.error("[Leave] Global fetch error:", error);
     } finally {
       setLoading(false);
     }
@@ -294,7 +244,7 @@ const LeaveScreen = ({ onBack }) => {
   const handleAction = async (id, status) => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`${BASE_URL}/api/leaves/${id}/status`, {
+      const res = await fetch(API_ENDPOINTS.UPDATE_LEAVE_STATUS(id), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -396,7 +346,7 @@ const LeaveScreen = ({ onBack }) => {
         hr_status: 'Pending'
       };
 
-      const res = await fetch(`${BASE_URL}/api/leaves/request`, {
+      const res = await fetch(API_ENDPOINTS.LEAVE_REQUEST, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -462,11 +412,12 @@ const LeaveScreen = ({ onBack }) => {
   const getEffectiveStatus = (req) => {
     if (!req) return 'PENDING';
 
-    const rm = String(req.rm_status || req.rmStatus || 'Pending').toUpperCase();
-    const hr = String(req.hr_status || req.hrStatus || 'Pending').toUpperCase();
-    const pm = String(
-      req.pm_status || req.pmStatus || (String(req.status || '').includes('PENDING') ? 'Pending' : 'Approved')
-    ).toUpperCase();
+    const rm = String(req.rm_status || req.rmStatus || 'Pending').trim().toUpperCase();
+    const hr = String(req.hr_status || req.hrStatus || 'Pending').trim().toUpperCase();
+    
+    // Improved PM status logic: check if 'status' contains 'PENDING' case-insensitively
+    const legacyStatus = String(req.status || '').toUpperCase();
+    const pm = String(req.pm_status || req.pmStatus || (legacyStatus.includes('PENDING') ? 'Pending' : (legacyStatus === '' ? 'Pending' : 'Approved'))).trim().toUpperCase();
 
     const requesterId = cleanId(req.user_id || req.userId || req.employee_id || req.employeeId);
     const requester = allUsers.find(u =>
@@ -486,10 +437,10 @@ const LeaveScreen = ({ onBack }) => {
       if ((rm === 'APPROVED' || pm === 'APPROVED') && hr === 'APPROVED') return 'APPROVED';
       if (rm === 'APPROVED' || pm === 'APPROVED') return 'RM/PM APPROVED';
     } else if (isPersonal) {
-      // Personal Request (Regular Staff): No RM approval needed for self-requests
-      if (pm === 'APPROVED' && hr === 'APPROVED') return 'APPROVED';
-      if (pm === 'APPROVED') return 'PM APPROVED';
-      if (hr === 'APPROVED') return 'HR APPROVED';
+      // Personal Request (Regular Staff): Standard approval chain
+      if (rm === 'APPROVED' && hr === 'APPROVED' && pm === 'APPROVED') return 'APPROVED';
+      if (rm === 'APPROVED' && hr === 'APPROVED') return 'RM/HR APPROVED';
+      if (rm === 'APPROVED') return 'RM APPROVED';
     } else {
       // Subordinate Request: Requires RM, PM, and HR
       if (rm === 'APPROVED' && hr === 'APPROVED' && pm === 'APPROVED') return 'APPROVED';
@@ -590,21 +541,22 @@ const LeaveScreen = ({ onBack }) => {
           <div style={{ position: 'relative', width: isMobile ? '100%' : 'auto', display: 'flex', gap: '10px' }}>
             <div style={{ position: 'relative', flex: 1 }}>
               <Calendar size={18} color="#64748b" style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)' }} />
-              <input
-                type="month"
+              <select
                 value={filterMonth}
                 onChange={e => setFilterMonth(e.target.value)}
                 style={{ width: '100%', padding: '12px 15px 12px 42px', borderRadius: '15px', border: '2px solid #e2e8f0', outline: 'none', fontSize: '14px', fontWeight: '800', color: '#0B1E3F', cursor: 'pointer', backgroundColor: 'transparent', boxSizing: 'border-box' }}
-              />
-            </div>
-            {filterMonth && (
-              <button
-                onClick={() => setFilterMonth('')}
-                style={{ padding: '0 15px', borderRadius: '15px', border: '1px solid #e2e8f0', backgroundColor: 'white', color: '#64748b', fontSize: '12px', fontWeight: '900', cursor: 'pointer', whiteSpace: 'nowrap' }}
               >
-                Show All
-              </button>
-            )}
+                <option value="all">All Months</option>
+                {/* Generate last 12 months for the dropdown */}
+                {Array.from({ length: 12 }).map((_, i) => {
+                  const d = new Date();
+                  d.setMonth(d.getMonth() - i);
+                  const val = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+                  const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                  return <option key={val} value={val}>{label}</option>;
+                })}
+              </select>
+            </div>
           </div>
           <button style={s.requestBtn} onClick={() => setShowForm(true)}><Plus size={18} /> Request Leave</button>
         </div>

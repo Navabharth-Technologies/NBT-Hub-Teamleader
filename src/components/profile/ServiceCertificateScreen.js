@@ -70,10 +70,11 @@ const ServiceCertificateScreen = ({ onBack }) => {
     const fetchFullProfile = async () => {
       try {
         const token = localStorage.getItem('token');
-        const fetchId = employeeId || user?.email || user?.id || user?.employee_id;
-        const resp = await fetch(`${BASE_URL}/api/profile/${fetchId}`, {
+        const isOwn = !employeeId || String(employeeId) === String(user?.employee_id) || String(employeeId) === String(user?.id);
+        const url = isOwn ? API_ENDPOINTS.MY_EMPLOYEE_PROFILE : `${BASE_URL}/api/profile/${employeeId || user?.email}`;
+        const resp = await fetch(url, {
           headers: { 
-            'Authorization': `Bearer ${token}`,
+            'Authorization': `Bearer ${token?.trim()}`,
             'Accept': 'application/json'
           }
         });

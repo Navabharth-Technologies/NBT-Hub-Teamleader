@@ -191,19 +191,16 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
       if (!email && !empId) return;
 
-      // 1. Fetch base profile using EMAIL (matches backend expectations)
-      let resp = { ok: false };
-      if (email) {
-        resp = await fetch(API_ENDPOINTS.PROFILE(email), {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-      }
+      // Fetch base profile using the "MY" endpoint for the most accurate/updated data
+      const resp = await fetch(API_ENDPOINTS.MY_EMPLOYEE_PROFILE, {
+        headers: { 'Authorization': `Bearer ${token?.trim()}` }
+      });
       
-      // 2. Fetch metadata using EMPLOYEE ID from the new employee_profiles table
+      // Also fetch metadata if needed (though MY_EMPLOYEE_PROFILE should cover it)
       let metaResp = { ok: false };
       if (empId) {
         metaResp = await fetch(API_ENDPOINTS.EMPLOYEE_PROFILE(empId), {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${token?.trim()}` }
         });
       }
 

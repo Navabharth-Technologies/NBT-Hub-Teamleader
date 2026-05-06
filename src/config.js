@@ -1,4 +1,4 @@
-export const BASE_URL = 'http://192.168.1.17:5000';
+export const BASE_URL = 'http://192.168.1.21:5000';
 
 export const cleanId = (id) => {
   if (!id) return '';
@@ -101,9 +101,10 @@ export const API_ENDPOINTS = {
   LEAVE_STATS_MY: (month) => `${BASE_URL}/api/leaves/stats/my${month ? `?month=${month}` : ''}`,
   LEAVE_REQUEST: `${BASE_URL}/api/leaves/request`,
   UPDATE_LEAVE_STATUS: (id) => `${BASE_URL}/api/leaves/${cleanId(id)}/status`,
-  MY_LEAVES_GET: (userId) => `${BASE_URL}/api/leaves/my?userId=${cleanId(userId)}`,
+  MY_LEAVES_GET: `${BASE_URL}/api/leaves/my`,
   ALL_LEAVES: `${BASE_URL}/api/leaves`,
   ALL_LEAVES_COMPREHENSIVE: `${BASE_URL}/api/leaves/comprehensive`,
+  TEAM_LEAVES: `${BASE_URL}/api/leave/team`,
   RESIGNATIONS: `${BASE_URL}/api/resignations`,
   TEAM_RESIGNATIONS: (tlId) => `${BASE_URL}/api/resignations/team/${cleanId(tlId)}`,
   REVOKE_RESIGNATION: (id) => `${BASE_URL}/api/resignations/revoke/${cleanId(id)}`,
@@ -126,5 +127,6 @@ export const API_ENDPOINTS = {
   ASSETS: `${BASE_URL}/api/assets`,
   MY_ASSETS: (id) => `${BASE_URL}/api/my-assets?employee_id=${cleanId(id)}`,
   SUGGESTIONS: `${BASE_URL}/api/suggestions`,
-  INTERNS: `${BASE_URL}/api/interns`
+  INTERNS: `${BASE_URL}/api/interns`,
+  BANK_IFSC: (code) => `${BASE_URL}/api/bank/ifsc/${code}`
 };
