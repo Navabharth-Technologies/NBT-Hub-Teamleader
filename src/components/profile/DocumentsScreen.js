@@ -1142,9 +1142,9 @@ export default function DocumentsScreen({ onBack }) {
                             setViewImage(form[field.key].startsWith('http') || form[field.key].startsWith('data:') ? form[field.key] : `${BASE_URL}${form[field.key]}`);
                           }
                         }}>
-                          {form[field.key] ? (
+                          {form[field.key] && (form[field.key].length > 100 || !form[field.key].startsWith('data:')) ? (
                             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                              {String(form[field.key]).toLowerCase().endsWith('.pdf') ? (
+                              {String(form[field.key]).toLowerCase().endsWith('.pdf') || String(form[field.key]).startsWith('data:application/pdf') ? (
                                 <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
                                   <FileText size={48} color="#ef4444" />
                                   <span style={{ fontSize: '12px', fontWeight: '800', color: '#1e293b', marginTop: '8px' }}>PDF DOCUMENT</span>
@@ -1190,8 +1190,15 @@ export default function DocumentsScreen({ onBack }) {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const url = form[field.key].startsWith('http') || form[field.key].startsWith('data:') ? form[field.key] : `${BASE_URL}${form[field.key]}`;
-                                if (url.toLowerCase().endsWith('.pdf')) {
-                                  window.open(url, '_blank');
+                                if (url.toLowerCase().endsWith('.pdf') || url.startsWith('data:application/pdf')) {
+                                  if (url.startsWith('data:application/pdf')) {
+                                    fetch(url).then(res => res.blob()).then(blob => {
+                                      const blobUrl = URL.createObjectURL(blob);
+                                      window.open(blobUrl, '_blank');
+                                    });
+                                  } else {
+                                    window.open(url, '_blank');
+                                  }
                                 } else {
                                   setViewImage(url);
                                 }

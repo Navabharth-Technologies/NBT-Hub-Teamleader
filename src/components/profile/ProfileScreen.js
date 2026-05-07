@@ -278,7 +278,9 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         const data = await res.json();
         triggerToast('Profile image updated successfully!');
         if (data.profileImage) {
-          const finalImg = data.profileImage.startsWith('http') ? data.profileImage : `${BASE_URL}${data.profileImage}`;
+          const finalImg = data.profileImage.startsWith('http') || data.profileImage.startsWith('data:') 
+            ? data.profileImage 
+            : `${BASE_URL}${data.profileImage}`;
           setProfileImage(finalImg);
           // Update Context for building-wide sync
           updateProfile('profileImage', data.profileImage);
