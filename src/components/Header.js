@@ -192,6 +192,30 @@ export default function AppHeader() {
           />
         </div>
 
+        <div style={{
+          position: 'absolute',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          textAlign: 'center',
+          pointerEvents: 'none',
+          display: winWidth < 1024 ? 'none' : 'block'
+        }}>
+          <h1 style={{
+            margin: 0,
+            fontSize: '32px',
+            fontWeight: '1000',
+            color: '#0B1E3F',
+            letterSpacing: '1px',
+            textTransform: 'uppercase',
+            background: 'linear-gradient(45deg, #0B1E3F 30%, #3B5998 90%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+          }}>
+            NBT HUB
+          </h1>
+        </div>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: winWidth < 768 ? '8px' : '20px' }}>
           {/* Achievements/Badges Icon */}
           <motion.div

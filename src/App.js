@@ -25,6 +25,7 @@ import AssetDeclaration from './components/profile/AssetDeclaration';
 import SaturdayRequirementsPopover from './components/SaturdayRequirementsPopover';
 
 import { useAuth } from './context/AuthContext';
+import { ThreadProvider } from './context/ThreadContext';
 import { getTheme } from './constants/Theme';
 import LoginScreen from './components/LoginScreen';
 
@@ -81,55 +82,57 @@ function App() {
   };
 
   return (
-    <div
-      className="App"
-      style={{
-        backgroundColor: theme.pageBg,
-        minHeight: '100vh',
-        overflow: 'hidden'
-      }}
-    >
-      <Header />
-
-      <main
-        ref={scrollRef}
-        className="main-content"
+    <ThreadProvider>
+      <div
+        className="App"
         style={{
-          paddingTop: winWidth < 768 ? '75px' : '115px',
-          overflowY: 'auto'
+          backgroundColor: theme.pageBg,
+          minHeight: '100vh',
+          overflow: 'hidden'
         }}
       >
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/profile" element={<ProfileScreen onNavigate={(tab) => navigate(`/${tab.toLowerCase()}`)} />} />
-          <Route path="/courses" element={<CourseScreen />} />
-          <Route path="/thread" element={<ThreadScreen />} />
-          <Route path="/leave" element={<LeaveScreen onBack={() => navigate('/')} />} />
-          <Route path="/attendance" element={<AttendanceDashboard onBack={() => navigate('/')} />} />
-          <Route path="/fun" element={<FunQuizScreen onBack={() => navigate('/')} />} />
-          <Route path="/awards" element={<AwardsScreen onBack={() => navigate('/')} />} />
-          <Route path="/resignation" element={<ResignationScreen onBack={() => navigate('/profile')} />} />
-          <Route path="/pay-slips" element={<PaySlipScreen onBack={() => navigate('/profile')} />} />
-          <Route path="/service-certificate/:employeeId?" element={<ServiceCertificateScreen onBack={() => navigate('/profile')} />} />
-          <Route path="/focus-logs" element={<FocusLogs />} />
-          <Route path="/birthdays" element={<Birthdays />} />
-          <Route path="/holidays" element={<Holidays />} />
-          <Route path="/documents/:employeeId?" element={<DocumentsScreen onBack={() => navigate('/profile')} />} />
-          <Route path="/asset-declaration/:employeeId?" element={<AssetDeclaration onBack={() => navigate('/')} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
+        <Header />
 
-      <ScrollToTop />
+        <main
+          ref={scrollRef}
+          className="main-content"
+          style={{
+            paddingTop: winWidth < 768 ? '75px' : '115px',
+            overflowY: 'auto'
+          }}
+        >
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/profile" element={<ProfileScreen onNavigate={(tab) => navigate(`/${tab.toLowerCase()}`)} />} />
+            <Route path="/courses" element={<CourseScreen />} />
+            <Route path="/thread" element={<ThreadScreen />} />
+            <Route path="/leave" element={<LeaveScreen onBack={() => navigate('/')} />} />
+            <Route path="/attendance" element={<AttendanceDashboard onBack={() => navigate('/')} />} />
+            <Route path="/fun" element={<FunQuizScreen onBack={() => navigate('/')} />} />
+            <Route path="/awards" element={<AwardsScreen onBack={() => navigate('/')} />} />
+            <Route path="/resignation" element={<ResignationScreen onBack={() => navigate('/profile')} />} />
+            <Route path="/pay-slips" element={<PaySlipScreen onBack={() => navigate('/profile')} />} />
+            <Route path="/service-certificate/:employeeId?" element={<ServiceCertificateScreen onBack={() => navigate('/profile')} />} />
+            <Route path="/focus-logs" element={<FocusLogs />} />
+            <Route path="/birthdays" element={<Birthdays />} />
+            <Route path="/holidays" element={<Holidays />} />
+            <Route path="/documents/:employeeId?" element={<DocumentsScreen onBack={() => navigate('/profile')} />} />
+            <Route path="/asset-declaration/:employeeId?" element={<AssetDeclaration onBack={() => navigate('/')} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
 
-      <NavigationDock
-        activeTab={currentTab}
-        onTabChange={handleTabChange}
-      />
-      <TaskNotification onNavigate={(path, state) => navigate(path || '/', { state })} />
-      <SaturdayRequirementsPopover />
-      <ScrollToTop scrollRef={scrollRef} />
-    </div>
+        <ScrollToTop />
+
+        <NavigationDock
+          activeTab={currentTab}
+          onTabChange={handleTabChange}
+        />
+        <TaskNotification onNavigate={(path, state) => navigate(path || '/', { state })} />
+        <SaturdayRequirementsPopover />
+        <ScrollToTop scrollRef={scrollRef} />
+      </div>
+    </ThreadProvider>
   );
 }
 

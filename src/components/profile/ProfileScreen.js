@@ -1,66 +1,55 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
-import { BASE_URL } from '../../config';
-import { API_ENDPOINTS } from '../../config';
+import { BASE_URL, API_ENDPOINTS, cleanId } from '../../config';
 import {
-  MapPin, Building2, Clock, Globe, Mail, User,
-  ChevronRight, Calendar, Bell, Shield, LogOut,
-  History, Users, FileText, Briefcase, Heart, Edit3, Fingerprint, Camera, Phone, Check, X, Palmtree, AlertCircle, CheckCircle2, Laptop, ShieldCheck
+  Camera, CheckCircle2, AlertCircle,
+  RefreshCw, Briefcase, Mail,
+  ChevronRight, Calendar, Shield, LogOut,
+  Users, FileText, Edit3, Fingerprint, Phone, Check, X
 } from 'lucide-react';
 
-import { getTheme } from '../../constants/Theme';
 import TicketSection from './TicketSection';
 
 export default function ProfileScreen({ isNewJoinee, onNavigate }) {
   const { user, logout, updateProfile } = useAuth();
-  const theme = getTheme(user?.role);
-  const [activeTab, setActiveTab] = useState('My Profile');
   const [winWidth, setWinWidth] = useState(window.innerWidth);
   const isMobile = winWidth < 768;
   const isTablet = winWidth < 1024;
-  const [isEditingPhone, setIsEditingPhone] = useState(false);
-  const [isEditingAbout, setIsEditingAbout] = useState(false);
   const [phone, setPhone] = useState(user?.phone_number || 'Add Phone Number');
   const [aboutMe, setAboutMe] = useState(user?.about_me || 'Write a short introduction about yourself');
   const [dob, setDob] = useState(user?.date_of_birth || 'Add Date of Birth');
-  const [isEditingDob, setIsEditingDob] = useState(false);
-  const [teamName, setTeamName] = useState(user?.team || 'NAVABHARATHA TEAM');
+  const [teamName, setTeamName] = useState(user?.team || 'Team Name');
   const [joiningDate, setJoiningDate] = useState(user?.joining_date || user?.joiningDate || user?.['joining date'] || user?.doj || user?.date_of_joining || 'N/A');
   const [cleanEmployeeId, setCleanEmployeeId] = useState(user?.employee_id || user?.id || 'N/A');
+
   const parseSafeDate = (dateStr) => {
-    // 0. Handle arrays (backend sometimes returns duplicates in an array)
     if (Array.isArray(dateStr)) {
       dateStr = dateStr[0];
     }
 
     if (!dateStr || dateStr === 'N/A' || dateStr === 'Add Date of Birth' || dateStr === 'Add Joining Date') return null;
 
-    // 1. Handle numeric timestamps (represented as strings or numbers)
     if (!isNaN(dateStr) && !isNaN(parseFloat(dateStr))) {
       const timestamp = Number(dateStr);
-      // Check if it's in seconds (10 digits) or milliseconds (13 digits)
       const date = new Date(timestamp > 10000000000 ? timestamp : timestamp * 1000);
       if (!isNaN(date.getTime())) return date;
     }
 
-    // 2. Standard JS Parsing
     let date = new Date(dateStr);
     if (!isNaN(date.getTime())) return date;
 
-    // 3. Robust Delimiter Parsing (DD/MM/YYYY, YYYY/MM/DD, etc.)
     if (typeof dateStr === 'string') {
       const delimiters = ['/', '-', '.'];
       for (const delimiter of delimiters) {
         if (dateStr.includes(delimiter)) {
           const parts = dateStr.split(delimiter);
           if (parts.length === 3) {
-            // Reconstruct in a way browsers like (ISO)
             let isoStr = '';
             if (parts[0].length === 4) {
-              isoStr = `${parts[0]}-${parts[1]}-${parts[2]}`; // YYYY-MM-DD
+              isoStr = `${parts[0]}-${parts[1]}-${parts[2]}`;
             } else {
-              isoStr = `${parts[2]}-${parts[1]}-${parts[0]}`; // DD-MM-YYYY -> YYYY-MM-DD
+              isoStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
             }
             const fallbackDate = new Date(isoStr);
             if (!isNaN(fallbackDate.getTime())) return fallbackDate;
@@ -100,16 +89,15 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     return parts.join(' ');
   };
 
-  const resolveImagePath = (path) => {
+  const resolveImagePath = useCallback((path) => {
     if (!path || typeof path !== 'string') return null;
     return path.startsWith('http') || path.startsWith('data:') ? path : `${BASE_URL}${path}`;
-  };
+  }, []);
 
   const [profileImage, setProfileImage] = useState(() =>
     resolveImagePath(user?.profileImage || user?.profile_image || user?.profilePicture || user?.profile_picture || user?.avatar || user?.profile_pic)
   );
   const [designation, setDesignation] = useState(user?.designation || '');
-  const [isEditingDesignation, setIsEditingDesignation] = useState(false);
   const [showFullScreen, setShowFullScreen] = useState(false);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
   const [reportingManager, setReportingManager] = useState({ name: 'Loading...', id: '' });
@@ -118,11 +106,15 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [passData, setPassData] = useState({ old: '', new: '', confirm: '', otp: '' });
-  const [passwordMode, setPasswordMode] = useState('change'); // 'change' or 'reset'
+  const [passwordMode, setPasswordMode] = useState('change');
   const [otpRequested, setOtpRequested] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
+  const [isEditingAbout, setIsEditingAbout] = useState(false);
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [isEditingDob, setIsEditingDob] = useState(false);
+  const [tempPhone, setTempPhone] = useState('');
+  const [tempDob, setTempDob] = useState('');
 
-  // Sync state if user object changes (e.g. after login or reload)
   useEffect(() => {
     if (user) {
       if (user.phone_number) setPhone(user.phone_number);
@@ -138,104 +130,51 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         setJoiningDate(user.joining_date || user.joiningDate || user['joining date'] || user.doj || user.date_of_joining);
       }
     }
-  }, [user]);
+  }, [user, profileImage, resolveImagePath]);
 
-  useEffect(() => {
-    const handleResize = () => setWinWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    fetchReportingManager();
-    fetchUserDataFromUsersTable();
-    if (user?.role === 'teamleader') fetchTeamReports();
-    return () => window.removeEventListener('resize', handleResize);
-  }, [user]);
-
-  const fetchReportingManager = async () => {
+  const fetchReportingManager = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      const empId = user?.employee_id || user?.id || user?.userId;
-      if (!empId && !user?.email) return;
 
-      // 1. Fetch Primary Profile
+      // 1. Fetch the primary profile - this now contains all RM info thanks to the backend update
       const resp = await fetch(API_ENDPOINTS.MY_EMPLOYEE_PROFILE, {
         headers: { 'Authorization': `Bearer ${token?.trim()}` }
       });
-      
-      let metaResp = { ok: false };
-      if (empId) {
-        metaResp = await fetch(API_ENDPOINTS.EMPLOYEE_PROFILE(empId), {
-          headers: { 'Authorization': `Bearer ${token?.trim()}` }
-        });
-      }
-
-      // 2. Fetch Users List for correct ID mapping (requested source)
-      const uResp = await fetch(API_ENDPOINTS.USERS, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      let mName = '';
-      let mId = '';
 
       if (resp.ok) {
         const data = await resp.json();
-        if (data.phone_number) setPhone(data.phone_number);
-        if (data.date_of_birth) setDob(data.date_of_birth);
-        if (data.about_me) setAboutMe(data.about_me);
-        if (data.designation) setDesignation(data.designation);
-        const jd = data.joining_date || data.joiningDate || data.doj;
+        // The backend returns { success: true, data: { ... } } or a flat object
+        const profile = data.data || data;
+
+        // 2. Update local state with profile fields
+        if (profile.phone_number) setPhone(profile.phone_number);
+        if (profile.date_of_birth) setDob(profile.date_of_birth);
+        if (profile.about_me) setAboutMe(profile.about_me);
+        if (profile.designation) setDesignation(profile.designation);
+
+        const jd = profile.joining_date || profile.joiningDate || profile.doj;
         if (jd) setJoiningDate(Array.isArray(jd) ? jd[0] : jd);
-        if (data.team) setTeamName(data.team);
-        const img = data.profileImage || data.profile_image || data.avatar;
+        if (profile.team) setTeamName(profile.team);
+
+        const img = profile.profileImage || profile.profile_picture || profile.avatar;
         if (img) setProfileImage(resolveImagePath(img));
-        mId = data.reporting_manager_id || data.manager_id || '';
-        mName = data.reporting_manager_name || data.manager_name || '';
+
+        // 3. Get Reporting Manager Info (using the new fields from backend)
+        const mName = profile.reportingManagerName || profile.reporting_manager_name || profile.reportingManager || 'Unassigned';
+        const mId = profile.reportingManagerId || profile.reporting_manager_id || 'N/A';
+
+        setReportingManager({
+          name: mName,
+          id: mId
+        });
       }
-
-      if (metaResp.ok) {
-        const metaList = await metaResp.json();
-        const rawMeta = Array.isArray(metaList) ? metaList[0] : metaList;
-        if (rawMeta) {
-          if (rawMeta.dob) setDob(rawMeta.dob);
-          if (rawMeta.contact_no) setPhone(rawMeta.contact_no);
-          if (rawMeta.designation) setDesignation(rawMeta.designation);
-          if (rawMeta.process) setTeamName(rawMeta.process);
-          if (rawMeta.reporting_manager_id && !mId) mId = rawMeta.reporting_manager_id;
-        }
-      }
-
-      if (uResp.ok) {
-        const usersList = await uResp.json();
-        const currentUser = usersList.find(u => 
-          String(u.email || '').toLowerCase() === String(user?.email || '').toLowerCase()
-        );
-        if (currentUser) {
-          const jd = currentUser['joining date'] || currentUser.joining_date || currentUser.doj;
-          if (jd) setJoiningDate(Array.isArray(jd) ? jd[0] : jd);
-          const eid = currentUser.employee_id || currentUser.id;
-          if (eid) setCleanEmployeeId(eid);
-          
-          // Reporting Manager Lookup in users list
-          const targetRmId = currentUser.reporting_manager_id || currentUser.manager_id || mId;
-          if (targetRmId) {
-            mId = targetRmId;
-            const mgr = usersList.find(u => String(u.id || u.employee_id) === String(targetRmId));
-            if (mgr) mName = mgr.name || mgr.emp_name;
-          }
-        }
-      }
-
-      setReportingManager({ name: mName || 'Unassigned', id: mId });
-
     } catch (err) {
       console.error('Fetch Profile Error:', err);
       setReportingManager({ name: 'Unassigned', id: '' });
     }
-  };
+  }, [user, resolveImagePath]);
 
-  const fetchUserDataFromUsersTable = () => {
-     // Logic merged into fetchReportingManager to prevent race conditions
-  };
-
-  const fetchTeamReports = async () => {
+  const fetchTeamReports = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(API_ENDPOINTS.TASKS, {
@@ -251,18 +190,27 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         setTeamReports(data.filter(r => new Date(r.timestamp).toDateString() === today));
       }
     } catch { }
-  };
+  }, [logout]);
+
+  useEffect(() => {
+    const handleResize = () => setWinWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+
+    // Trigger the profile fetch on mount
+    fetchReportingManager();
+
+    if (user?.role === 'teamleader') fetchTeamReports();
+    return () => window.removeEventListener('resize', handleResize);
+  }, [user, fetchReportingManager, fetchTeamReports]);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // High-Fidelity Preview
     const reader = new FileReader();
     reader.onloadend = () => setProfileImage(reader.result);
     reader.readAsDataURL(file);
 
-    // Industrial Backend Sync
     const formData = new FormData();
     formData.append('image', file);
     formData.append('userId', user?.id || user?.empId || user?.employee_id);
@@ -278,11 +226,8 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         const data = await res.json();
         triggerToast('Profile image updated successfully!');
         if (data.profileImage) {
-          const finalImg = data.profileImage.startsWith('http') || data.profileImage.startsWith('data:') 
-            ? data.profileImage 
-            : `${BASE_URL}${data.profileImage}`;
+          const finalImg = data.profileImage.startsWith('http') ? data.profileImage : `${BASE_URL}${data.profileImage}`;
           setProfileImage(finalImg);
-          // Update Context for building-wide sync
           updateProfile('profileImage', data.profileImage);
         }
       } else {
@@ -317,7 +262,6 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
   };
 
   const handleVerifyOTP = async () => {
-    // Client-side verification to unlock the password fields as per the UI flow requirement
     if (passData.otp && passData.otp.length === 6) {
       setOtpVerified(true);
       triggerToast('Authorization code accepted locally. Proceed to reset.');
@@ -373,6 +317,52 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         triggerToast(err.message || 'Verification failed', 'error');
       }
     } catch { triggerToast('Network Error', 'error'); }
+  };
+
+  const handleUpdateProfileField = async (field, value) => {
+    try {
+      const token = localStorage.getItem('token');
+      const body = {
+        email: user?.email,
+        userId: user?.id || user?.userId || user?.employee_id || user?.empId
+      };
+      if (field === 'phone') body.phone_number = value;
+      if (field === 'dob') body.date_of_birth = value;
+      if (field === 'about') body.about_me = value;
+
+      const res = await fetch(API_ENDPOINTS.UPDATE_PROFILE, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token?.trim()}`
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        triggerToast(`${field.charAt(0).toUpperCase() + field.slice(1)} updated successfully!`);
+        if (field === 'phone') {
+          setPhone(value);
+          setIsEditingPhone(false);
+          updateProfile('phone_number', value);
+        }
+        if (field === 'dob') {
+          setDob(value);
+          setIsEditingDob(false);
+          updateProfile('date_of_birth', value);
+        }
+        if (field === 'about') {
+          setAboutMe(value);
+          setIsEditingAbout(false);
+          updateProfile('about_me', value);
+        }
+      } else {
+        triggerToast(`Failed to update ${field}.`, 'error');
+      }
+    } catch (err) {
+      console.error(`Update ${field} Error:`, err);
+      triggerToast('Network error during update.', 'error');
+    }
   };
 
   const styles = {
@@ -462,25 +452,6 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     },
     userInfo: { flex: 1, paddingBottom: '10px' },
     userName: { fontSize: isMobile ? '18px' : (isTablet ? '22px' : '26px'), fontWeight: '900', color: '#0f172a', margin: '4px 0', lineHeight: 1.2 },
-    userRole: { fontSize: isMobile ? '10px' : '12px', color: '#64748b', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px' },
-
-    managerSection: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      padding: '10px 20px',
-      backgroundColor: '#f8fafc',
-      borderRadius: '15px',
-      border: '1px solid #f1f5f9',
-      marginTop: isMobile ? '10px' : '0',
-      alignSelf: isMobile ? 'stretch' : 'auto',
-      justifyContent: isMobile ? 'center' : 'flex-start'
-    },
-    managerInfo: { textAlign: isMobile ? 'left' : 'right' },
-    managerLabel: { fontSize: isMobile ? '10px' : '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' },
-    managerName: { fontSize: isMobile ? '12px' : '13px', color: '#1e293b', fontWeight: '700' },
-    managerAvatar: { width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-
     infoGrid: {
       display: 'grid',
       gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'),
@@ -513,7 +484,6 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
       marginTop: '2px',
       wordBreak: 'break-word'
     },
-
     aboutSection: {
       marginTop: '20px',
       backgroundColor: 'white',
@@ -575,10 +545,6 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                 )}
               </div>
               <input
-                type="hidden"
-                disabled // Reference Only
-              />
-              <input
                 type="file"
                 ref={fileInputRef}
                 style={{ display: 'none' }}
@@ -593,9 +559,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
               </button>
             </div>
 
-            {/* CONSOLIDATED RESPONSIVE HEADER */}
             <div style={{ ...styles.userInfo, textAlign: isMobile ? 'center' : 'left', alignSelf: isMobile ? 'center' : 'auto' }}>
-              {/* ROW 1: Name and ID */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
                 <div style={styles.userName}>{user?.name}</div>
                 <div style={{ fontSize: '11px', fontWeight: '800', color: '#10274A', backgroundColor: '#f1f5f9', padding: '4px 10px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -604,7 +568,6 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                 </div>
               </div>
 
-              {/* ROW 2: Info bar */}
               <div style={{ display: 'flex', flexDirection: (isMobile || isTablet) ? 'column' : 'row', alignItems: (isMobile || isTablet) ? (isMobile ? 'center' : 'flex-start') : 'center', gap: (isMobile || isTablet) ? '12px' : '30px', padding: '15px 0 0', width: '100%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#3863a8', fontSize: '13px', fontWeight: '800', textTransform: 'uppercase' }}>
                   <Briefcase size={14} />
@@ -615,29 +578,63 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px', fontWeight: '700' }}>
                   <Phone size={14} />
-                  <span onClick={() => setIsEditingPhone(true)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {phone} <Edit3 size={11} opacity={0.6} />
-                  </span>
+                  {isEditingPhone ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <input
+                        type="text"
+                        value={tempPhone}
+                        onChange={(e) => setTempPhone(e.target.value)}
+                        style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #3863a8', fontSize: '12px', width: '120px' }}
+                        autoFocus
+                      />
+                      <Check size={14} color="#10b981" style={{ cursor: 'pointer' }} onClick={() => handleUpdateProfileField('phone', tempPhone)} />
+                      <X size={14} color="#ef4444" style={{ cursor: 'pointer' }} onClick={() => setIsEditingPhone(false)} />
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>{phone}</span>
+                      <Edit3 size={12} style={{ cursor: 'pointer', color: '#3863a8' }} onClick={() => { setTempPhone(phone); setIsEditingPhone(true); }} />
+                    </div>
+                  )}
                 </div>
 
                 {winWidth >= 1024 && <div style={{ width: '1.5px', height: '14px', backgroundColor: '#e2e8f0' }} />}
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px', fontWeight: '700' }}>
                   <Calendar size={14} />
-                  <span onClick={() => setIsEditingDob(true)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {dob} <Edit3 size={11} opacity={0.6} />
-                  </span>
+                  {isEditingDob ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <input
+                        type="date"
+                        value={tempDob}
+                        onChange={(e) => setTempDob(e.target.value)}
+                        style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #3863a8', fontSize: '12px', width: '120px' }}
+                        autoFocus
+                      />
+                      <Check size={14} color="#10b981" style={{ cursor: 'pointer' }} onClick={() => handleUpdateProfileField('dob', tempDob)} />
+                      <X size={14} color="#ef4444" style={{ cursor: 'pointer' }} onClick={() => setIsEditingDob(false)} />
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>{dob}</span>
+                      <Edit3 size={12} style={{ cursor: 'pointer', color: '#3863a8' }} onClick={() => { setTempDob(dob); setIsEditingDob(true); }} />
+                    </div>
+                  )}
                 </div>
 
                 {!isMobile && !isTablet && <div style={{ width: '1.5px', height: '14px', backgroundColor: '#e2e8f0' }} />}
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#3863a8', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '900' }}>
-                    {reportingManager.name[0]}
+                    {(reportingManager.name || 'U')[0]}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', lineHeight: 1 }}>RM NAME</div>
-                    <div style={{ fontSize: '13px', color: '#1e293b', fontWeight: '800' }}>{reportingManager.name} {reportingManager.id && `(${reportingManager.id})`}</div>
+                    <div style={{ fontSize: '11px', color: '#1e293b', fontWeight: '500', lineHeight: 1.4 }}>
+                      <strong style={{ color: '#64748b', fontWeight: '700' }}>Reporting Manager:</strong> {reportingManager.name || 'Not Assigned'}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#1e293b', fontWeight: '500', lineHeight: 1.4 }}>
+                      <strong style={{ color: '#64748b', fontWeight: '700' }}>Manager ID:</strong> {reportingManager.id || 'N/A'}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -646,11 +643,10 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         </div>
 
         <div style={styles.infoGrid}>
-          {/* TEAM CARD */}
           <div style={{ ...styles.infoCard }}>
             <div style={styles.iconCircle}><Users size={18} color="#3863a8" /></div>
             <div>
-              <div style={styles.managerLabel}>Current Team</div>
+              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Current Team</div>
               <div style={styles.infoValue}>{teamName}</div>
             </div>
           </div>
@@ -658,7 +654,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           <div style={styles.infoCard}>
             <div style={styles.iconCircle}><Mail size={18} color="#3863a8" /></div>
             <div>
-              <div style={styles.managerLabel}>Email Address</div>
+              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Email Address</div>
               <div style={styles.infoValue}>{user?.email?.toLowerCase()}</div>
             </div>
           </div>
@@ -666,13 +662,29 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           <div style={styles.infoCard}>
             <div style={styles.iconCircle}><Calendar size={18} color="#3863a8" /></div>
             <div>
-              <div style={styles.managerLabel}>Date of Joining</div>
+              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Date of Joining</div>
               <div style={styles.infoValue}>
                 {(() => {
                   const d = parseSafeDate(joiningDate);
                   return d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A';
                 })()}
               </div>
+            </div>
+          </div>
+
+          <div style={styles.infoCard}>
+            <div style={styles.iconCircle}><Shield size={18} color="#3863a8" /></div>
+            <div>
+              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Reporting Manager</div>
+              <div style={styles.infoValue}>{reportingManager.name || "Not Assigned"}</div>
+            </div>
+          </div>
+
+          <div style={styles.infoCard}>
+            <div style={styles.iconCircle}><Fingerprint size={18} color="#3863a8" /></div>
+            <div>
+              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Manager ID</div>
+              <div style={styles.infoValue}>{reportingManager.id || "N/A"}</div>
             </div>
           </div>
         </div>
@@ -686,7 +698,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           >
             <div style={{ ...styles.iconCircle, backgroundColor: '#dbeafe' }}><Shield size={18} color="#1e40af" /></div>
             <div style={{ flex: 1 }}>
-              <div style={{ ...styles.managerLabel, color: '#1e40af' }}>Security Settings</div>
+              <div style={{ fontSize: '11px', color: '#1e40af', fontWeight: '600', textTransform: 'uppercase' }}>Security Settings</div>
               <div style={styles.infoValue}>UPDATE SECURITY PASSKEY</div>
             </div>
             <ChevronRight size={16} color="#1e40af" />
@@ -699,20 +711,19 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           >
             <div style={{ ...styles.iconCircle, backgroundColor: '#ffedd5' }}><AlertCircle size={18} color="#f97316" /></div>
             <div style={{ flex: 1 }}>
-              <div style={{ ...styles.managerLabel, color: '#f97316' }}>Support & Maintenance</div>
+              <div style={{ fontSize: '11px', color: '#f97316', fontWeight: '600', textTransform: 'uppercase' }}>Support & Maintenance</div>
               <div style={styles.infoValue}>RAISE TECHNICAL TICKET</div>
             </div>
             <ChevronRight size={16} color="#f97316" />
           </motion.div>
 
-          {/* TENURITY CARD */}
           <motion.div
             whileHover={{ y: -5 }}
             style={{ ...styles.infoCard, borderColor: '#bbf7d0', backgroundColor: '#f0fdf4' }}
           >
-            <div style={{ ...styles.iconCircle, backgroundColor: '#dcfce7' }}><Clock size={18} color="#15803d" /></div>
+            <div style={{ ...styles.iconCircle, backgroundColor: '#dcfce7' }}><RefreshCw size={18} color="#15803d" /></div>
             <div style={{ flex: 1 }}>
-              <div style={{ ...styles.managerLabel, color: '#15803d' }}>Total Tenurity</div>
+              <div style={{ fontSize: '11px', color: '#15803d', fontWeight: '600', textTransform: 'uppercase' }}>Total Tenurity</div>
               <div style={styles.infoValue}>{calculateTenure(joiningDate)} Experience</div>
             </div>
           </motion.div>
@@ -723,7 +734,6 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(11, 30, 63, 0.7)', backdropFilter: 'blur(15px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
             <motion.div initial={{ scale: 0.9, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }} style={{ backgroundColor: 'white', borderRadius: '40px', padding: 0, maxWidth: '500px', width: '100%', boxShadow: '0 40px 100px rgba(0,0,0,0.4)', overflow: 'hidden' }}>
 
-              {/* INDUSTRIAL HEADER */}
               <div style={{ backgroundColor: '#0B1E3F', padding: '30px 40px', position: 'relative' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
@@ -844,7 +854,6 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                 </div>
               </div>
 
-              {/* TECHNICAL FOOTER */}
               <div style={{ backgroundColor: '#f8fafc', padding: '20px 40px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
@@ -862,8 +871,6 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           )}
         </AnimatePresence>
 
-
-        {/* ────── HR DOCUMENTS SECTION ────── */}
         <div style={{ marginTop: '25px', marginBottom: '40px' }}>
           <div style={{ ...styles.sectionTitle, marginBottom: '20px' }}>HR Documents</div>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'), gap: isMobile ? '15px' : '25px' }}>
@@ -912,7 +919,6 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           </div>
         </div>
 
-        {/* ── TL-Only: Team Report Section ── */}
         {user?.role === 'teamleader' && (
           <div style={{ ...styles.aboutSection, marginTop: '20px' }}>
             <div style={styles.sectionTitle}>
@@ -920,7 +926,6 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                 <span style={{ fontSize: '18px' }}>📋</span> Team Report
               </span>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: isMobile ? '10px' : '0' }}>
-                {/* summary pills */}
                 {[
                   { label: 'Total', val: teamReports.length, bg: '#eff6ff', color: '#1d4ed8' },
                   { label: 'Done', val: teamReports.filter(r => r.overallStatus === 'Completed').length, bg: '#f0fdf4', color: '#16a34a' },
@@ -944,7 +949,6 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                   const sc = statusMap[r.overallStatus] || statusMap.Pending;
                   return (
                     <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', backgroundColor: '#f8fafc', padding: '14px 16px', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
-                      {/* avatar */}
                       <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '900', color: '#1e40af', flexShrink: 0 }}>
                         {r.userName?.charAt(0)?.toUpperCase() || '?'}
                       </div>
@@ -984,7 +988,6 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
   );
 }
 
-// Full Screen Image Modal Component
 const FullScreenImageModal = ({ src, onClose }) => {
   return (
     <motion.div
@@ -1046,7 +1049,6 @@ const FullScreenImageModal = ({ src, onClose }) => {
 
 const DocCard = ({ doc, onNavigate }) => {
   const [isHovered, setIsHovered] = useState(false);
-
   const isActive = isHovered || doc.highlight;
 
   return (

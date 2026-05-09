@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  CheckCircle2, TrendingUp, Clock, Target, Gift, Calendar, PlayCircle, PlusCircle,
-  FileText, Users, BarChart3, ChevronRight, ChevronLeft, Trash2, Download, ShieldCheck, Laptop, AlertCircle
+  CheckCircle2, TrendingUp, Clock, Target, Calendar,
+  FileText, Users, BarChart3, Gift, ChevronRight, ChevronLeft, Download, AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_ENDPOINTS, BASE_URL } from '../config';
@@ -50,56 +50,45 @@ const Dashboard = ({ setActiveTab }) => {
     balance: 0
   });
 
-  // Auto-Revert Rejected Tasks back to 70%
-  useEffect(() => {
-    let changed = false;
-    const newStatusMap = { ...sprintStatusMap };
-    const newProgressMap = { ...sprintProgressMap };
-
-    assignedLeaderTasks.forEach(task => {
-      const pName = task.title || task.task_name || task.projectName || 'Unnamed Project';
-      const td = taskDetailMap[task.id] || {};
-      const verifyStatus = String(td.verify || task.verify || '').toLowerCase().trim();
-      const isRejected = verifyStatus.includes('reject') || verifyStatus === 'no' || verifyStatus === 'declined';
-
-      const currentStatus = sprintStatusMap[pName] || task.status || 'Pending';
-
-      // If task is supposedly "Completed" but the manager rejected it
-      if (isRejected && currentStatus === 'Completed') {
-        newStatusMap[pName] = 'In Progress';
-        newProgressMap[pName] = 70;
-        changed = true;
-
-        // Auto-update the backend
-        try {
-          const token = localStorage.getItem('token');
-          fetch(API_ENDPOINTS.UPDATE_TASK_STATUS(task.id), {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token?.trim()}`
-            },
-            body: JSON.stringify({ status: 'In Progress', progress: 70 })
-          });
-        } catch (e) { }
-      }
-    });
-
-    if (changed) {
-      setSprintStatusMap(newStatusMap);
-      setSprintProgressMap(newProgressMap);
+  const parseSafeDate = (dateStr) => {
+    if (!dateStr) return null;
+    if (dateStr instanceof Date) return dateStr;
+    if (typeof dateStr === 'string') {
+      // FORCE LOCAL TIME: Strip 'Z' and offset indicators (+05:30, -07:00, etc.)
+      // This ensures the browser displays the exact string from the DB without timezone shifts.
+      let s = dateStr.replace(/[Zz]$/, '').replace(/[\+\-]\d{2}:\d{2}$/, '');
+      if (!s.includes('T') && s.includes('-')) s = s.replace(' ', 'T');
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) return d;
     }
-  }, [assignedLeaderTasks, taskDetailMap, sprintStatusMap]);
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? null : d;
+  };
 
-  useEffect(() => {
-    const handleResize = () => setWinWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    fetchDashboardData();
-    fetchSecondaryData();
-    return () => window.removeEventListener('resize', handleResize);
-  }, [user]);
+  const fetchTaskDetail = useCallback(async (tid) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(API_ENDPOINTS.SINGLE_TASK_DETAIL(tid), {
+        headers: { 'Authorization': `Bearer ${token?.trim()}` }
+      });
+      if (res.ok) {
+        let data = await res.json();
+        // Extremely robust extraction for various backend response patterns
+        let detail = data;
+        if (data && typeof data === 'object') {
+          if (Array.isArray(data)) detail = data[0];
+          else if (data.data) {
+            detail = Array.isArray(data.data) ? data.data[0] : data.data;
+          } else if (data.value) {
+            detail = Array.isArray(data.value) ? data.value[0] : data.value;
+          }
+        }
+        setTaskDetailMap(prev => ({ ...prev, [tid]: detail }));
+      }
+    } catch { }
+  }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     if (!user) return;
     const uid = user.id || user.userId || user.empId || user.employee_id;
     if (!uid) return;
@@ -121,29 +110,31 @@ const Dashboard = ({ setActiveTab }) => {
         const cleanList = (Array.isArray(list) ? list : (list.value || list.data || [])).filter(t => t && typeof t === 'object');
         setAssignedLeaderTasks(cleanList);
 
-        // Pre-populate progress and status maps from backend data
-        const progMap = { ...sprintProgressMap };
-        const statMap = { ...sprintStatusMap };
+        // Pre-populate progress and status maps from backend data using functional updates to avoid dependency loops
+        setSprintProgressMap(prev => {
+          const next = { ...prev };
+          cleanList.forEach(t => {
+            const pName = t.title || t.task_name || t.projectName || 'Unnamed Project';
+            const backendProg = parseInt(t.progress || 0);
+            if (backendProg > (next[pName] || 0)) next[pName] = backendProg;
+          });
+          return next;
+        });
+
+        setSprintStatusMap(prev => {
+          const next = { ...prev };
+          cleanList.forEach(t => {
+            const pName = t.title || t.task_name || t.projectName || 'Unnamed Project';
+            if (!next[pName] || t.status === 'Completed') next[pName] = t.status || 'Pending';
+          });
+          return next;
+        });
+
         cleanList.forEach(t => {
-          const pName = t.title || t.task_name || t.projectName || 'Unnamed Project';
-          // High-Water Mark: Only update if the backend progress is higher than local
-          const currentProg = sprintProgressMap[pName] || 0;
-          const backendProg = parseInt(t.progress || 0);
-
-          if (backendProg > currentProg) {
-            progMap[pName] = backendProg;
-          }
-
-          // Only sync status if not already set or if it's 'Completed'
-          if (!statMap[pName] || t.status === 'Completed') {
-            statMap[pName] = t.status || 'Pending';
-          }
-
-          const tid = t.id || t.assigned_id;
+          // Priority for detail ID: master_task_id or task_id (the template) vs assignment ID
+          const tid = t.master_task_id || t.task_id || t.id || t.assigned_id;
           if (tid) fetchTaskDetail(tid);
         });
-        setSprintProgressMap(progMap);
-        setSprintStatusMap(statMap);
       }
 
       // Fetch Leave Stats
@@ -240,13 +231,28 @@ const Dashboard = ({ setActiveTab }) => {
         memberIds.add(String(uid)); // Include self in activity feed
         const filteredReports = rList
           .map(r => {
-            if (typeof r.tasks === 'string' && r.tasks.trim().startsWith('[')) {
-              try { r.tasks = JSON.parse(r.tasks); } catch (e) { r.tasks = []; }
+            // Map database fields to frontend expectations
+            const taskSource = r.description || r.tasks;
+            if (typeof taskSource === 'string' && taskSource.trim().startsWith('[')) {
+              try { r.tasks = JSON.parse(taskSource); } catch (e) { r.tasks = []; }
+            } else if (Array.isArray(taskSource)) {
+              r.tasks = taskSource;
+            } else {
+              r.tasks = [];
             }
+            
+            // Map status and timing from DB schema shown in logs
+            if (r.overall_status && !r.overallStatus) r.overallStatus = r.overall_status;
+            if (r.employee_id && !r.userId) r.userId = r.employee_id;
+            
             return r;
           })
           .filter(r => memberIds.has(String(r.userId || r.user_id || r.employee_id || r.uid)))
-          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+          .sort((a, b) => {
+            const dA = parseSafeDate(a.created_at || a.updated_at || a.timestamp);
+            const dB = parseSafeDate(b.created_at || b.updated_at || b.timestamp);
+            return (dB?.getTime() || 0) - (dA?.getTime() || 0);
+          });
         setTeamReports(filteredReports);
       }
 
@@ -255,22 +261,9 @@ const Dashboard = ({ setActiveTab }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, fetchTaskDetail]);
 
-  const fetchTaskDetail = async (tid) => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(API_ENDPOINTS.SINGLE_TASK_DETAIL(tid), {
-        headers: { 'Authorization': `Bearer ${token?.trim()}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setTaskDetailMap(prev => ({ ...prev, [tid]: data }));
-      }
-    } catch { }
-  };
-
-  const fetchSecondaryData = async () => {
+  const fetchSecondaryData = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const headers = { 'Authorization': `Bearer ${token?.trim()}` };
@@ -306,7 +299,55 @@ const Dashboard = ({ setActiveTab }) => {
         setSuggestions(Array.isArray(sData) ? sData : (sData.data || []));
       }
     } catch { }
-  };
+  }, [user]);
+
+  // Auto-Revert Rejected Tasks back to 70%
+  useEffect(() => {
+    let changed = false;
+    const newStatusMap = { ...sprintStatusMap };
+    const newProgressMap = { ...sprintProgressMap };
+
+    assignedLeaderTasks.forEach(task => {
+      const pName = task.title || task.task_name || task.projectName || 'Unnamed Project';
+      const td = taskDetailMap[task.id] || {};
+      const verifyStatus = String(td.verify || task.verify || '').toLowerCase().trim();
+      const isRejected = verifyStatus.includes('reject') || verifyStatus === 'no' || verifyStatus === 'declined';
+
+      // Use the task's actual status if maps aren't loaded yet
+      const currentStatus = sprintStatusMap[pName] || task.status || 'Pending';
+
+      if (isRejected && currentStatus === 'Completed') {
+        newStatusMap[pName] = 'In Progress';
+        newProgressMap[pName] = 70;
+        changed = true;
+
+        try {
+          const token = localStorage.getItem('token');
+          fetch(API_ENDPOINTS.UPDATE_TASK_STATUS(task.id), {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token?.trim()}`
+            },
+            body: JSON.stringify({ status: 'In Progress', progress: 70 })
+          });
+        } catch (e) { }
+      }
+    });
+
+    if (changed) {
+      setSprintStatusMap(prev => ({ ...prev, ...newStatusMap }));
+      setSprintProgressMap(prev => ({ ...prev, ...newProgressMap }));
+    }
+  }, [assignedLeaderTasks, taskDetailMap]);
+
+  useEffect(() => {
+    const handleResize = () => setWinWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    fetchDashboardData();
+    fetchSecondaryData();
+    return () => window.removeEventListener('resize', handleResize);
+  }, [fetchDashboardData, fetchSecondaryData]);
 
   const handleViewPDF = (data, name) => {
     if (!data) return;
@@ -412,18 +453,18 @@ const Dashboard = ({ setActiveTab }) => {
     editBtn: { background: '#f8fafc', border: '1px solid #e2e8f0', padding: '8px 18px', borderRadius: '12px', fontSize: '11px', fontWeight: '1000', cursor: 'pointer', color: '#3B5998' },
     input: { width: '100%', padding: '12px 18px', borderRadius: '12px', border: '1.5px solid #e2e8f0', fontSize: '13px', fontWeight: '600', outline: 'none' },
     statusBadge: { fontSize: '9px', fontWeight: '1000', padding: '6px 14px', borderRadius: '10px', background: '#f1f5f9', color: '#0B1E3F', textTransform: 'uppercase' },
-    attachBtn: { 
+    attachBtn: {
       marginTop: '12px',
-      display: 'flex', 
-      alignItems: 'center', 
-      gap: '8px', 
-      padding: '8px 16px', 
-      backgroundColor: '#f1f5f9', 
-      color: '#3B5998', 
-      border: '1.2px solid #e2e8f0', 
-      borderRadius: '12px', 
-      fontSize: '11px', 
-      fontWeight: '900', 
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '8px 16px',
+      backgroundColor: '#f1f5f9',
+      color: '#3B5998',
+      border: '1.2px solid #e2e8f0',
+      borderRadius: '12px',
+      fontSize: '11px',
+      fontWeight: '900',
       cursor: 'pointer',
       width: 'fit-content',
       transition: 'all 0.2s ease'
@@ -457,10 +498,20 @@ const Dashboard = ({ setActiveTab }) => {
     setSprintStatusMap(prev => ({ ...prev, [projName]: st }));
     setSprintProgressMap(prev => ({ ...prev, [projName]: 100 }));
 
-    // Proactively update local task detail map to clear the Reject badge
+    // Proactively update local task detail map to clear the Reject badge AND update timestamps
     setTaskDetailMap(prev => {
       const existing = prev[taskId] || {};
-      return { ...prev, [taskId]: { ...existing, verify: 'Pending Review', task_review: 'Pending Review' } };
+      const now = new Date().toISOString();
+      return {
+        ...prev,
+        [taskId]: {
+          ...existing,
+          verify: 'Pending Review',
+          task_review: 'Pending Review',
+          updated_at: now,
+          completed_at: now
+        }
+      };
     });
 
     const token = localStorage.getItem('token');
@@ -474,7 +525,9 @@ const Dashboard = ({ setActiveTab }) => {
         status: st,
         progress: 100,
         verify: 'Pending Review', // Reset verify status so auto-revert logic doesn't kick back to 70%
-        task_review: 'Pending Review'
+        task_review: 'Pending Review',
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
     }).catch(() => { });
 
@@ -556,15 +609,28 @@ const Dashboard = ({ setActiveTab }) => {
                       const pStatus = sprintStatusMap[pName] || task.status || 'Pending';
                       const pProg = sprintProgressMap[pName] || task.progress || 0;
 
+                      const dDate = (td.deadline || task.deadline) ? new Date(td.deadline || task.deadline) : null;
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const isDeadlineReached = dDate ? dDate < today : false;
+
                       const verifyStatusRaw = td.verify || task.verify || '';
                       const reviewText = td.task_review || task.task_review || td.verify_description || task.verify_description || '';
 
                       const normStatus = String(verifyStatusRaw).toLowerCase().trim();
                       const isApproved = normStatus.includes('approv') || normStatus === 'yes' || normStatus === 'verified' || normStatus === 'accepted';
                       const isRejected = normStatus.includes('reject') || normStatus === 'no' || normStatus === 'declined';
-                      const badgeColor = isApproved ? '#16a34a' : isRejected ? '#ef4444' : '#f59e0b';
-                      const badgeBg = isApproved ? '#f0fdf4' : isRejected ? '#fef2f2' : '#fffbeb';
-                      const badgeLabel = isApproved ? `✓ ${verifyStatusRaw}` : isRejected ? `✗ ${verifyStatusRaw}` : verifyStatusRaw ? verifyStatusRaw : 'Pending Review';
+
+                      let badgeColor = isApproved ? '#16a34a' : isRejected ? '#ef4444' : '#f59e0b';
+                      let badgeBg = isApproved ? '#f0fdf4' : isRejected ? '#fef2f2' : '#fffbeb';
+                      let badgeLabel = isApproved ? `✓ ${verifyStatusRaw}` : isRejected ? `✗ ${verifyStatusRaw}` : verifyStatusRaw ? verifyStatusRaw : 'Pending Review';
+
+                      // Requirement: Deadline Reached + Not Completed => DEADLINE COMPLETED & PROJECT PENDING
+                      if (!isApproved && !isRejected && isDeadlineReached && pStatus !== 'Completed') {
+                        badgeLabel = 'PROJECT PENDING';
+                        badgeColor = '#ef4444';
+                        badgeBg = '#fef2f2';
+                      }
 
                       return (
                         <motion.div key={idx} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} style={{ backgroundColor: '#f8fafc', borderRadius: '28px', padding: isMobile ? '28px 32px' : '28px', border: '1.5px solid #f1f5f9', width: '100%', boxSizing: 'border-box' }}>
@@ -572,16 +638,93 @@ const Dashboard = ({ setActiveTab }) => {
                             <div style={s.projectInfo}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '25px', flexWrap: 'wrap', marginBottom: '8px' }}>
                                 <h1 style={{ ...s.projectName, marginBottom: 0 }}>{pName}</h1>
-                                {(td.deadline || task.deadline) && (
-                                  <div style={{ fontSize: '10px', fontWeight: '900', color: '#b45309', display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#fffbeb', padding: '4px 10px', borderRadius: '8px', border: '1px solid #b4530933' }}>
-                                    <Clock size={12} /> {new Date(td.deadline || task.deadline).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                  </div>
-                                )}
+                                {(td.deadline || task.deadline) && (() => {
+                                  const dateVal = td.deadline || task.deadline;
+                                  const formatDateExact = (dVal) => {
+                                    if (!dVal) return 'N/A';
+                                    let d = new Date(dVal);
+                                    if (isNaN(d.getTime())) {
+                                      const parts = String(dVal).split(/[-/ T:]/);
+                                      if (parts.length >= 3) {
+                                        if (parts[0].length === 4) d = new Date(parts[0], parseInt(parts[1]) - 1, parts[2]);
+                                        else if (parts[2].length === 4) d = new Date(parts[2], parseInt(parts[1]) - 1, parts[0]);
+                                      }
+                                    }
+                                    if (isNaN(d.getTime())) return dVal;
+                                    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+                                    return `${d.getDate()} ${months[d.getMonth()]}`;
+                                  };
+
+                                  const originalDeadline = formatDateExact(dateVal);
+                                  const updateDate = td.updated_at || task.updated_at;
+                                  const updateStr = updateDate ? formatDateExact(updateDate) : '';
+
+                                  let dColor = '#b45309';
+                                  let dBg = '#fffbeb';
+                                  let dBorder = '#b4530933';
+                                  let dText = updateStr ? `Deadline: ${originalDeadline} | UPDATED: ${updateStr}` : `Deadline: ${originalDeadline}`;
+
+                                  if (pStatus === 'Completed') {
+                                    dColor = '#16a34a';
+                                    dBg = '#f0fdf4';
+                                    dBorder = '#16a34a33';
+                                    // SUPER DATE RESOLUTION: Search through every known field name in the ecosystem
+                                    // Priority: 
+                                    // 1. Explicit completion fields from detail (td)
+                                    // 2. Explicit completion fields from list (task)
+                                    // 3. Update fields from detail
+                                    // 4. Update fields from list
+                                    // 5. Fallback fields (date, time, timestamp)
+                                    const cDate = 
+                                      td.completed_at || td.completedAt || td.completion_date || td.completionDate || td.date_completed ||
+                                      task.completed_at || task.completedAt || task.completion_date || task.completionDate || task.date_completed ||
+                                      td.updated_at || td.updatedAt || td.updation_date || td.updationDate ||
+                                      task.updated_at || task.updatedAt || task.updation_date || task.updationDate ||
+                                      td.timestamp || td.date || td.time || td.created_at ||
+                                      task.timestamp || task.date || task.time || task.created_at;
+                                    
+                                    let cStr = 'Recently';
+                                    if (cDate) {
+                                      const d = new Date(cDate);
+                                      const now = new Date();
+                                      
+                                      // Logic to avoid the "28 March" creation date bug:
+                                      // If the only date found is the creation date (timestamp/created_at)
+                                      // and it's from a different month/far in the past, but the status is 'Completed',
+                                      // we show 'Today' or 'Recently' instead of the old creation date.
+                                      const creationFields = [
+                                        td.timestamp, td.created_at, td.date, 
+                                        task.timestamp, task.created_at, task.date
+                                      ];
+                                      const isCreationDate = creationFields.includes(cDate);
+                                      const isOld = (now - d > 24 * 60 * 60 * 1000); // More than 1 day old
+                                      
+                                      if (isCreationDate && isOld) {
+                                        cStr = 'Recently';
+                                      } else {
+                                        cStr = formatDateExact(cDate);
+                                      }
+                                    }
+                                    
+                                    dText = `${originalDeadline} | COMPLETED: ${cStr}`;
+                                  } else if (isDeadlineReached) {
+                                    dColor = '#ef4444';
+                                    dBg = '#fef2f2';
+                                    dBorder = '#ef444433';
+                                    dText = `${originalDeadline} | DEADLINE COMPLETED`;
+                                  }
+
+                                  return (
+                                    <div style={{ fontSize: '10px', fontWeight: '900', color: dColor, display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: dBg, padding: '4px 12px', borderRadius: '8px', border: `1px solid ${dBorder}`, whiteSpace: 'nowrap' }}>
+                                      <Clock size={12} /> {dText}
+                                    </div>
+                                  );
+                                })()}
                               </div>
                               <p style={s.projectDesc}>{pDesc}</p>
 
                               {(td.attachment_data || task.attachment_data) && (
-                                <button 
+                                <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleViewPDF(td.attachment_data || task.attachment_data, td.attachment_name || task.attachment_name);
@@ -794,7 +937,7 @@ const Dashboard = ({ setActiveTab }) => {
 
         <div style={{ display: 'grid', gridTemplateColumns: isTablet ? '1fr' : '4fr 6fr', gap: '32px', alignItems: 'stretch' }}>
 
-          <div className="star-border-card" style={{ ...s.bigCard, backgroundColor: 'transparent', border: 'none', display: 'flex', flexDirection: 'column', height: '400px', boxShadow: '0 20px 60px rgba(0, 0, 0, 0.03)', width: isMobile ? '100%' : '100%' }}>
+          <div className="star-border-card" style={{ ...s.bigCard, backgroundColor: '#0B1E3F', border: 'none', display: 'flex', flexDirection: 'column', height: '400px', boxShadow: '0 20px 60px rgba(0, 0, 0, 0.03)', width: isMobile ? '100%' : '100%' }}>
             <div className="border-gradient-bottom"></div>
             <div className="border-gradient-top"></div>
             <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -822,9 +965,10 @@ const Dashboard = ({ setActiveTab }) => {
               {(() => {
                 const todayStr = new Date().toLocaleDateString('en-CA');
                 const todaysReports = teamReports.filter(r => {
-                  const timeSource = r.updated_at || r.timestamp;
+                  const timeSource = r.created_at || r.updated_at || r.timestamp || r.date;
                   if (!r || !timeSource) return false;
-                  return new Date(timeSource).toLocaleDateString('en-CA') === todayStr;
+                  const d = parseSafeDate(timeSource);
+                  return d && d.toLocaleDateString('en-CA') === todayStr;
                 });
                 return todaysReports.length > 0 ? (
                   todaysReports.map((r, i) => {
@@ -850,12 +994,13 @@ const Dashboard = ({ setActiveTab }) => {
                               <div style={{ fontSize: '14px', fontWeight: '900', color: '#0B1E3F' }}>{r.userName || r.employee_name || 'Resource'}</div>
                               <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>
                                 {(() => {
-                                  const timeSource = r.updated_at || r.timestamp;
-                                  return timeSource ? new Date(timeSource).toLocaleTimeString('en-US', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    hour12: true
-                                  }) : '';
+                                  const timeSource = r.created_at || r.updated_at || r.timestamp || r.date || r.time;
+                                  const d = parseSafeDate(timeSource);
+                                  if (!d) return '';
+                                  
+                                  const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                                  const dateStr = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+                                  return `${dateStr} • ${timeStr}`;
                                 })()}
                               </div>
                             </div>
