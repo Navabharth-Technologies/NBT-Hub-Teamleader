@@ -29,7 +29,6 @@ import { ThreadProvider } from './context/ThreadContext';
 import { getTheme } from './constants/Theme';
 import LoginScreen from './components/LoginScreen';
 
-import { ThreadProvider } from './context/ThreadContext';
 
 function App() {
   const { user, loading } = useAuth();
