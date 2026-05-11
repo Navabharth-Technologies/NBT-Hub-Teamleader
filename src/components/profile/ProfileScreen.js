@@ -91,12 +91,15 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
   const resolveImagePath = useCallback((path) => {
     if (!path || typeof path !== 'string') return null;
-    return path.startsWith('http') || path.startsWith('data:') ? path : `${BASE_URL}${path}`;
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    // Ensure there is exactly one slash between BASE_URL and the relative path
+    return `${BASE_URL}${path.startsWith('/') ? path : '/' + path}`;
   }, []);
 
   const [profileImage, setProfileImage] = useState(() =>
     resolveImagePath(user?.profileImage || user?.profile_image || user?.profilePicture || user?.profile_picture || user?.avatar || user?.profile_pic)
   );
+  const [imgError, setImgError] = useState(false);
   const [designation, setDesignation] = useState(user?.designation || '');
   const [showFullScreen, setShowFullScreen] = useState(false);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
@@ -161,7 +164,10 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         if (profile.team) setTeamName(profile.team);
 
         const img = profile.profileImage || profile.profile_image || profile.profile_picture || profile.profile_pic || profile.avatar;
-        if (img) setProfileImage(resolveImagePath(img));
+        if (img) {
+          setProfileImage(resolveImagePath(img));
+          setImgError(false); // reset error flag when new image is fetched
+        }
 
         // Update cleanEmployeeId from API data
         const eid = profile.employee_id || profile.id;
@@ -237,6 +243,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         if (imgPath) {
           const finalImg = imgPath.startsWith('http') || imgPath.startsWith('data:') ? imgPath : `${BASE_URL}${imgPath}`;
           setProfileImage(finalImg);
+          setImgError(false); // reset error state for new image
           updateProfile('profileImage', imgPath);
           updateProfile('profile_pic', imgPath);
         }
@@ -546,23 +553,23 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           <div style={styles.headerRow}>
             <div style={styles.avatarContainer}>
               <div
-                style={{ ...styles.avatar, cursor: profileImage ? 'pointer' : 'default' }}
-                onClick={() => profileImage && setShowFullScreen(true)}
+                style={{ ...styles.avatar, cursor: profileImage && !imgError ? 'pointer' : 'default' }}
+                onClick={() => profileImage && !imgError && setShowFullScreen(true)}
               >
-                {profileImage ? (
+                {profileImage && !imgError ? (
                   <img
                     src={profileImage}
                     alt="Profile"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    onError={(e) => {
-                      // Hide the broken img element but don't clear state
-                      // (avoids permanently erasing a valid URL that had a momentary load failure)
-                      e.target.style.display = 'none';
+                    onError={() => {
+                      setImgError(true);
                       setShowFullScreen(false);
                     }}
                   />
                 ) : (
-                  user?.name ? user.name[0].toUpperCase() : 'U'
+                  <span style={{ fontSize: '42px', fontWeight: '800', color: '#3863a8' }}>
+                    {user?.name ? user.name[0].toUpperCase() : 'U'}
+                  </span>
                 )}
               </div>
               <input
