@@ -546,13 +546,23 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           <div style={styles.headerRow}>
             <div style={styles.avatarContainer}>
               <div
-                style={{ ...styles.avatar, cursor: 'pointer' }}
+                style={{ ...styles.avatar, cursor: profileImage ? 'pointer' : 'default' }}
                 onClick={() => profileImage && setShowFullScreen(true)}
               >
                 {profileImage ? (
-                  <img src={profileImage} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img
+                    src={profileImage}
+                    alt="Profile"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => {
+                      // If image URL is broken, fall back to initials and clear state
+                      e.target.style.display = 'none';
+                      setProfileImage(null);
+                      setShowFullScreen(false);
+                    }}
+                  />
                 ) : (
-                  user?.name ? user.name[0] : 'U'
+                  user?.name ? user.name[0].toUpperCase() : 'U'
                 )}
               </div>
               <input
