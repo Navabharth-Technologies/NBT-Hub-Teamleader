@@ -414,7 +414,7 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
 
         {/* Content */}
         <div style={s.header}>
-          <img src="/image.png" alt="Logo" style={{ height: '120px', marginBottom: '15px', objectFit: 'contain' }} />
+          <img src={`${process.env.PUBLIC_URL}/image.png`} alt="Logo" style={{ height: '120px', marginBottom: '15px', objectFit: 'contain' }} />
           <div style={s.companyName}>NAVABHARATH TECHNOLOGIES</div>
           <div style={s.tagline}>Smarter Solutions for Better Future</div>
 

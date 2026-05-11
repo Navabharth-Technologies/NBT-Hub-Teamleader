@@ -181,7 +181,7 @@ export default function AppHeader() {
       <div style={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', flexShrink: 0 }} onClick={() => navigate('/')}>
           <img
-            src="/image.png"
+            src={`${process.env.PUBLIC_URL}/image.png`}
             alt="NBT Logo"
             style={{
               height: winWidth < 768 ? '65px' : '95px',
@@ -240,7 +240,7 @@ export default function AppHeader() {
           >
             <motion.div>
               <img
-                src="/award_icon.png"
+                src={`${process.env.PUBLIC_URL}/award_icon.png`}
                 alt="Awards"
                 style={{
                   height: winWidth < 768 ? '45px' : '65px',
