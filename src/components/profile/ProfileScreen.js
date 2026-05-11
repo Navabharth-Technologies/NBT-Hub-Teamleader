@@ -21,7 +21,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
   const [dob, setDob] = useState(user?.date_of_birth || 'Add Date of Birth');
   const [teamName, setTeamName] = useState(user?.team || 'Team Name');
   const [joiningDate, setJoiningDate] = useState(user?.joining_date || user?.joiningDate || user?.['joining date'] || user?.doj || user?.date_of_joining || 'N/A');
-  const [cleanEmployeeId, setCleanEmployeeId] = useState(user?.employee_id || user?.id || 'N/A');
+  const [cleanEmployeeId, setCleanEmployeeId] = useState(cleanId(user?.employee_id || user?.id || 'N/A'));
 
   const parseSafeDate = (dateStr) => {
     if (Array.isArray(dateStr)) {
