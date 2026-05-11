@@ -555,9 +555,9 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                     alt="Profile"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     onError={(e) => {
-                      // If image URL is broken, fall back to initials and clear state
+                      // Hide the broken img element but don't clear state
+                      // (avoids permanently erasing a valid URL that had a momentary load failure)
                       e.target.style.display = 'none';
-                      setProfileImage(null);
                       setShowFullScreen(false);
                     }}
                   />

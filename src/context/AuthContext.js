@@ -34,10 +34,18 @@ export const AuthProvider = ({ children }) => {
       })
       .then(data => {
         if (data && !data.error) {
-          const updated = { ...parsed, ...data };
+          // Preserve profile image fields from localStorage if API doesn't return them
+          // (employee-profile endpoint may not include profile_pic/profileImage)
+          const imgFields = ['profileImage', 'profile_image', 'profile_pic', 'profile_picture', 'avatar'];
+          const preservedImgs = {};
+          imgFields.forEach(f => {
+            if (parsed[f] && !data[f]) preservedImgs[f] = parsed[f];
+          });
+          const updated = { ...parsed, ...data, ...preservedImgs };
           setUser(updated);
           localStorage.setItem('user', JSON.stringify(updated));
         }
+
       })
       .catch(() => {});
     }
