@@ -126,6 +126,10 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         if (src !== profileImage) setProfileImage(src);
       }
       if (user.designation) setDesignation(user.designation);
+      // Sync employee ID
+      const eid = user.employee_id || user.id;
+      if (eid) setCleanEmployeeId(cleanId(String(eid)));
+
       if (user.joining_date || user.joiningDate || user['joining date'] || user.doj || user.date_of_joining) {
         setJoiningDate(user.joining_date || user.joiningDate || user['joining date'] || user.doj || user.date_of_joining);
       }
@@ -156,8 +160,12 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         if (jd) setJoiningDate(Array.isArray(jd) ? jd[0] : jd);
         if (profile.team) setTeamName(profile.team);
 
-        const img = profile.profileImage || profile.profile_picture || profile.avatar;
+        const img = profile.profileImage || profile.profile_image || profile.profile_picture || profile.profile_pic || profile.avatar;
         if (img) setProfileImage(resolveImagePath(img));
+
+        // Update cleanEmployeeId from API data
+        const eid = profile.employee_id || profile.id;
+        if (eid) setCleanEmployeeId(cleanId(String(eid)));
 
         // 3. Get Reporting Manager Info (using the new fields from backend)
         const mName = profile.reportingManagerName || profile.reporting_manager_name || profile.reportingManager || 'Unassigned';
@@ -225,11 +233,14 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
       if (res.ok) {
         const data = await res.json();
         triggerToast('Profile image updated successfully!');
-        if (data.profileImage) {
-          const finalImg = data.profileImage.startsWith('http') ? data.profileImage : `${BASE_URL}${data.profileImage}`;
+        const imgPath = data.profileImage || data.profile_pic || data.profile_picture;
+        if (imgPath) {
+          const finalImg = imgPath.startsWith('http') || imgPath.startsWith('data:') ? imgPath : `${BASE_URL}${imgPath}`;
           setProfileImage(finalImg);
-          updateProfile('profileImage', data.profileImage);
+          updateProfile('profileImage', imgPath);
+          updateProfile('profile_pic', imgPath);
         }
+
       } else {
         triggerToast('Failed to upload image.', 'error');
       }
