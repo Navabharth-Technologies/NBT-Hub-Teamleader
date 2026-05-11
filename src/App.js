@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import './App.css';
+import './api'; // 🔐 Global Axios interceptor — handles 401/globalLogout session invalidation
 
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';

@@ -112,6 +112,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
   const [passwordMode, setPasswordMode] = useState('change');
   const [otpRequested, setOtpRequested] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
+  const [logoutAllDevices, setLogoutAllDevices] = useState(false);
   const [isEditingAbout, setIsEditingAbout] = useState(false);
   const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [isEditingDob, setIsEditingDob] = useState(false);
@@ -323,13 +324,19 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         body: JSON.stringify({
           email: user.email,
           oldPassword: passData.old,
-          newPassword: passData.new
+          newPassword: passData.new,
+          logoutAllDevices: logoutAllDevices   // 🔐 Global logout flag
         })
       });
       if (res.ok) {
         triggerToast('Password updated successfully!');
         setShowPasswordModal(false);
         setPassData({ old: '', new: '', confirm: '', otp: '' });
+        setLogoutAllDevices(false);
+        if (logoutAllDevices) {
+          // Clear session and redirect — the user chose to log out everywhere
+          setTimeout(() => logout(), 1500);
+        }
       } else {
         const err = await res.json();
         triggerToast(err.message || 'Verification failed', 'error');
@@ -866,10 +873,45 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                   )}
 
                   {(passwordMode === 'change' || otpVerified) && (
-                    <button onClick={handlePasswordSubmit} style={{ marginTop: '10px', padding: '20px', borderRadius: '20px', backgroundColor: '#0B1E3F', color: 'white', fontWeight: '900', border: 'none', cursor: 'pointer', fontSize: '15px', boxShadow: '0 15px 30px rgba(11, 30, 63, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                      <Fingerprint size={20} />
-                      {passwordMode === 'change' ? 'COMMIT SECURITY UPDATE' : 'RE-ESTABLISH VAULT ACCESS'}
-                    </button>
+                    <>
+                      {/* ── Logout All Devices Checkbox ── */}
+                      <div
+                        onClick={() => setLogoutAllDevices(p => !p)}
+                        style={{
+                          display: 'flex', alignItems: 'flex-start', gap: '12px',
+                          padding: '16px 20px', borderRadius: '16px', cursor: 'pointer',
+                          backgroundColor: logoutAllDevices ? '#fff1f2' : '#f8fafc',
+                          border: `2px solid ${logoutAllDevices ? '#fda4af' : '#e2e8f0'}`,
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{
+                          width: '20px', height: '20px', borderRadius: '6px', flexShrink: 0, marginTop: '1px',
+                          backgroundColor: logoutAllDevices ? '#ef4444' : 'white',
+                          border: `2px solid ${logoutAllDevices ? '#ef4444' : '#cbd5e1'}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s'
+                        }}>
+                          {logoutAllDevices && (
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                              <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '13px', fontWeight: '800', color: logoutAllDevices ? '#dc2626' : '#1e293b' }}>
+                            Sign out of all devices
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '500', marginTop: '3px' }}>
+                            All active sessions on other devices will be terminated immediately
+                          </div>
+                        </div>
+                      </div>
+
+                      <button onClick={handlePasswordSubmit} style={{ marginTop: '4px', padding: '20px', borderRadius: '20px', backgroundColor: '#0B1E3F', color: 'white', fontWeight: '900', border: 'none', cursor: 'pointer', fontSize: '15px', boxShadow: '0 15px 30px rgba(11, 30, 63, 0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                        <Fingerprint size={20} />
+                        {passwordMode === 'change' ? 'COMMIT SECURITY UPDATE' : 'RE-ESTABLISH VAULT ACCESS'}
+                      </button>
+                    </>
                   )}
 
                   {passwordMode === 'reset' && otpRequested && (
