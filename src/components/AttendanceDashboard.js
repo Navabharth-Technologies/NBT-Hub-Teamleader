@@ -37,6 +37,7 @@ const AttendanceDashboard = ({ onBack }) => {
   }, []);
 
   const isMobile = winWidth < 768;
+  const isTablet = winWidth >= 768 && winWidth < 1024;
 
   // Geofencing: Office Location
   const OFFICE_COORDS = { lat: 12.2885, lon: 76.6345 };
@@ -72,10 +73,16 @@ const AttendanceDashboard = ({ onBack }) => {
       const style = document.createElement('style');
       style.id = styleId;
       style.innerHTML = `
-        @media (max-width: 1024px) {
-          .attendance-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        @media (max-width: 1024px) and (min-width: 768px) {
+          .attendance-stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
+          .attendance-header { flex-direction: column; align-items: flex-start !important; gap: 16px; }
+          .attendance-controls { flex-direction: row; flex-wrap: wrap; width: 100% !important; gap: 10px; }
+          .attendance-search { flex: 1; min-width: 180px; }
+          .attendance-table-header { display: grid !important; grid-template-columns: 1fr 0.9fr 0.7fr 0.7fr 0.6fr 0.8fr !important; gap: 8px !important; padding: 14px 16px !important; }
+          .attendance-table-row { grid-template-columns: 1fr 0.9fr 0.7fr 0.7fr 0.6fr 0.8fr !important; gap: 8px !important; padding: 14px 16px !important; }
+          .tablet-hide { display: none !important; }
         }
-        @media (max-width: 768px) {
+        @media (max-width: 767px) {
           .attendance-container { padding: 15px !important; }
           .attendance-header { flex-direction: column; align-items: flex-start !important; gap: 20px; }
           .attendance-controls { flex-direction: column; width: 100% !important; gap: 15px; }
@@ -347,7 +354,7 @@ const AttendanceDashboard = ({ onBack }) => {
     tableHeader: { backgroundColor: '#fcfdfe', borderBottom: '1px solid #f1f5f9', padding: '18px 24px', display: 'grid', gridTemplateColumns: '1.5fr 1fr 0.8fr 0.8fr 0.8fr 1fr 1.5fr', gap: '15px' },
     tableRow: { padding: '16px 24px', display: 'grid', gridTemplateColumns: '1.5fr 1fr 0.8fr 0.8fr 0.8fr 1fr 1.5fr', gap: '15px', alignItems: 'center', transition: 'all 0.2s' },
     tag: (config) => ({ display: 'flex', alignItems: 'center', gap: '6px', width: 'fit-content', padding: '6px 14px', borderRadius: '10px', fontSize: '11px', fontWeight: '800', backgroundColor: config.bg, color: config.color, letterSpacing: '0.5px' }),
-    searchBox: { display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'white', padding: '10px 20px', borderRadius: '16px', border: '1px solid #e2e8f0', width: '350px' },
+    searchBox: { display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'white', padding: '10px 20px', borderRadius: '16px', border: '1px solid #e2e8f0', width: isTablet ? 'auto' : '350px' },
     searchInput: { border: 'none', background: 'none', outline: 'none', flex: 1, fontSize: '14px', fontWeight: '600', color: '#1e293b' },
     btnPrimary: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '14px', border: 'none', backgroundColor: '#0B1E3F', color: 'white', cursor: 'pointer', fontWeight: '700', fontSize: '14px' }
   };
@@ -366,58 +373,6 @@ const AttendanceDashboard = ({ onBack }) => {
         </div>
 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }} className="attendance-controls">
-          <div style={{ position: 'relative' }}>
-            <div style={s.searchBox} className="attendance-search">
-              <Search size={18} color="#94a3b8" />
-              <input
-                type="text"
-                placeholder="Search Employee ID or Name..."
-                style={s.searchInput}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              {isSearching && <RefreshCw size={14} color="#3B5998" className="animate-spin" />}
-            </div>
-
-            {/* Search Results Dropdown */}
-            <AnimatePresence>
-              {searchResults.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  style={{
-                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
-                    backgroundColor: 'white', borderRadius: '16px', marginTop: '8px',
-                    boxShadow: '0 10px 40px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0',
-                    maxHeight: '300px', overflowY: 'auto'
-                  }}
-                >
-                  {searchResults.map((u, i) => (
-                    <div
-                      key={u.id || i}
-                      onClick={() => handleSelectSearchedUser(u)}
-                      style={{
-                        padding: '12px 20px', cursor: 'pointer', borderBottom: i === searchResults.length - 1 ? 'none' : '1px solid #f1f5f9',
-                        display: 'flex', alignItems: 'center', gap: '12px', transition: 'background 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.target.style.backgroundColor = '#f8fafc'}
-                      onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                    >
-                      <div style={{ width: '32px', height: '32px', borderRadius: '80%', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '900', color: '#3B5998' }}>
-                        {(u.name || u.employee_name || 'U').charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>{u.name || u.employee_name}</div>
-                        <div style={{ fontSize: '10px', fontWeight: '700', color: '#94a3b8' }}>{u.designation || 'Team Member'} • ID: {u.employee_id}</div>
-                      </div>
-                    </div>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
           <div style={{ ...s.searchBox, width: 'auto', gap: '8px' }}>
             <Calendar size={16} color="#94a3b8" />
             <input
@@ -570,9 +525,9 @@ const AttendanceDashboard = ({ onBack }) => {
           <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b' }}>DATE</span>
           <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b' }}>PUNCH IN</span>
           <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b' }}>PUNCH OUT</span>
-          <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b' }}>WORK HRS</span>
+          <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b' }}>HOURS</span>
           <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b' }}>STATUS</span>
-          <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b' }}>AUDIT LOCATION</span>
+          {!isTablet && <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b' }}>AUDIT LOCATION</span>}
         </div>
 
         <div style={{ minHeight: '400px', backgroundColor: 'white' }}>
@@ -603,37 +558,51 @@ const AttendanceDashboard = ({ onBack }) => {
                     whileHover={{ backgroundColor: '#fcfdfe' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: '#eef2f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: '#eef2f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '900', color: '#0B1E3F', flexShrink: 0 }}>
                         {String(log.user_name || log.userName || log.employee_name || log.user_id || 'U').charAt(0).toUpperCase()}
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {log.user_name || log.userName || log.employee_name || 'System User'}
+                      {!isTablet && (
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {log.user_name || log.userName || log.employee_name || 'System User'}
+                          </div>
+                          <div style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8' }}>ID: {log.user_id || log.employee_id || 'N/A'}</div>
                         </div>
-                        <div style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8' }}>ID: {log.user_id || log.employee_id || 'N/A'}</div>
-                      </div>
+                      )}
+                      {isTablet && (
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '12px', fontWeight: '800', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {(log.user_name || log.userName || log.employee_name || 'User').split(' ')[0]}
+                          </div>
+                          <div style={{ fontSize: '10px', fontWeight: '700', color: '#94a3b8' }}>{log.user_id || log.employee_id || 'N/A'}</div>
+                        </div>
+                      )}
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Calendar size={14} color="#94a3b8" />
-                      <span style={{ fontSize: '13px', fontWeight: '700', color: '#475569' }}>{formatDate(log.punch_date)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Calendar size={12} color="#94a3b8" />
+                      <span style={{ fontSize: isTablet ? '11px' : '13px', fontWeight: '700', color: '#475569' }}>
+                        {isTablet
+                          ? new Date(log.punch_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                          : formatDate(log.punch_date)
+                        }
+                      </span>
                     </div>
 
-                    <div style={{ fontSize: '13px', fontWeight: '800', color: '#0ea5e9', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Clock size={14} /> {log.in_time || '--:--'}
+                    <div style={{ fontSize: isTablet ? '12px' : '13px', fontWeight: '800', color: '#0ea5e9', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Clock size={12} /> {log.in_time || '--:--'}
                     </div>
 
-                    <div style={{ fontSize: '13px', fontWeight: '800', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Clock size={14} /> {log.out_time || '--:--'}
+                    <div style={{ fontSize: isTablet ? '12px' : '13px', fontWeight: '800', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Clock size={12} /> {log.out_time || '--:--'}
                     </div>
 
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>
+                      <div style={{ fontSize: isTablet ? '12px' : '13px', fontWeight: '900', color: '#0B1E3F' }}>
                         {(() => {
                           if (!log.in_time || log.in_time === '--:--') return '0:00';
                           const [ih, im] = log.in_time.split(':').map(Number);
                           const [oh, om] = (log.out_time && log.out_time !== '--:--' && log.out_time !== '00:00:00') ? log.out_time.split(':').map(Number) : [new Date().getHours(), new Date().getMinutes()];
-
                           let diff = (oh * 60 + om) - (ih * 60 + im);
                           if (diff < 0) diff += 1440;
                           const h = Math.floor(diff / 60);
@@ -641,19 +610,21 @@ const AttendanceDashboard = ({ onBack }) => {
                           return `${h}:${String(m).padStart(2, '0')}`;
                         })()}
                       </div>
-                      <div style={{ fontSize: '10px', fontWeight: '800', color: '#94a3b8' }}>HOURS</div>
+                      {!isTablet && <div style={{ fontSize: '10px', fontWeight: '800', color: '#94a3b8' }}>HOURS</div>}
                     </div>
 
                     <div style={s.tag(config)}>
                       {config.icon} {config.label}
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                      <MapPin size={12} color="#94a3b8" />
-                      <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.location || 'Office Zone'}>
-                        {log.location || 'Office Zone'}
+                    {!isTablet && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                        <MapPin size={12} color="#94a3b8" />
+                        <div style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.location || 'Office Zone'}>
+                          {log.location || 'Office Zone'}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </motion.div>
                 );
               })}

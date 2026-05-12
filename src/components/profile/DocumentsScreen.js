@@ -889,7 +889,7 @@ export default function DocumentsScreen({ onBack }) {
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '280px 1fr',
+        gridTemplateColumns: (isMobile || isTablet) ? '1fr' : '280px 1fr',
         gap: isMobile ? '2px' : '24px',
         alignItems: 'start',
         padding: isMobile ? '0 15px' : '0',

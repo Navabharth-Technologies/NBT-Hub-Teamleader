@@ -468,7 +468,7 @@ const AwardsScreen = ({ onBack }) => {
     };
 
     return (
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ padding: isMobile ? '16px 20px' : '40px 100px', width: '100%', boxSizing: 'border-box', position: 'relative' }}>
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ padding: isMobile ? '16px 20px' : (isTablet ? '30px 30px' : '40px 100px'), width: '100%', boxSizing: 'border-box', position: 'relative' }}>
             {/* Feedback Modal */}
             <AnimatePresence>
                 {feedback.show && (
@@ -501,7 +501,7 @@ const AwardsScreen = ({ onBack }) => {
                 {activeView === 'MAIN' ? (
                     <motion.div key="main" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                         {/* Header */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+                        <div style={{ display: 'flex', flexDirection: isTablet ? 'column' : 'row', justifyContent: 'space-between', alignItems: isTablet ? 'flex-start' : 'center', gap: isTablet ? '20px' : '0', marginBottom: '40px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                                 <button onClick={onBack} style={{ backgroundColor: 'white', border: 'none', width: '45px', height: '45px', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
                                     <ArrowLeft size={20} color="#0B1E3F" />
@@ -512,9 +512,9 @@ const AwardsScreen = ({ onBack }) => {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: isTablet ? 'wrap' : 'nowrap', width: isTablet ? '100%' : 'auto' }}>
                                 {/* Shared Filters on Main Screen */}
-                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: isTablet ? 'wrap' : 'nowrap' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'white', padding: '10px 16px', borderRadius: '14px', border: '1.5px solid #e2e8f0' }}>
                                         <span style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8' }}>FROM</span>
                                         <input type="date" value={startFilter} onChange={(e) => setStartFilter(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: '13px', fontWeight: '700', color: '#0B1E3F' }} />
@@ -844,7 +844,7 @@ const AwardsScreen = ({ onBack }) => {
                 ) : (
                     <motion.div key="audit" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
                         {/* Audit Header */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
+                        <div style={{ display: 'flex', flexDirection: isTablet ? 'column' : 'row', justifyContent: 'space-between', alignItems: isTablet ? 'flex-start' : 'center', gap: isTablet ? '20px' : '0', marginBottom: '25px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                                 <button onClick={() => setActiveView('MAIN')} style={{ backgroundColor: 'white', border: 'none', width: '45px', height: '45px', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
                                     <ArrowLeft size={20} color="#0B1E3F" />
@@ -855,7 +855,7 @@ const AwardsScreen = ({ onBack }) => {
                                 </div>
                             </div>
                             {/* Top Filters */}
-                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: isTablet ? 'wrap' : 'nowrap', width: isTablet ? '100%' : 'auto' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'white', padding: '10px 16px', borderRadius: '14px', border: '1.5px solid #e2e8f0' }}>
                                     <span style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8' }}>FROM</span>
                                     <input type="date" value={startFilter} onChange={(e) => setStartFilter(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: '13px', fontWeight: '700', color: '#0B1E3F' }} />

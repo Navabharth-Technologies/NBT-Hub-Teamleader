@@ -668,43 +668,10 @@ const Dashboard = ({ setActiveTab }) => {
                                     dColor = '#16a34a';
                                     dBg = '#f0fdf4';
                                     dBorder = '#16a34a33';
-                                    // SUPER DATE RESOLUTION: Search through every known field name in the ecosystem
-                                    // Priority: 
-                                    // 1. Explicit completion fields from detail (td)
-                                    // 2. Explicit completion fields from list (task)
-                                    // 3. Update fields from detail
-                                    // 4. Update fields from list
-                                    // 5. Fallback fields (date, time, timestamp)
-                                    const cDate = 
-                                      td.completed_at || td.completedAt || td.completion_date || td.completionDate || td.date_completed ||
-                                      task.completed_at || task.completedAt || task.completion_date || task.completionDate || task.date_completed ||
-                                      td.updated_at || td.updatedAt || td.updation_date || td.updationDate ||
-                                      task.updated_at || task.updatedAt || task.updation_date || task.updationDate ||
-                                      td.timestamp || td.date || td.time || td.created_at ||
-                                      task.timestamp || task.date || task.time || task.created_at;
+                                    // Use updated_at from master_tasks as the exact completion date (with broad casing support)
+                                    const cDate = task.updated_at || td.updated_at || task.updatedAt || td.updatedAt || task.completed_at || td.completed_at || task.completedAt || td.completedAt || task.created_at || td.created_at || task.createdAt || td.createdAt || task.timestamp || td.timestamp || task.date || td.date;
                                     
-                                    let cStr = 'Recently';
-                                    if (cDate) {
-                                      const d = new Date(cDate);
-                                      const now = new Date();
-                                      
-                                      // Logic to avoid the "28 March" creation date bug:
-                                      // If the only date found is the creation date (timestamp/created_at)
-                                      // and it's from a different month/far in the past, but the status is 'Completed',
-                                      // we show 'Today' or 'Recently' instead of the old creation date.
-                                      const creationFields = [
-                                        td.timestamp, td.created_at, td.date, 
-                                        task.timestamp, task.created_at, task.date
-                                      ];
-                                      const isCreationDate = creationFields.includes(cDate);
-                                      const isOld = (now - d > 24 * 60 * 60 * 1000); // More than 1 day old
-                                      
-                                      if (isCreationDate && isOld) {
-                                        cStr = 'Recently';
-                                      } else {
-                                        cStr = formatDateExact(cDate);
-                                      }
-                                    }
+                                    let cStr = cDate ? formatDateExact(cDate) : 'Recently';
                                     
                                     dText = `${originalDeadline} | COMPLETED: ${cStr}`;
                                   } else if (isDeadlineReached) {
