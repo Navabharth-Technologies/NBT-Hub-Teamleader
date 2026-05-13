@@ -810,11 +810,11 @@ const Dashboard = ({ setActiveTab }) => {
 
               <div style={{ padding: '24px', backgroundColor: 'white', border: '1.2px solid #f1f5f9', borderRadius: '24px' }}>
                 <div style={s.focusHeader}>
-                  <div onClick={() => navigate('/focus-logs')} style={{ ...s.focusTitle, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}><TrendingUp size={24} /> Today</div>
+                  <div style={{ ...s.focusTitle, display: 'flex', alignItems: 'center', gap: '12px' }}><TrendingUp size={24} /> Today</div>
                   <button style={s.editBtn} onClick={(e) => { e.stopPropagation(); isEditingToday ? handleSave() : setIsEditingToday(true); }}>{isEditingToday ? "Save" : "Edit"}</button>
                 </div>
                 {!isEditingToday ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', cursor: 'pointer' }} onClick={() => navigate('/focus-logs')}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {todayTasks.filter(t => t.text).map((t, i) => (
                       <div key={i} style={{ padding: '12px 16px', backgroundColor: '#f8fafc', borderRadius: '12px', fontWeight: '600', color: '#1e293b', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}><CheckCircle2 size={14} color="#3B5998" /> {t.text}</div>
                     ))}
