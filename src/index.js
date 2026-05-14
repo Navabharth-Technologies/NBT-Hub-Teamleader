@@ -9,6 +9,27 @@ import { ThreadProvider } from './context/ThreadContext';
 
 import { BrowserRouter } from 'react-router-dom';
 
+const originalFetch = window.fetch;
+let isRedirecting = false;
+
+window.fetch = async (...args) => {
+  const response = await originalFetch(...args);
+  if (response.status === 401 && !isRedirecting) {
+    const clone = response.clone();
+    try {
+      const body = await clone.json();
+      if (body.globalLogout || body.reason) {
+        isRedirecting = true;
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = `/login?reason=${body.reason || 'token_expired'}`;
+      }
+    } catch (e) {
+      // JSON parse failed, ignore
+    }
+  }
+  return response;
+};
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>

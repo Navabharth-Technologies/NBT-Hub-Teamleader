@@ -392,18 +392,8 @@ const Dashboard = ({ setActiveTab }) => {
       });
       if (resp.ok) {
         setIsEditingToday(false);
-        // Refresh Team Reports to show this update in "Today's Activity"
-        setTeamReports(prev => {
-          const todayStr = new Date().toLocaleDateString('en-CA');
-          const uidStr = String(payload.userId);
-          // Filter out existing report for same user today
-          const otherReports = prev.filter(r => {
-            const rDate = String(r.timestamp).split('T')[0];
-            const rUid = String(r.userId || r.user_id || r.uid);
-            return !(rDate === todayStr && rUid === uidStr);
-          });
-          return [payload, ...otherReports].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        });
+        // fetch it by backend and show only backend fetch dont add any other additional things
+        await fetchDashboardData();
       }
     } catch (err) { }
   };
@@ -948,9 +938,7 @@ const Dashboard = ({ setActiveTab }) => {
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.1 }}
-                        onClick={() => navigate('/focus-logs', { state: { targetUser: member } })}
-                        whileHover={{ scale: 1.01, boxShadow: '0 6px 20px rgba(0,0,0,0.07)' }}
-                        style={{ padding: '20px', backgroundColor: '#fcfdfe', borderRadius: '25px', border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', cursor: 'pointer' }}
+                        style={{ padding: '20px', backgroundColor: '#fcfdfe', borderRadius: '25px', border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

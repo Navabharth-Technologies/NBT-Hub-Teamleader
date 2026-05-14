@@ -15,6 +15,7 @@ const AwardsScreen = ({ onBack }) => {
     const [feedback, setFeedback] = useState({ show: false, message: '', type: 'success' });
     const [grantedHistory, setGrantedHistory] = useState([]);
     const [grantedLoading, setGrantedLoading] = useState(false);
+    const [designationMap, setDesignationMap] = useState({});
     const [selectedMemberRewards, setSelectedMemberRewards] = useState({ history: [], totalPoints: 0, loading: false });
     const [quizPoints, setQuizPoints] = useState(0);
     const [winWidth, setWinWidth] = useState(window.innerWidth);
@@ -42,15 +43,17 @@ const AwardsScreen = ({ onBack }) => {
         let s = String(id).trim();
         
         // Handle comma-separated IDs (take the first one)
-        if (s.includes(',')) {
-            s = s.split(',')[0].trim();
-        }
+        if (s.includes(',')) s = s.split(',')[0].trim();
 
-        if (s.length >= 6 && s.length % 3 === 0) {
-            const p1 = s.substring(0, s.length / 3);
-            const p2 = s.substring(s.length / 3, (s.length / 3) * 2);
-            const p3 = s.substring((s.length / 3) * 2);
-            if (p1 === p2 && p1 === p3) return p1;
+        // Handle triple repetition bug (e.g. 202516202516202516)
+        if (s.length >= 9 && s.length % 3 === 0) {
+            const partLen = s.length / 3;
+            if (s.substring(0, partLen) === s.substring(partLen, partLen * 2)) return s.substring(0, partLen);
+        }
+        // Handle double repetition bug (e.g. 202512202512)
+        if (s.length >= 6 && s.length % 2 === 0) {
+            const partLen = s.length / 2;
+            if (s.substring(0, partLen) === s.substring(partLen)) return s.substring(0, partLen);
         }
         return s;
     };
@@ -129,10 +132,42 @@ const AwardsScreen = ({ onBack }) => {
 
                 if (res.ok) {
                     const data = await res.json();
-                    mainHistory = data.history || (Array.isArray(data) ? data : []);
+                    mainHistory = data.history || data.awards || (Array.isArray(data) ? data : (data.data || []));
                     mainTotal = Number(data.totalPoints || 0);
                     
-                    // If totalPoints is not provided, calculate it from history
+                    // Fallback for Quiz Points if missing from history
+                    const hasQuiz = mainHistory.some(r => {
+                        const cat = String(r.category || '').toUpperCase();
+                        const name = String(r.title || r.award_name || '').toUpperCase();
+                        return cat === 'QUIZ' || cat === 'FUN QUIZ GAME' || name.includes('QUIZ');
+                    });
+
+                    if (!hasQuiz) {
+                        try {
+                            const qRes = await fetch(`${BASE_URL}/api/fun-quizzes/leaderboard`, {
+                                headers: { 'Authorization': `Bearer ${token?.trim()}` }
+                            });
+                            if (qRes.ok) {
+                                const qData = await qRes.json();
+                                const qList = Array.isArray(qData) ? qData : (qData.data || []);
+                                const qEntry = qList.find(s => cleanIdLocal(s.employee_id || s.user_id || s.id) === eid);
+                                if (qEntry && Number(qEntry.total_score || 0) > 0) {
+                                    const synthesized = {
+                                        id: 'quiz-fallback-sel',
+                                        title: 'Points Earned by Quiz',
+                                        points: Number(qEntry.total_score || 0),
+                                        rep: Number(qEntry.total_score || 0),
+                                        category: 'QUIZ',
+                                        date: new Date().toISOString(),
+                                        description: 'Historical accumulated points'
+                                    };
+                                    mainHistory = [...mainHistory, synthesized];
+                                    mainTotal += synthesized.points;
+                                }
+                            }
+                        } catch (qErr) { console.warn("Fallback quiz fetch failed:", qErr); }
+                    }
+
                     if (!mainTotal && mainHistory.length > 0) {
                         mainTotal = mainHistory.reduce((sum, r) => sum + (Number(r.points) || Number(r.rep) || 0), 0);
                     }
@@ -167,54 +202,155 @@ const AwardsScreen = ({ onBack }) => {
             const token = localStorage.getItem('token');
             const uid = cleanIdLocal(user?.employee_id || user?.userId || user?.id);
 
-            // Fetch ALL rewards summary (Unfiltered)
+            // 1. Fetch ALL rewards summary
             const res = await fetch(API_ENDPOINTS.REWARDS_MY, {
                 headers: { 'Authorization': `Bearer ${token?.trim()}` }
             });
 
             if (res.ok) {
                 const data = await res.json();
-                const allRewards = data.awards || (Array.isArray(data) ? data : []);
+                // Robust extraction matching FunQuizScreen
+                let allRewards = data.awards || data.history || (Array.isArray(data) ? data : (data.data || data.records || []));
                 
+                // 2. Fetch Quiz Leaderboard for fallback and ranking
+                const [lbRes, quizLbRes] = await Promise.all([
+                    fetch(API_ENDPOINTS.REWARDS_LEADERBOARD, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
+                    fetch(`${BASE_URL}/api/fun-quizzes/leaderboard`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } })
+                ]);
+
+                let lbList = [];
+                let quizLbList = [];
+
+                if (lbRes.ok) {
+                    const lbData = await lbRes.json();
+                    lbList = Array.isArray(lbData) ? lbData : (lbData.data || lbData.records || []);
+                    setQuizLeaderboard(lbList);
+                }
+
+                if (quizLbRes.ok) {
+                    const qData = await quizLbRes.json();
+                    quizLbList = Array.isArray(qData) ? qData : (qData.data || []);
+                }
+
+                // 3. Fallback: If no quiz rewards in the main table, synthesize one from the quiz leaderboard
+                const hasQuizInHistory = allRewards.some(r => {
+                    const cat = String(r.category || '').toUpperCase();
+                    const name = String(r.title || r.award_name || '').toUpperCase();
+                    return cat === 'QUIZ' || cat === 'FUN QUIZ GAME' || name.includes('QUIZ');
+                });
+
+                if (!hasQuizInHistory) {
+                    const myQuizEntry = quizLbList.find(s => cleanIdLocal(s.employee_id || s.user_id || s.id) === uid);
+                    if (myQuizEntry && Number(myQuizEntry.total_score || myQuizEntry.points || 0) > 0) {
+                        const synthesizedQuiz = {
+                            id: 'quiz-fallback',
+                            title: 'Points Earned by Quiz',
+                            points: Number(myQuizEntry.total_score || myQuizEntry.points || 0),
+                            rep: Number(myQuizEntry.total_score || myQuizEntry.points || 0),
+                            category: 'QUIZ',
+                            date: new Date().toISOString(),
+                            description: `Accumulated from ${myQuizEntry.total_quizzes || myQuizEntry.quiz_count || 'multiple'} sessions`
+                        };
+                        allRewards = [...allRewards, synthesizedQuiz];
+                        setQuizPoints(synthesizedQuiz.points);
+                    }
+                }
+
+                // 4. Fetch Dependencies (Employees, Manager) for accurate PM vs HR filtering
+                let degMap = {};
+                let managerId = '';
+                try {
+                    const [empRes, mRes] = await Promise.all([
+                        fetch(API_ENDPOINTS.EMPLOYEES, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
+                        fetch(API_ENDPOINTS.MANAGER(user.email || user.email_id), { headers: { 'Authorization': `Bearer ${token?.trim()}` } })
+                    ]);
+
+                    if (empRes.ok) {
+                        const empData = await empRes.json();
+                        const empList = Array.isArray(empData) ? empData : (empData.data || []);
+                        empList.forEach(e => {
+                            degMap[cleanIdLocal(e.employee_id || e.id || e.userId)] = String(e.designation || e.role || '').toUpperCase();
+                        });
+                    }
+
+                    if (mRes.ok) {
+                        const mData = await mRes.json();
+                        managerId = cleanIdLocal(mData.employee_id || mData.id || mData.userId || mData.manager_id);
+                    }
+                } catch (e) { console.warn("Dependency fetch failed:", e); }
+
                 const pmTitles = ['VISIONARY LEAD', 'TEAM GROWTH', 'STAR PERFORMER', 'PROBLEM SOLVER', 'COLLABORATIVE HERO', 'CUSTOM HONOR'];
                 const pm = allRewards.filter(r => {
                     const cat = String(r.category || '').trim().toUpperCase();
                     const name = String(r.title || r.award_name || r.reward_name || r.awardName || '').trim().toUpperCase();
+                    const grantorId = cleanIdLocal(r.granted_by || r.giver_id || r.grantor_id);
+                    const deg = degMap[grantorId] || '';
+                    const role = String(r.granted_by_role || r.giver_role || r.role || '').toUpperCase();
+
+                    // 1. Mandatory HR/Game Column Routing
+                    if (cat === 'QUIZ' || cat === 'FUN QUIZ GAME' || name.includes('QUIZ')) return false;
+                    if (cat === 'HR' || cat === 'ADMIN' || cat === 'RECRUITMENT' || cat === 'GAME') return false;
                     
-                    // 1. Exclude HR, Games, and Quizzes explicitly from PM Column
-                    if (['HR', 'FUN QUIZ GAME', 'QUIZ'].includes(cat)) return false;
+                    const isHrDept = deg.includes('HR') || deg.includes('HUMAN RESOURCES') || deg.includes('RECRUIT') || 
+                                    deg.includes('PEOPLE OPS') || deg.includes('ADMIN') || deg.includes('TALENT') || 
+                                    deg.includes('OFFICE') || deg.includes('ACCOUNT') || deg.includes('OPERATIONS') ||
+                                    role === 'HR' || role === 'ADMIN';
                     
-                    // 2. Include PM-led categories
-                    if (['PM', 'PERFORMANCE', 'CORE VALUES', 'CUSTOM'].includes(cat)) return true;
-                    
-                    // 3. Fallback for title-based matching
-                    return pmTitles.some(t => name.includes(t));
+                    if (isHrDept) return false;
+
+                    // 2. Verified Leadership Routing (Manager or Self)
+                    const isVerifiedLeadership = (grantorId && (grantorId === managerId || grantorId === uid));
+                    if (isVerifiedLeadership) return true;
+
+                    // 3. Category-Based Routing
+                    // If the backend explicitly marked it as Performance, it's PM
+                    if (cat === 'PERFORMANCE' || cat === 'PM') return true;
+
+                    // 4. Designation-Based Routing (Non-HR)
+                    const isLeadershipDesignation = deg.includes('PROJECT MANAGER') || deg.includes('PM') || deg.includes('MANAGER') || 
+                                                   deg.includes('LEAD') || deg.includes('DIRECTOR') || deg.includes('TL') || 
+                                                   deg.includes('TEAM LEADER');
+                    if (isLeadershipDesignation) return true;
+
+                    // 5. Title-Based Routing (Last Resort)
+                    // If it's a known PM title BUT category is NOT 'OTHER', we can trust it.
+                    // If category is 'OTHER' and we don't have a verified ID/Designation, we default to HR to be safe.
+                    const isKnownPmTitle = pmTitles.some(t => name.includes(t));
+                    if (isKnownPmTitle && cat !== 'OTHER') return true;
+
+                    return false; // Default to HR & Game Column for everything else
                 });
                 
-                let hr = allRewards.filter(r => !pm.includes(r));
+                const hr = allRewards.filter(r => !pm.includes(r));
 
-
-
-                // Fetch Global Leaderboard (Baseline)
-                try {
-                    const lbRes = await fetch(API_ENDPOINTS.REWARDS_LEADERBOARD, {
-                        headers: { 'Authorization': `Bearer ${token?.trim()}` }
-                    });
-                    if (lbRes.ok) {
-                        const lbData = await lbRes.json();
-                        const lbList = Array.isArray(lbData) ? lbData : (lbData.data || lbData.records || []);
-                        setQuizLeaderboard(lbList); 
-                    }
-                } catch (err) {
-                    console.error("Leaderboard fetch failed:", err);
-                }
+                // Store designation map for display purposes
+                setDesignationMap(degMap);
 
                 const totalRep = allRewards.reduce((sum, r) => sum + (Number(r.points) || Number(r.rep) || 0), 0);
                 const endorsements = allRewards.length;
 
+                // 4. Calculate Official Global Ranking using the leaderboard API
+                let finalRank = "Unranked";
+                if (lbList.length > 0) {
+                    // Create virtual leaderboard with my updated points to see my current standing
+                    const virtualLB = lbList.map(entry => {
+                        const entryId = cleanIdLocal(entry.employee_id || entry.userId || entry.id);
+                        const isMe = entryId === uid || (entry.employee_name || entry.name || "").toLowerCase().trim() === (user?.employee_name || user?.name || "").toLowerCase().trim();
+                        return { 
+                            points: isMe ? totalRep : Number(entry.points || entry.totalPoints || entry.total_rep || entry.rep || 0)
+                        };
+                    });
+                    
+                    virtualLB.sort((a, b) => b.points - a.points);
+                    const myIdx = virtualLB.findIndex(v => v.points === totalRep);
+                    if (myIdx !== -1) {
+                        finalRank = `#${myIdx + 1}`;
+                    }
+                }
+
                 setRewardData({
                     stats: {
-                        rank: "Calculating...", // Will be recalculated in render
+                        rank: finalRank,
                         points: totalRep,
                         endorsements: endorsements,
                         score: totalRep > 400 ? 'High' : 'Active'
@@ -422,49 +558,10 @@ const AwardsScreen = ({ onBack }) => {
     const displayPoints = filteredHistory.reduce((sum, item) => sum + (Number(item.points) || Number(item.rep) || 0), 0);
     const displayEndorsements = filteredHistory.length;
 
-    // Calculate Dynamic Rank based on filtered points vs Global Leaderboard
-    let dynamicRank = rawStats.rank; // Use rawStats.rank as initial base
-    if (quizLeaderboard.length > 0) {
-        const uid = cleanIdLocal(user?.employee_id || user?.userId || user?.id);
-        
-        // Create a copy of the leaderboard to re-calculate rank for this period
-        const virtualLB = [...quizLeaderboard].map(entry => {
-            const entryId = String(entry.employee_id || entry.userId || entry.id || "").trim();
-            const entryName = String(entry.employee_name || entry.name || "").toLowerCase().trim();
-            const myName = String(user?.employee_name || user?.name || "").toLowerCase().trim();
-            
-            let isMe = false;
-            if (cleanIdLocal(entryId) === uid) isMe = true;
-            else if (myName && entryName === myName) isMe = true;
-            
-            if (isMe) {
-                return { ...entry, points: displayPoints };
-            }
-            return { ...entry, points: Number(entry.points || entry.totalPoints || entry.total_rep || entry.rep || entry.quiz_score || 0) };
-        });
-        
-        // Re-sort based on (potentially reduced) period points
-        virtualLB.sort((a, b) => b.points - a.points);
-        
-        const myNewIndex = virtualLB.findIndex(entry => {
-            const entryId = String(entry.employee_id || entry.userId || entry.id || "").trim();
-            const entryName = String(entry.employee_name || entry.name || "").toLowerCase().trim();
-            const myName = String(user?.employee_name || user?.name || "").toLowerCase().trim();
-            if (cleanIdLocal(entryId) === uid) return true;
-            if (myName && entryName === myName) return true;
-            return false;
-        });
-
-        if (myNewIndex !== -1) {
-            dynamicRank = `#${myNewIndex + 1}`;
-        }
-    }
-
     const stats = {
         ...rawStats,
         points: displayPoints,
-        endorsements: displayEndorsements,
-        rank: dynamicRank
+        endorsements: displayEndorsements
     };
 
     return (
@@ -768,15 +865,29 @@ const AwardsScreen = ({ onBack }) => {
                                                 if (String(aw.category).toUpperCase() === 'QUIZ') return false;
                                                 return true;
                                             })
-                                            .map((aw, i) => (
-                                                <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} style={{ backgroundColor: '#fcfdfe', padding: '15px', borderRadius: '18px', border: `1px solid #e0f2fe` }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                        <div style={{ fontSize: '13px', fontWeight: '900', color: '#1e293b' }}>{aw.title || aw.award_name || aw.reward_name || aw.awardName}</div>
-                                                        <div style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8' }}>{aw.created_at || aw.date ? new Date(aw.created_at || aw.date).toLocaleDateString() : 'Recent'}</div>
-                                                    </div>
-                                                    <div style={{ fontSize: '11px', fontWeight: '1000', color: '#3B5998', marginTop: '4px' }}>+{aw.rep || aw.points} REP POINTS</div>
-                                                </motion.div>
-                                            ))
+                                            .map((aw, i) => {
+                                                const gid = cleanIdLocal(aw.granted_by || aw.giver_id || aw.grantor_id);
+                                                const deg = designationMap[gid] || '';
+                                                let roleLabel = 'Recognition Grant';
+                                                
+                                                if (deg.includes('HR')) roleLabel = 'HR Dept';
+                                                else if (deg.includes('PROJECT MANAGER') || deg.includes('PM')) roleLabel = 'Project Manager';
+                                                else if (deg.includes('MANAGER') || deg.includes('LEAD')) roleLabel = 'Leadership';
+
+                                                const displayDesc = aw.description || aw.note || `${roleLabel} (Hub)`;
+                                                
+                                                return (
+                                                    <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} style={{ backgroundColor: '#fcfdfe', padding: '15px', borderRadius: '18px', border: `1px solid #e0f2fe` }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                                                                <div style={{ fontSize: '13px', fontWeight: '900', color: '#1e293b' }}>{aw.title || aw.award_name || aw.reward_name || aw.awardName}</div>
+                                                            </div>
+                                                            <div style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8', flexShrink: 0 }}>{aw.created_at || aw.date ? new Date(aw.created_at || aw.date).toLocaleDateString() : 'Recent'}</div>
+                                                        </div>
+                                                        <div style={{ fontSize: '11px', fontWeight: '1000', color: '#3B5998', marginTop: '4px' }}>+{aw.rep || aw.points} REP POINTS</div>
+                                                    </motion.div>
+                                                );
+                                            })
                                     ) : <div style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '12px', fontWeight: '800', border: '1.5px dashed #e2e8f0', borderRadius: '15px' }}>No PM records in audit</div>}
                                 </div>
                             </div>
@@ -795,7 +906,13 @@ const AwardsScreen = ({ onBack }) => {
                                     <div style={{ padding: '4px 10px', backgroundColor: '#fef3c7', borderRadius: '10px', border: '1px solid #fde68a', fontSize: '10px', fontWeight: '1000', color: '#d97706', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                         <Trophy size={12} />
                                         {(() => {
-                                            const totalHrPoints = history.hr?.reduce((sum, aw) => sum + (Number(aw.points) || Number(aw.rep) || 0), 0);
+                                            const totalHrPoints = (history.hr || []).reduce((sum, aw) => {
+                                                const rawTitle = String(aw.title || aw.award_name || aw.reward_name || aw.awardName || '').trim().toLowerCase();
+                                                const cat = String(aw.category || '').toUpperCase();
+                                                const isQuiz = cat === 'FUN QUIZ GAME' || cat === 'QUIZ' || rawTitle.includes('quiz') || rawTitle.includes('brain teaser');
+                                                if (isQuiz) return sum + (Number(aw.points) || Number(aw.rep) || 0);
+                                                return sum;
+                                            }, 0);
                                             return `${totalHrPoints} REP TOTAL`;
                                         })()}
                                     </div>
@@ -814,8 +931,17 @@ const AwardsScreen = ({ onBack }) => {
                                                 const cat = String(aw.category || '').toUpperCase();
                                                 const isQuiz = cat === 'FUN QUIZ GAME' || cat === 'QUIZ' || rawTitle.toLowerCase().includes('points earned by quiz');
                                                 
+                                                const gid = cleanIdLocal(aw.granted_by || aw.giver_id || aw.grantor_id);
+                                                const deg = String(designationMap[gid] || '').toUpperCase();
+                                                
+                                                let roleLabel = 'Recognition Grant';
+                                                if (isQuiz) roleLabel = 'Cognitive Challenge';
+                                                else if (deg.includes('HR')) roleLabel = 'HR Dept';
+                                                else if (deg.includes('PROJECT MANAGER') || deg.includes('PM')) roleLabel = 'Project Manager';
+                                                else if (deg.includes('MANAGER') || deg.includes('LEAD')) roleLabel = 'Leadership';
+                                                
                                                 const displayTitle = isQuiz ? 'Brain Teaser Achievement' : rawTitle;
-                                                const displayDesc = isQuiz ? (aw.description || aw.note || 'Cognitive Challenge Completed') : (aw.description || aw.note || '');
+                                                const displayDesc = isQuiz ? (aw.description || aw.note || 'Cognitive Challenge Completed') : (aw.description || aw.note || `${roleLabel} (Hub)`);
 
                                                 return (
                                                     <motion.div key={i} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} style={{ 
@@ -828,7 +954,6 @@ const AwardsScreen = ({ onBack }) => {
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, paddingRight: isQuiz ? '15px' : '0' }}>
                                                                     <div style={{ fontSize: '13px', fontWeight: '900', color: '#1e293b' }}>{displayTitle}</div>
-                                                                    {displayDesc && <div style={{ fontSize: '10px', fontWeight: '700', color: '#94a3b8' }}>{displayDesc}</div>}
                                                                 </div>
                                                                 <div style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8', flexShrink: 0 }}>{aw.created_at || aw.date ? new Date(aw.created_at || aw.date).toLocaleDateString() : 'Recent'}</div>
                                                             </div>

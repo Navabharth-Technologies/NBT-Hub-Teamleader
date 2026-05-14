@@ -259,8 +259,12 @@ export const ThreadProvider = ({ children }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: user?.id, user_id: user?.id })
         });
-        if (res.ok) await fetchThreads();
+        if (res.ok) {
+           await fetchThreads();
+           return true;
+        }
     } catch {}
+    return false;
   };
 
   const updateComment = async (threadId, commentId, content) => {
@@ -277,19 +281,61 @@ export const ThreadProvider = ({ children }) => {
                message: content
             })
         });
-        if (res.ok) await fetchThreads();
+        if (res.ok) {
+           await fetchThreads();
+           return true;
+        }
     } catch {}
+    return false;
   };
 
-  const updatePost = async (id, content) => {
+  const updatePost = async (id, payload) => {
     try {
-        const res = await fetch(API_ENDPOINTS.THREAD_UPDATE(id), {
+        let mediaData = null;
+        if (payload.file) {
+           mediaData = await new Promise((resolve) => {
+             const reader = new FileReader();
+             reader.onloadend = () => resolve(reader.result);
+             reader.readAsDataURL(payload.file);
+           });
+        }
+        
+        const body = { 
+            content: payload.content,
+            userId: user?.id,
+            user_id: user?.id
+        };
+        
+        if (payload.file) {
+           body.media = mediaData;
+           body.mediaType = payload.mediaType;
+        } else if (payload.removeMedia) {
+           body.media = '';
+           body.mediaType = '';
+        }
+
+        const token = localStorage.getItem('token');
+        const url = `${API_ENDPOINTS.THREAD_UPDATE(id)}?userId=${user?.id}&user_id=${user?.id}`;
+        
+        const res = await fetch(url, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content })
+            headers: { 
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify(body)
         });
-        if (res.ok) setThreads(threads.map(t => t.id === id ? { ...t, content } : t));
-    } catch {}
+        
+        if (res.ok) {
+            await fetchThreads();
+            return true;
+        } else {
+            console.error("Update failed:", await res.text());
+        }
+    } catch (err) {
+        console.error("Update error:", err);
+    }
+    return false;
   };
 
   return (

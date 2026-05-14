@@ -1,24 +1,38 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BookOpen, Clock, Star, PlayCircle, Award, CheckCircle, ChevronLeft, Lock, FileText, Download } from 'lucide-react';
+import { BookOpen, Clock, Star, PlayCircle, Award, CheckCircle, ChevronLeft, Lock, FileText, Download, RefreshCw, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { API_ENDPOINTS, BASE_URL } from '../config';
+import { useAuth } from '../context/AuthContext';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 import logo from '../assets/logo.png';
 import petal from '../assets/image.png';
+import certTemplate from '../assets/images/image.png';
 
 export default function CourseScreen() {
+    const { user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [winWidth, setWinWidth] = useState(window.innerWidth);
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedCourse, setSelectedCourse] = useState(null);
+    const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
 
-    // Completion Tracking
-    const [isVideoDone, setIsVideoDone] = useState(false);
-    const [isPdfDone, setIsPdfDone] = useState(false);
-    const [isTestDone, setIsTestDone] = useState(false);
+    const triggerToast = (msg, type = 'success') => {
+        setToast({ show: true, msg, type });
+        setTimeout(() => setToast({ show: false, msg: '', type: 'success' }), 3000);
+    };
+
+    // Completion Tracking (Persistent)
+    const [courseProgressMap, setCourseProgressMap] = useState({});
+
+    const currentCourseProgress = courseProgressMap[selectedCourse?.id] || { progress: 0, isPdfDone: false, isTestDone: false };
+    const isVideoDone = currentCourseProgress.progress >= 100;
+    const isPdfDone = currentCourseProgress.isPdfDone;
+    const isTestDone = currentCourseProgress.isTestDone;
     const [currentView, setCurrentView] = useState(null); // 'video', 'pdf', 'test'
     const [showCertificate, setShowCertificate] = useState(false);
     const [showCard, setShowCard] = useState(false);
@@ -27,13 +41,106 @@ export default function CourseScreen() {
 
     // New: Video Progression states
     const [canShowMarkButton, setCanShowMarkButton] = useState(false);
+    const [testResult, setTestResult] = useState(null); // null, 'pass', 'fail'
+    const [videoDurations, setVideoDurations] = useState({});
+
+    useEffect(() => {
+        if (courses.length > 0) {
+            courses.forEach(course => {
+                const videoLink = formatUrl(course.video || course.video_url || course.video_link || course.link);
+                if (videoLink && !videoLink.includes('youtube') && !videoLink.includes('vimeo') && !videoDurations[course.id]) {
+                    const tempVideo = document.createElement('video');
+                    tempVideo.src = videoLink;
+                    tempVideo.preload = 'metadata';
+                    tempVideo.onloadedmetadata = () => {
+                        const mins = Math.floor(tempVideo.duration / 60);
+                        const secs = Math.floor(tempVideo.duration % 60);
+                        const durationStr = `${mins}m ${secs}s`;
+                        setVideoDurations(prev => ({ ...prev, [course.id]: durationStr }));
+                        tempVideo.src = ""; // Clean up
+                    };
+                    tempVideo.onerror = () => {
+                        tempVideo.src = ""; // Clean up on error
+                    };
+                }
+            });
+        }
+    }, [courses]);
+
     const videoRef = useRef(null);
 
-    // Persistent storage for course progress
-    const [courseProgressMap, setCourseProgressMap] = useState(() => {
-        const saved = localStorage.getItem('courseProgressRecords');
-        return saved ? JSON.parse(saved) : {};
-    });
+    const markCourseAsComplete = async (courseId) => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const uid = user?.employee_id || user?.id;
+            const res = await fetch(API_ENDPOINTS.COURSE_PROGRESS, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token?.trim()}` 
+                },
+                body: JSON.stringify({ 
+                    courseId, 
+                    completed: true,
+                    userId: uid
+                })
+            });
+
+            if (res.ok) {
+                setCourses(prev => prev.map(c => 
+                    c.id === courseId ? { ...c, completed: 1 } : c
+                ));
+                setCourseProgressMap(prev => ({
+                    ...prev,
+                    [courseId]: { ...prev[courseId], completed: 1, progress: 100 }
+                }));
+                triggerToast("Congratulations! Your certificate has been sent to your email.");
+            }
+        } catch (err) {
+            console.error('Completion Sync Error:', err);
+            triggerToast("Failed to sync completion. Please try again.", "error");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const updateProgress = async (courseId, progress, extraFlags = {}) => {
+        try {
+            const token = localStorage.getItem('token');
+            const uid = user?.employee_id || user?.id;
+            if (!uid) return;
+
+            setCourseProgressMap(prev => ({
+                ...prev,
+                [courseId]: {
+                    ...(prev[courseId] || { progress: 0, isPdfDone: false, isTestDone: false }),
+                    progress,
+                    ...extraFlags
+                }
+            }));
+
+            await fetch(API_ENDPOINTS.COURSE_PROGRESS, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token?.trim()}` 
+                },
+                body: JSON.stringify({
+                    courseId,
+                    userId: uid,
+                    progress,
+                    ...extraFlags
+                })
+            });
+
+            if (extraFlags.isTestDone) {
+                await markCourseAsComplete(courseId);
+            }
+        } catch (err) {
+            console.error('Progress Sync Failed:', err);
+        }
+    };
 
     // Blast Particles
     const particles = Array.from({ length: 80 });
@@ -41,9 +148,48 @@ export default function CourseScreen() {
     useEffect(() => {
         const handleResize = () => setWinWidth(window.innerWidth);
         window.addEventListener('resize', handleResize);
+        
         fetchCourses();
+        fetchProgress(); // Fetch persistent progress from backend
+        
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    const fetchProgress = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const uid = user?.employee_id || user?.id;
+            if (!uid) return;
+
+            const res = await fetch(`${API_ENDPOINTS.COURSE_PROGRESS}?userId=${uid}`, {
+                headers: { 'Authorization': `Bearer ${token?.trim()}` }
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                const map = {};
+                
+                // Handle both { success: true, data: [...] } and direct array/object formats
+                const data = result.data || result;
+                
+                if (Array.isArray(data)) {
+                    data.forEach(item => {
+                        const cid = item.courseId || item.course_id;
+                        if (cid) map[cid] = item;
+                    });
+                } else if (data && typeof data === 'object') {
+                    Object.keys(data).forEach(key => {
+                        map[key] = data[key];
+                    });
+                }
+                
+                console.log("Synchronized Progress Map:", map);
+                setCourseProgressMap(map);
+            }
+        } catch (err) {
+            console.error('Progress Synchronization Error:', err);
+        }
+    };
 
     useEffect(() => {
         localStorage.setItem('courseProgressRecords', JSON.stringify(courseProgressMap));
@@ -76,18 +222,32 @@ export default function CourseScreen() {
 
     const formatUrl = (path) => {
         if (!path || typeof path !== 'string') return null;
-        if (path.startsWith('http')) return path;
 
-        const fileName = path.split(/[\\\/]upload[s]?[\\\/]/i).pop().replace(/^.*[\\\/]/, '');
+        let finalPath = path;
+
+        // Handle explicit localhost paths from DB
+        if (finalPath.includes('localhost:5000')) {
+            finalPath = finalPath.replace(/http:\/\/localhost:5000/g, BASE_URL);
+        }
+
+        // If it's a Google Drive stream from the backend
+        if (finalPath.includes('/api/drive/stream/')) {
+            const streamId = finalPath.split('/api/drive/stream/')[1];
+            return `${BASE_URL}/api/drive/stream/${streamId}`;
+        }
+
+        // If it's an upload from the backend
+        if (finalPath.includes('/uploads/') || finalPath.includes('\\uploads\\')) {
+            const fileName = finalPath.split(/[\\\/]upload[s]?[\\\/]/i).pop().replace(/^.*[\\\/]/, '');
+            return `${BASE_URL}/uploads/${fileName}`;
+        }
+
+        if (finalPath.startsWith('http')) return finalPath;
+
+        const fileName = finalPath.split(/[\\\/]upload[s]?[\\\/]/i).pop().replace(/^.*[\\\/]/, '');
         return `${BASE_URL}/uploads/${fileName}`;
     };
 
-    const updateProgress = (courseId, progress) => {
-        setCourseProgressMap(prev => ({
-            ...prev,
-            [courseId]: { ...prev[courseId], progress: progress }
-        }));
-    };
 
     const s = {
         container: { backgroundColor: '#f8fafc', minHeight: '100vh', padding: winWidth < 768 ? '20px' : '40px', fontFamily: "'Inter', sans-serif" },
@@ -119,19 +279,68 @@ export default function CourseScreen() {
         disabledBtn: { backgroundColor: '#94a3b8', color: '#cbd5e1', cursor: 'not-allowed', opacity: 0.6 },
 
         // CONGRATS POPUP
-        popupOverlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(20px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '15px' },
-        certificate: { backgroundColor: 'white', padding: winWidth < 768 ? '30px 20px' : '60px', borderRadius: winWidth < 768 ? '30px' : '50px', maxWidth: '650px', width: '92%', textAlign: 'center', border: winWidth < 768 ? '8px double #0B1E3F' : '15px double #0B1E3F', position: 'relative', zIndex: 10001, boxShadow: '0 30px 100px rgba(0,0,0,0.3)' }
+        popupOverlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '15px' },
+        certificate: {
+            backgroundColor: 'white',
+            borderRadius: '20px',
+            maxWidth: '850px',
+            width: '95%',
+            aspectRatio: winWidth < 768 ? 'auto' : '1.4 / 1',
+            textAlign: 'center',
+            position: 'relative',
+            zIndex: 10001,
+            boxShadow: '0 40px 100px rgba(0,0,0,0.5)',
+            overflow: 'hidden',
+            border: '8px solid white',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            padding: winWidth < 768 ? '40px 20px' : '0'
+        }
     };
 
     const handleBackToFleet = () => {
         setSelectedCourse(null);
         setCurrentView(null);
-        setIsVideoDone(false);
-        setIsPdfDone(false);
-        setIsTestDone(false);
         setShowCertificate(false);
         setShowCard(false);
         setCanShowMarkButton(false);
+    };
+
+    const downloadCertificate = async () => {
+        const element = document.getElementById('professional-certificate');
+        if (!element) return;
+
+        try {
+            const canvas = await html2canvas(element, {
+                scale: 2, // Higher resolution
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('l', 'mm', 'a4'); // Landscape A4
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+
+            // Calculate dimensions to fit A4
+            const canvasAspect = canvas.width / canvas.height;
+            const pdfAspect = pageWidth / pageHeight;
+            let finalWidth = pageWidth;
+            let finalHeight = pageHeight;
+
+            if (canvasAspect > pdfAspect) {
+                finalHeight = pageWidth / canvasAspect;
+            } else {
+                finalWidth = pageHeight * canvasAspect;
+            }
+
+            pdf.addImage(imgData, 'PNG', (pageWidth - finalWidth) / 2, (pageHeight - finalHeight) / 2, finalWidth, finalHeight);
+            pdf.save(`${selectedCourse.title}_Certificate_${user?.name || 'Employee'}.pdf`);
+        } catch (err) {
+            console.error("PDF generation failed:", err);
+            alert("Failed to generate PDF. Please try again.");
+        }
     };
 
     const handleVideoTimeUpdate = () => {
@@ -181,8 +390,11 @@ export default function CourseScreen() {
                         )}
                     </div>
 
-                    {(isEmbed || canShowMarkButton) ? (
-                        <button style={s.finishBtn} onClick={() => { setIsVideoDone(true); updateProgress(selectedCourse.id, 100); setCurrentView(null); }}>
+                    {canShowMarkButton ? (
+                        <button style={s.finishBtn} onClick={() => {
+                            updateProgress(selectedCourse.id, 100);
+                            setCurrentView(null);
+                        }}>
                             <CheckCircle size={20} /> MARK AS PROFICIENCY COMPLETE
                         </button>
                     ) : (
@@ -205,30 +417,12 @@ export default function CourseScreen() {
                     <div style={s.pdfContainer}>
                         {pdfSrc ? <iframe src={`${pdfSrc}#toolbar=0`} style={{ flex: 1, border: 'none', borderRadius: '35px' }} /> : <div style={{ padding: '60px', textAlign: 'center', color: '#64748b', fontWeight: '800' }}>PDF Documentation Not Available</div>}
                     </div>
-                    <button style={s.finishBtn} onClick={() => { setIsPdfDone(true); setCurrentView(null); }}><CheckCircle size={20} /> MARK AS READ</button>
+                    <button style={s.finishBtn} onClick={() => setCurrentView(null)}><ChevronLeft size={20} /> RETURN TO CURRICULUM</button>
                 </div>
             </div>
         );
     }
 
-    if (selectedCourse && currentView === 'test') {
-        return (
-            <div style={s.container}>
-                <div style={{ ...s.innerContainer, maxWidth: '800px' }}>
-                    <button style={s.backBtn} onClick={() => setCurrentView(null)}><ChevronLeft size={18} /> BACK</button>
-                    <h2 style={{ ...s.title, textAlign: 'center', marginBottom: '40px' }}>Proficiency Assessment</h2>
-                    <div style={{ backgroundColor: '#fffbeb', padding: '30px', borderRadius: '25px', marginBottom: '30px', border: '1.2px solid #fde68a' }}>
-                        <p style={{ fontSize: '15px', fontWeight: '800', color: '#d97706' }}>Complete the master validation test to receive your certificate.</p>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        <div style={{ padding: '25px', borderRadius: '20px', background: 'white', fontWeight: '700', border: '1.2px solid #f1f5f9' }}>Q1: What is the primary architecture of {selectedCourse.title}?</div>
-                        <div style={{ padding: '25px', borderRadius: '20px', background: 'white', fontWeight: '700', border: '1.2px solid #f1f5f9' }}>Q2: Define state management in scalable industrial apps?</div>
-                    </div>
-                    <button style={{ ...s.finishBtn, backgroundColor: '#f59e0b' }} onClick={() => { setIsTestDone(true); setShowCertificate(true); setCurrentView(null); setTimeout(() => setShowCard(true), 1500); }}>SUBMIT ASSESSMENT</button>
-                </div>
-            </div>
-        );
-    }
 
     if (selectedCourse) {
         return (
@@ -244,17 +438,117 @@ export default function CourseScreen() {
                             />
                         ))}
                         {showCard && (
-                            <motion.div initial={{ scale: 0.2, opacity: 0, y: 100 }} animate={{ scale: 1, opacity: 1, y: 0 }} transition={{ type: 'spring', damping: 10, stiffness: 60 }} style={s.certificate}>
-                                <motion.img src={logo} style={{ width: '140px', marginBottom: '40px' }} animate={{ scale: [1, 1.2, 1], rotate: [0, -5, 5, 0] }} transition={{ repeat: Infinity, duration: 2.5 }} />
-                                <h1 style={{ fontSize: '38px', fontWeight: '1000', color: '#0B1E3F', letterSpacing: '-1.5px' }}>BOOM! BOOM!</h1>
-                                <p style={{ fontSize: '20px', fontWeight: '800', color: '#3b82f6', margin: '15px 0 35px' }}>CERTIFIED FOR RECOGNITION!</p>
-                                <div style={{ border: '5px double #0B1E3F', padding: '40px', borderRadius: '25px', marginBottom: '45px', position: 'relative' }}>
-                                    <div style={{ fontSize: '11px', fontWeight: '1000', color: '#94a3b8', letterSpacing: '3px', textTransform: 'uppercase' }}>Proficiency Credential</div>
-                                    <div style={{ fontSize: '28px', fontWeight: '1000', color: '#0B1E3F', margin: '22px 0' }}>{selectedCourse.title}</div>
-                                    <div style={{ fontSize: '15px', fontWeight: '700', color: '#64748b' }}>Awarded for world-class technical skill mastery.</div>
+                            <div style={{ position: 'relative', width: '100%', maxWidth: '900px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+                                <div style={{ display: 'flex', gap: '15px', alignSelf: 'flex-end' }}>
+                                    <button
+                                        onClick={downloadCertificate}
+                                        style={{
+                                            backgroundColor: '#10b981',
+                                            color: 'white',
+                                            border: 'none',
+                                            padding: '12px 25px',
+                                            borderRadius: '12px',
+                                            fontWeight: '900',
+                                            fontSize: '12px',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            boxShadow: '0 8px 20px rgba(16, 185, 129, 0.2)'
+                                        }}
+                                    >
+                                        <Download size={16} /> DOWNLOAD PDF
+                                    </button>
+                                    <button
+                                        style={{
+                                            backgroundColor: '#0B1E3F',
+                                            color: 'white',
+                                            border: '1px solid rgba(255,255,255,0.2)',
+                                            padding: '12px 25px',
+                                            borderRadius: '12px',
+                                            fontWeight: '900',
+                                            fontSize: '12px',
+                                            cursor: 'pointer',
+                                            boxShadow: '0 8px 20px rgba(11, 30, 63, 0.3)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px'
+                                        }}
+                                        onClick={handleBackToFleet}
+                                    >
+                                        <ChevronLeft size={16} /> RETURN TO HUB
+                                    </button>
                                 </div>
-                                <button style={s.finishBtn} onClick={handleBackToFleet}>COLLECT & RETURN</button>
-                            </motion.div>
+
+                                <motion.div
+                                    id="professional-certificate"
+                                    initial={{ scale: 0.95, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ duration: 0.6 }}
+                                    style={{
+                                        ...s.certificate,
+                                        width: '842px', 
+                                        height: '595px', 
+                                        maxWidth: 'none',
+                                        backgroundColor: '#fff',
+                                        padding: '0',
+                                        backgroundImage: `url(${certTemplate})`,
+                                        backgroundSize: '100% 100%',
+                                        backgroundPosition: 'center',
+                                        backgroundRepeat: 'no-repeat',
+                                        position: 'relative',
+                                        border: 'none',
+                                        borderRadius: '0',
+                                        boxShadow: '0 40px 100px rgba(0,0,0,0.3)'
+                                    }}
+                                >
+                                    {/* 1. Employee Name (Arrow 1) */}
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '48.5%',
+                                        left: '50%',
+                                        transform: 'translate(-50%, -50%)',
+                                        width: '80%',
+                                        textAlign: 'center',
+                                        fontSize: '44px',
+                                        fontWeight: '900',
+                                        color: '#0B1E3F',
+                                        fontFamily: "'Playfair Display', serif, 'Georgia', 'Times New Roman'",
+                                        letterSpacing: '1px'
+                                    }}>
+                                        {user?.name || 'VALUED EMPLOYEE'}
+                                    </div>
+
+                                    {/* 2. Course Title (Arrow 2) */}
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '64.2%',
+                                        left: '60.5%',
+                                        transform: 'translateY(-50%)',
+                                        width: '25%',
+                                        textAlign: 'left',
+                                        fontSize: '15px',
+                                        fontWeight: '900',
+                                        color: '#1e40af',
+                                        fontFamily: "'Inter', sans-serif"
+                                    }}>
+                                        {(selectedCourse?.title || 'COURSE').toUpperCase()}
+                                    </div>
+
+                                    {/* 3. Date (Arrow 3) */}
+                                    <div style={{
+                                        position: 'absolute',
+                                        top: '81.2%',
+                                        left: '30.5%',
+                                        transform: 'translateY(-50%)',
+                                        fontSize: '14px',
+                                        fontWeight: '900',
+                                        color: '#0B1E3F'
+                                    }}>
+                                        {new Date().toLocaleDateString('en-GB')}
+                                    </div>
+                                </motion.div>
+                            </div>
                         )}
                     </div>
                 )}
@@ -273,7 +567,10 @@ export default function CourseScreen() {
                             {(courseProgressMap[selectedCourse.id]?.progress >= 100) ? 'COMPLETED' : (courseProgressMap[selectedCourse.id]?.progress > 0) ? 'CONTINUE WATCHING' : 'START WATCHING'}
                         </button>
                     </div>
-                    <div style={{ ...s.taskRow, cursor: 'pointer' }} onClick={() => setCurrentView('pdf')}>
+                    <div style={{ ...s.taskRow, cursor: 'pointer' }} onClick={() => {
+                        updateProgress(selectedCourse.id, currentCourseProgress.progress, { isPdfDone: true });
+                        setCurrentView('pdf');
+                    }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                             <div style={{ padding: '15px', borderRadius: '15px', backgroundColor: '#ecfdf5', color: '#10b981' }}><FileText size={24} /></div>
                             <div>
@@ -281,18 +578,46 @@ export default function CourseScreen() {
                                 <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Official documentation and specification guide.</div>
                             </div>
                         </div>
-                        <button style={{ padding: '12px 24px', borderRadius: '14px', border: 'none', fontWeight: '900', fontSize: '11px', backgroundColor: isPdfDone ? '#dcfce7' : '#0B1E3F', color: isPdfDone ? '#16a34a' : 'white', cursor: 'pointer', width: winWidth < 768 ? '100%' : 'auto' }}>{isPdfDone ? 'COMPLETED' : 'OPEN PDF'}</button>
+                        <button style={{
+                            padding: '12px 24px',
+                            borderRadius: '14px',
+                            border: 'none',
+                            fontWeight: '900',
+                            fontSize: '11px',
+                            backgroundColor: isPdfDone ? '#dcfce7' : '#0B1E3F',
+                            color: isPdfDone ? '#16a34a' : 'white',
+                            cursor: 'pointer',
+                            width: winWidth < 768 ? '100%' : 'auto'
+                        }}>
+                            {isPdfDone ? 'COMPLETED' : 'OPEN PDF'}
+                        </button>
                     </div>
-                    <div style={{ ...s.taskRow, opacity: (courseProgressMap[selectedCourse.id]?.progress >= 100 && isPdfDone) ? 1 : 0.6, cursor: (courseProgressMap[selectedCourse.id]?.progress >= 100 && isPdfDone) ? 'pointer' : 'default' }} onClick={() => (courseProgressMap[selectedCourse.id]?.progress >= 100 && isPdfDone) && setCurrentView('test')}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                            <div style={{ padding: '15px', borderRadius: '15px', backgroundColor: '#fffbeb', color: '#f59e0b' }}><Award size={24} /></div>
-                            <div>
-                                <div style={{ fontSize: '18px', fontWeight: '900', color: '#0B1E3F' }}>Module 3: Certification Test</div>
-                                <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Final validation of knowledge mastery.</div>
-                            </div>
-                        </div>
+                    <div
+                        style={{ ...s.taskRow, opacity: (courseProgressMap[selectedCourse.id]?.progress >= 100 && isPdfDone) ? 1 : 0.6, cursor: (courseProgressMap[selectedCourse.id]?.progress >= 100 && isPdfDone) ? 'pointer' : 'default' }}
+                        onClick={() => {
+                            if (courseProgressMap[selectedCourse.id]?.progress >= 100 && isPdfDone) {
+                                if (isTestDone) {
+                                    setShowCertificate(true);
+                                    setShowCard(true);
+                                } else {
+                                    setCurrentView('test');
+                                }
+                            }
+                        }}
+                    >
                         {(courseProgressMap[selectedCourse.id]?.progress >= 100 && isPdfDone) ? (
-                            <button style={{ padding: '12px 24px', borderRadius: '14px', border: 'none', fontWeight: '900', fontSize: '11px', backgroundColor: isTestDone ? '#dcfce7' : '#f59e0b', color: isTestDone ? '#16a34a' : 'white', cursor: 'pointer', width: winWidth < 768 ? '100%' : 'auto' }}>{isTestDone ? 'CERTIFIED' : 'TAKE TEST'}</button>
+                            <button 
+                                style={{ padding: '12px 24px', borderRadius: '14px', border: 'none', fontWeight: '900', fontSize: '11px', backgroundColor: '#f59e0b', color: 'white', cursor: 'pointer', width: winWidth < 768 ? '100%' : 'auto' }}
+                                onClick={async () => {
+                                    if (!isTestDone) {
+                                        await updateProgress(selectedCourse.id, 100, { isTestDone: true });
+                                    }
+                                    setShowCertificate(true);
+                                    setTimeout(() => setShowCard(true), 500);
+                                }}
+                            >
+                                DOWNLOAD CERTIFICATE
+                            </button>
                         ) : (
                             <div style={{ backgroundColor: '#f1f5f9', color: '#94a3b8', padding: '10px 22px', borderRadius: '14px', fontSize: '12px', fontWeight: '900', display: 'flex', alignItems: 'center', gap: '6px', width: winWidth < 768 ? '100%' : 'auto', justifyContent: winWidth < 768 ? 'center' : 'flex-start' }}><Lock size={14} /> LOCKED</div>
                         )}
@@ -328,6 +653,34 @@ export default function CourseScreen() {
 
     return (
         <div style={s.container}>
+            <style>{`
+                input::-ms-reveal,
+                input::-ms-clear {
+                    display: none !important;
+                }
+                input::-webkit-contacts-auto-fill-button,
+                input::-webkit-credentials-auto-fill-button {
+                    display: none !important;
+                    visibility: hidden !important;
+                    pointer-events: none !important;
+                }
+                @keyframes slideIn {
+                    from { transform: translate(-50%, -100%); opacity: 0; }
+                    to { transform: translate(-50%, 0); opacity: 1; }
+                }
+            `}</style>
+            {toast.show && (
+                <div style={{
+                    position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+                    backgroundColor: toast.type === 'success' ? '#10b981' : '#ef4444',
+                    color: 'white', padding: '12px 30px', borderRadius: '15px', zIndex: 9999,
+                    display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '800', fontSize: '14px',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)', animation: 'slideIn 0.3s ease-out'
+                }}>
+                    <CheckCircle size={18} />
+                    {toast.msg}
+                </div>
+            )}
             {showAddModal && (
                 <div style={{ ...s.popupOverlay, padding: '20px', alignItems: 'center', justifyContent: 'center' }}>
                     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={{ backgroundColor: 'white', padding: '40px', borderRadius: '40px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', border: '5px double #0B1E3F' }}>
@@ -402,6 +755,9 @@ export default function CourseScreen() {
                 <div style={s.grid}>
                     {courses.map(course => {
                         const progress = courseProgressMap[course.id]?.progress || 0;
+                        const isActuallyComplete = courseProgressMap[course.id]?.completed === 1 || 
+                                                 courseProgressMap[course.id]?.completed === true;
+                        
                         const imageUrl = formatUrl(course.image || course.image_url || course.thumbnail || course.course_image || course.image_path || course.pic);
                         const videoLink = formatUrl(course.video || course.video_url || course.video_link || course.link);
 
@@ -424,15 +780,15 @@ export default function CourseScreen() {
                                     <div style={s.levelBadge}>{course.level || 'Expert'}</div>
                                     <h2 style={s.courseTitle}>{course.title}</h2>
                                     <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontWeight: '700' }}>
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={16} /> {course.duration || '2h 15m'}</span>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={16} /> {videoDurations[course.id] || course.duration || '2h 15m'}</span>
                                         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Star size={16} color="#f59e0b" fill="#f59e0b" /> {course.rating || '4.9'}</span>
                                     </div>
-                                    <div style={s.progressBar(0)}><div style={s.progressFill(progress)} /></div>
-                                    <div style={{ fontSize: '11px', color: (progress >= 100) ? '#16a34a' : '#94a3b8', fontWeight: '800', marginBottom: '25px', textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
-                                        {progress >= 100 ? <><CheckCircle size={12} /> COMPLETED</> : `${Math.round(progress)}% WATCHED`}
+                                    <div style={s.progressBar(0)}><div style={s.progressFill(isActuallyComplete ? 100 : progress)} /></div>
+                                    <div style={{ fontSize: '11px', color: isActuallyComplete ? '#16a34a' : '#94a3b8', fontWeight: '800', marginBottom: '25px', textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                                        {isActuallyComplete ? <><CheckCircle size={12} /> COMPLETED</> : `${Math.round(progress)}% WATCHED`}
                                     </div>
                                     <button style={{ ...s.actionBtn, cursor: 'pointer' }}>
-                                        <PlayCircle size={18} /> {progress >= 100 ? 'REVIEW' : progress > 0 ? 'CONTINUE' : 'START'}
+                                        <PlayCircle size={18} /> {isActuallyComplete ? 'REVIEW' : progress > 0 ? 'CONTINUE' : 'START'}
                                     </button>
                                 </div>
                             </motion.div>

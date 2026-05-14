@@ -597,12 +597,12 @@ const ServiceCertificateScreen = ({ onBack }) => {
                             alignItems: 'center',
                             justifyContent: 'center',
                             gap: '8px',
-                            border: `1.5px solid ${active ? '#10B981' : '#e2e8f0'}`,
+                            border: `1.5px solid ${active ? '#10B981' : '#000000'}`,
                             backgroundColor: active ? '#f0fdf4' : 'white',
                             transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                             boxShadow: active ? '0 4px 12px rgba(16, 185, 129, 0.08)' : 'none',
-                            color: active ? '#10B981' : '#cbd5e1',
-                            opacity: active ? 1 : 0.4,
+                            color: active ? '#10B981' : '#000000',
+                            opacity: 1,
                             minHeight: '80px'
                           }}
                         >

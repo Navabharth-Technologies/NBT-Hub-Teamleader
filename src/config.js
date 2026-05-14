@@ -91,6 +91,8 @@ export const API_ENDPOINTS = {
   UPDATE_TICKET: (id) => `${BASE_URL}/api/support-tickets/${cleanId(id)}`,
   SUPPORT_AGENTS: `${BASE_URL}/api/support-agents`,
   COURSES: `${BASE_URL}/api/courses`,
+  COURSE_PROGRESS: `${BASE_URL}/api/courses/progress`,
+  COURSE_COMPLETE: (id) => `${BASE_URL}/api/courses/${id}/complete`,
   TIMELINE: (managerId) => `${BASE_URL}/api/timeline?managerId=${cleanId(managerId)}`,
   ATTENDANCE_LOGS: (userId) => `${BASE_URL}/api/attendance_logs?userId=${cleanId(userId)}`,
   ALL_ATTENDANCE: `${BASE_URL}/api/attendance_logs`,

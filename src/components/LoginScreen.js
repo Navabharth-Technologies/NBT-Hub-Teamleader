@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Lock, Eye, EyeOff, LogIn, Info } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import loginBg from '../assets/Background_image.png';
 import logo from '../assets/image.png';
@@ -8,15 +8,30 @@ import logo from '../assets/image.png';
 export default function LoginScreen() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [infoMessage, setInfoMessage] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const reason = params.get('reason');
+    if (reason === 'password_changed') {
+      setInfoMessage('Your password was recently changed. Please log in with your new password.');
+    } else if (reason === 'token_expired') {
+      setInfoMessage('Your session has expired. Please log in again.');
+    } else if (reason === 'account_deleted') {
+      setError('Your account has been deleted or deactivated. Contact HR.');
+    }
+  }, [location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setInfoMessage('');
     setLoading(true);
     const res = await login(email, password);
     if (res.success) {
@@ -141,6 +156,17 @@ export default function LoginScreen() {
       fontWeight: '700',
       marginBottom: '15px',
       textAlign: 'center'
+    },
+    info: {
+      color: '#0369a1',
+      fontSize: '12px',
+      fontWeight: '700',
+      marginBottom: '15px',
+      textAlign: 'center',
+      backgroundColor: '#f0f9ff',
+      padding: '10px',
+      borderRadius: '8px',
+      border: '1px solid #bae6fd'
     }
   };
 
@@ -152,6 +178,7 @@ export default function LoginScreen() {
         <div style={s.tagline}>Smarter Solutions for Better Future</div>
 
         {error && <div style={s.error}>{error}</div>}
+        {infoMessage && <div style={s.info}>{infoMessage}</div>}
 
         <div style={s.inputGroup}>
           <label style={s.label}>Official Identity (Email) <span style={{ color: '#ef4444' }}>*</span></label>

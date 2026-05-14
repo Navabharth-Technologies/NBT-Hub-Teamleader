@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Send, Calendar, FileText, ChevronLeft, AlertCircle, History, Users, RefreshCcw, X, Check, User, Info } from 'lucide-react';
+import { LogOut, Send, ChevronLeft, Users, RefreshCw, User, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { getTheme } from '../constants/Theme';
@@ -212,8 +212,42 @@ export default function ResignationScreen({ onBack }) {
     revokeBtn: { padding: '10px 20px', borderRadius: '12px', backgroundColor: 'transparent', color: '#dc2626', border: '1.5px solid #dc2626', fontSize: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', width: isMobile ? '100%' : 'auto', justifyContent: 'center' },
     
     // Detail View Styles
-    overlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(10px)', zIndex: 11000, display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'center', padding: isMobile ? '20px 15px' : '40px', overflowY: 'auto' },
-    detailCard: { backgroundColor: 'white', borderRadius: isMobile ? '30px' : '40px', width: '100%', maxWidth: '700px', maxHeight: isMobile ? 'none' : '90vh', overflowY: 'auto', padding: isMobile ? '25px 20px' : '50px', position: 'relative' }
+    overlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', zIndex: 11000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '0' : '40px' },
+    detailCard: { 
+      backgroundColor: 'white', 
+      borderRadius: isMobile ? '0' : '40px', 
+      width: '100%', 
+      maxWidth: '800px', 
+      height: isMobile ? '100%' : '85vh', 
+      display: 'flex', 
+      flexDirection: 'column',
+      position: 'relative',
+      boxShadow: '0 30px 100px rgba(0,0,0,0.2)',
+      overflow: 'hidden'
+    },
+    detailHeader: {
+      padding: isMobile ? '20px' : '30px 40px',
+      borderBottom: '1.5px solid #f1f5f9',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '20px',
+      backgroundColor: 'white',
+      zIndex: 10
+    },
+    detailContent: {
+      flex: 1,
+      overflowY: 'auto',
+      padding: isMobile ? '25px 20px' : '40px 50px',
+      backgroundColor: 'white'
+    },
+    detailFooter: {
+      padding: isMobile ? '20px' : '30px 40px',
+      borderTop: '1.5px solid #f1f5f9',
+      display: 'flex',
+      gap: '15px',
+      backgroundColor: 'white',
+      zIndex: 10
+    }
   };
 
   return (
@@ -290,7 +324,7 @@ export default function ResignationScreen({ onBack }) {
                     </div>
                     {((r.status || '').toUpperCase() === 'PENDING' || (r.status || '').toUpperCase() === 'NEW') && (
                       <button style={s.revokeBtn} onClick={() => { setRevokeData({ id: r.id, reason: '' }); setShowRevokeModal(true); }}>
-                        <RefreshCcw size={14} /> Revoke Notice
+                        <RefreshCw size={14} /> Revoke Notice
                       </button>
                     )}
                   </div>
@@ -299,7 +333,7 @@ export default function ResignationScreen({ onBack }) {
             </motion.div>
           )}
 
-          {activeTab === 'team' && ( activeTab === 'team' && (
+          {activeTab === 'team' && (
             <motion.div key="team" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <div style={s.card}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
@@ -330,79 +364,91 @@ export default function ResignationScreen({ onBack }) {
                 ))}
               </div>
             </motion.div>
-          ))}
+          )}
         </AnimatePresence>
-      </div>
 
-      {/* DETAIL MODAL OVERLAY */}
-      <AnimatePresence>
-        {selectedResignation && (
-          <div style={s.overlay} onClick={() => setSelectedResignation(null)}>
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              onClick={e => e.stopPropagation()}
-              style={s.detailCard}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '35px' }}>
-                <button 
-                  onClick={() => setSelectedResignation(null)}
-                  style={{ ...s.backBtn, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#0B1E3F', margin: 0 }}>Review Resignation</h2>
-              </div>
+        <AnimatePresence>
+          {selectedResignation && (
+            <div style={s.overlay} onClick={() => setSelectedResignation(null)}>
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                onClick={e => e.stopPropagation()}
+                style={s.detailCard}
+              >
+                <div style={s.detailHeader}>
+                  <button 
+                    onClick={() => setSelectedResignation(null)}
+                    style={{ ...s.backBtn, boxShadow: 'none' }}
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#0B1E3F', margin: 0 }}>Review Resignation</h2>
+                </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '40px' }}>
-                <div style={{ width: isMobile ? '50px' : '64px', height: isMobile ? '50px' : '64px', borderRadius: '15px', backgroundColor: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', flexShrink: 0 }}>
-                  <User size={isMobile ? 24 : 32} />
-                </div>
-                <div>
-                  <h2 style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: '900', color: '#0B1E3F', margin: 0 }}>{selectedResignation.employee_name || selectedResignation.userName || selectedResignation.name}</h2>
-                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#64748b', marginTop: '2px' }}>Employee ID: {cleanId(selectedResignation.employee_id || selectedResignation.emp_id || selectedResignation.id)}</div>
-                  <div style={{ ...s.statusBadge(selectedResignation.status), display: 'inline-block', marginTop: '8px' }}>{selectedResignation.status}</div>
-                </div>
-              </div>
+                <div style={s.detailContent}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '40px' }}>
+                    <div style={{ width: isMobile ? '50px' : '64px', height: isMobile ? '50px' : '64px', borderRadius: '15px', backgroundColor: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', flexShrink: 0 }}>
+                      <User size={isMobile ? 24 : 32} />
+                    </div>
+                    <div>
+                      <h2 style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: '900', color: '#0B1E3F', margin: 0 }}>{selectedResignation.employee_name || selectedResignation.userName || selectedResignation.name}</h2>
+                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#64748b', marginTop: '2px' }}>Employee ID: {cleanId(selectedResignation.employee_id || selectedResignation.emp_id || selectedResignation.id)}</div>
+                      <div style={{ ...s.statusBadge(selectedResignation.status), display: 'inline-block', marginTop: '8px' }}>{selectedResignation.status}</div>
+                    </div>
+                  </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '15px', marginBottom: '35px' }}>
-                <div style={{ padding: '20px', backgroundColor: '#f8fafc', borderRadius: '20px', border: '1px solid #f1f5f9' }}>
-                  <div style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '5px' }}>Submitted On</div>
-                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#0B1E3F' }}>{selectedResignation.resignation_date || selectedResignation.resignationDate}</div>
-                </div>
-                <div style={{ padding: '20px', backgroundColor: '#f8fafc', borderRadius: '20px', border: '1px solid #f1f5f9' }}>
-                  <div style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '5px' }}>Last Working Day</div>
-                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#dc2626' }}>{selectedResignation.last_working_day || selectedResignation.lastWorkingDay}</div>
-                </div>
-              </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '15px', marginBottom: '35px' }}>
+                    <div style={{ padding: '20px', backgroundColor: '#f8fafc', borderRadius: '20px', border: '1px solid #f1f5f9' }}>
+                      <div style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '5px' }}>Submitted On</div>
+                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#0B1E3F' }}>{selectedResignation.resignation_date || selectedResignation.resignationDate}</div>
+                    </div>
+                    <div style={{ padding: '20px', backgroundColor: '#f8fafc', borderRadius: '20px', border: '1px solid #f1f5f9' }}>
+                      <div style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '5px' }}>Last Working Day</div>
+                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#dc2626' }}>{selectedResignation.last_working_day || selectedResignation.lastWorkingDay}</div>
+                    </div>
+                  </div>
 
-              <div style={{ marginBottom: '35px' }}>
-                <div style={s.label}>Reason for Exit</div>
-                <div style={{ fontSize: '15px', fontWeight: '700', color: '#0B1E3F', backgroundColor: '#fef2f2', padding: '12px 18px', borderRadius: '12px', display: 'inline-block' }}>
-                  {selectedResignation.reason}
-                </div>
-              </div>
+                  <div style={{ marginBottom: '35px' }}>
+                    <div style={s.label}>Reason for Exit</div>
+                    <div style={{ fontSize: '15px', fontWeight: '700', color: '#0B1E3F', backgroundColor: '#fef2f2', padding: '12px 18px', borderRadius: '12px', display: 'inline-block' }}>
+                      {selectedResignation.reason}
+                    </div>
+                  </div>
 
-              <div style={{ marginBottom: '40px' }}>
-                <div style={s.label}>Formal Letter Content</div>
-                <div style={{ padding: '25px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1.5px solid #f1f5f9', fontSize: '14px', color: '#475569', lineHeight: '1.7', whiteSpace: 'pre-wrap', minHeight: '150px' }}>
-                  {selectedResignation.letter_content || selectedResignation.detailed_reason || selectedResignation.detailedReason}
+                  <div style={{ marginBottom: '10px' }}>
+                    <div style={s.label}>Formal Letter Content</div>
+                    <div style={{ padding: '25px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1.5px solid #f1f5f9', fontSize: '14px', color: '#475569', lineHeight: '1.7', whiteSpace: 'pre-wrap', minHeight: '150px' }}>
+                      {selectedResignation.letter_content || selectedResignation.detailed_reason || selectedResignation.detailedReason}
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '15px' }}>
-                <button style={{ flex: 1, padding: '18px', borderRadius: '18px', backgroundColor: '#f1f5f9', border: 'none', color: '#64748b', fontSize: '14px', fontWeight: '800', cursor: 'pointer' }} onClick={() => setSelectedResignation(null)}>
-                  Close Details
-                </button>
-                <button style={{ flex: 2, padding: '18px', borderRadius: '18px', backgroundColor: '#0B1E3F', border: 'none', color: 'white', fontSize: '14px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                  <Info size={18} /> Discuss with Employee
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                <div style={s.detailFooter}>
+                  <button 
+                    style={{ 
+                      flex: 1, 
+                      padding: '18px', 
+                      borderRadius: '18px', 
+                      backgroundColor: '#0B1E3F', 
+                      border: 'none', 
+                      color: 'white', 
+                      fontSize: '14px', 
+                      fontWeight: '800', 
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(11, 30, 63, 0.2)'
+                    }} 
+                    onClick={() => setSelectedResignation(null)}
+                  >
+                    Close Details
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+ce>
 
       {showRevokeModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
@@ -417,6 +463,7 @@ export default function ResignationScreen({ onBack }) {
           </motion.div>
         </div>
       )}
+      </div>
     </div>
   );
 }

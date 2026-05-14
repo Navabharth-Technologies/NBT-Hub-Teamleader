@@ -194,7 +194,7 @@ export default function DocumentsScreen({ onBack }) {
     separation: '', lwd: '', attrition_bucket: 'N/A', reason: '',
     bank_name: '', bank_account_no: '', ifsc_code: '', bank_branch: '', gross_salary_a: '', salary: '', pt: '',
     bgv_status: 'Pending', appointment_letter: 'Not Sent', approved_by_ceo: 'No', onboarding_doc_completed: 'No', id_card: 'Not Issued', onboarding_link: '',
-    emp_id: '', doj: '', lwd: '', asset_name: '',
+    emp_id: '', asset_name: '',
     has_mouse: 'No', has_keyboard: 'No', has_laptop_stand: 'No', has_ruf_pad: 'No', has_pendrive: 'No', has_mobile: 'No', has_camera: 'No', has_headphone: 'No', has_tablet: 'No',
     pancard_photo: '', adharcard_photo: '', experience_letter_photo: '', sslc_markscard: '', ug_pg_markscard: '',
     sslc_percentage: '', puc_percentage: '', ug_pg_percentage: '', puc_markscard: '',
@@ -474,29 +474,37 @@ export default function DocumentsScreen({ onBack }) {
     // REQUIRED FIELDS CHECK
     const required = ['emp_name', 'dob', 'pan_number', 'aadhar_number', 'contact_no', 'designation', 'department', 'official_email_id'];
     if (required.includes(key) && (!value || String(value).trim() === '')) {
-      return `${key.replace('_', ' ').toUpperCase()} is required`;
+      return `${key.replace(/_/g, ' ').toUpperCase()} is required`;
     }
 
     if (!value) return null;
 
-    if (['emp_name', 'father_husband_name', 'nominee_name', 'bank_name', 'religion', 'nationality'].includes(key)) {
+    const nameFields = ['emp_name', 'father_husband_name', 'nominee_name', 'bank_name', 'religion', 'nationality', 'place', 'moved', 'state', 'college', 'university', 'bank_branch'];
+    const numericFields = ['contact_no', 'emergency_contact_no', 'aadhar_number', 'bank_account_no', 'age', 'edu_completion_year', 'previous_experience', 'total_experience'];
+    const percentageFields = ['sslc_percentage', 'puc_percentage', 'ug_pg_percentage'];
+
+    if (nameFields.includes(key)) {
       if (/[0-9]/.test(value)) error = 'Numbers are not allowed here';
-    } else if (['contact_no', 'emergency_contact_no'].includes(key)) {
-      if (/[a-zA-Z]/.test(value)) error = 'Numbers only';
-      else if (value.length !== 10) error = 'Must be 10 digits';
-    } else if (key === 'aadhar_number') {
-      const clean = String(value).replace(/\s/g, '');
-      if (/[a-zA-Z]/.test(clean)) error = 'Numbers only';
-      else if (clean.length !== 12) error = 'Must be 12 digits';
+      else if (/[^a-zA-Z\s.]/.test(value)) error = 'Only alphabets, spaces and dots allowed';
+    } else if (numericFields.includes(key)) {
+      if (/[^0-9]/.test(value)) error = 'Digits only';
+      else {
+        if ((key === 'contact_no' || key === 'emergency_contact_no') && value.length !== 10) error = 'Must be exactly 10 digits';
+        if (key === 'aadhar_number' && value.length !== 12) error = 'Must be exactly 12 digits';
+        if (key === 'age' && (Number(value) < 18 || Number(value) > 100)) error = 'Invalid age range (18-100)';
+      }
+    } else if (percentageFields.includes(key)) {
+      if (/[^0-9.]/.test(value)) error = 'Numeric value only';
+      else if (Number(value) > 100) error = 'Cannot exceed 100%';
     } else if (key === 'pan_number') {
       const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-      if (!panRegex.test(String(value).toUpperCase())) error = 'Use ABCDE1234F format';
+      if (!panRegex.test(String(value).toUpperCase())) error = 'Use ABCDE1234F format (10 chars)';
     } else if (key === 'ifsc_code') {
       const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
-      if (!ifscRegex.test(String(value).toUpperCase())) error = 'Use ABCD0123456 format';
+      if (!ifscRegex.test(String(value).toUpperCase())) error = 'Use ABCD0123456 format (11 chars)';
     } else if (key.includes('email')) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(value)) error = 'Invalid email address';
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(value)) error = 'Invalid email format (e.g. user@domain.com)';
     }
 
     return error;
@@ -526,19 +534,37 @@ export default function DocumentsScreen({ onBack }) {
   };
 
   const handleChange = (key, value) => {
-    // Immediate cleaning for specific fields
     let cleanValue = value;
-    if (['emp_name', 'father_husband_name', 'religion', 'nationality'].includes(key)) {
-      cleanValue = value.replace(/[0-9]/g, ''); // Block numbers instantly
-    } else if (['contact_no', 'emergency_contact_no', 'aadhar_number', 'bank_account_no', 'age'].includes(key)) {
-      cleanValue = value.replace(/\D/g, ''); // Block non-numbers instantly
+
+    // 1. Immediate Sanitization (Input Restrictions)
+    const nameFields = ['emp_name', 'father_husband_name', 'nominee_name', 'bank_name', 'religion', 'nationality', 'place', 'moved', 'state', 'college', 'university', 'bank_branch', 'process'];
+    const numericFields = ['contact_no', 'emergency_contact_no', 'aadhar_number', 'bank_account_no', 'age', 'edu_completion_year', 'previous_experience', 'total_experience', 'emp_id'];
+    const percentageFields = ['sslc_percentage', 'puc_percentage', 'ug_pg_percentage'];
+
+    if (nameFields.includes(key)) {
+      // Remove numbers, special characters (except space/dot), and emojis
+      cleanValue = value.replace(/[^a-zA-Z\s.]/g, '');
+    } else if (numericFields.includes(key)) {
+      // Remove all non-digits
+      cleanValue = value.replace(/\D/g, '');
+    } else if (percentageFields.includes(key)) {
+      // Allow only numbers and one decimal point
+      cleanValue = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+    } else if (key.includes('email')) {
+      // Remove spaces and any characters not typically allowed in emails
+      cleanValue = value.replace(/[^a-zA-Z0-9@._-]/g, '');
+    } else if (key === 'pan_number' || key === 'ifsc_code' || key === 'voter_id') {
+      // Alphanumeric only, forced uppercase
+      cleanValue = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     }
 
-    // Length caps
+    // 2. Length Caps
     if ((key === 'contact_no' || key === 'emergency_contact_no') && cleanValue.length > 10) return;
     if (key === 'aadhar_number' && cleanValue.length > 12) return;
-    if (key === 'pan_number' && cleanValue.length > 10) cleanValue = cleanValue.substring(0, 10).toUpperCase();
-    if (key === 'ifsc_code') cleanValue = cleanValue.toUpperCase();
+    if (key === 'pan_number' && cleanValue.length > 10) return;
+    if (key === 'ifsc_code' && cleanValue.length > 11) return;
+    if (key === 'age' && cleanValue.length > 3) return;
+    if (key === 'edu_completion_year' && cleanValue.length > 4) return;
 
     let updates = { [key]: cleanValue };
 
@@ -563,7 +589,7 @@ export default function DocumentsScreen({ onBack }) {
 
     setForm(prev => ({ ...prev, ...updates }));
 
-    // Clear error for this field as the user types
+    // Real-time validation error feedback
     const error = validateField(key, cleanValue);
     setErrors(prev => ({ ...prev, [key]: error }));
   };
@@ -1229,16 +1255,16 @@ export default function DocumentsScreen({ onBack }) {
                         <input
                           type="text"
                           value={(form[field.key] && typeof form[field.key] === 'string' && form[field.key].includes('T') && form[field.key].length > 15) ? form[field.key].split('T')[0] : (form[field.key] || '')}
-                          readOnly={isDisabled}
+                          readOnly={isDisabled || field.key === 'age'}
                           onChange={e => handleChange(field.key, e.target.value)}
                           placeholder={isEditing ? (field.placeholder || `Enter ${field.label}`) : 'Not Provided'}
                           style={{
                             width: '100%', padding: isMobile ? '12px' : '16px 20px',
                             borderRadius: isMobile ? '10px' : '16px', fontSize: isMobile ? '13px' : '16px',
-                            fontWeight: '800', color: '#000000', backgroundColor: isDisabled ? '#f1f5f9' : '#f8fafc',
-                            border: errors[field.key] ? '2px solid #ef4444' : (!isDisabled ? '2px solid #315A9E' : '2px solid #e2e8f0'),
+                            fontWeight: '800', color: '#000000', backgroundColor: (isDisabled || field.key === 'age') ? '#f1f5f9' : '#f8fafc',
+                            border: errors[field.key] ? '2px solid #ef4444' : (!(isDisabled || field.key === 'age') ? '2px solid #315A9E' : '2px solid #e2e8f0'),
                             outline: 'none', boxSizing: 'border-box',
-                            transition: 'all 0.2s', cursor: isDisabled ? 'default' : 'text'
+                            transition: 'all 0.2s', cursor: (isDisabled || field.key === 'age') ? 'default' : 'text'
                           }}
                         />
                       </div>

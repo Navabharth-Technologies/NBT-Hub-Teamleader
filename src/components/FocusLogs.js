@@ -83,11 +83,20 @@ export default function FocusLogs({ onBack }) {
     setEndDate(lastDay);
   };
 
-  const formatDateTime = (timestamp, updatedAt) => {
-    const timeSource = updatedAt || timestamp;
+  const formatDateTime = (log) => {
+    const timeSource = log.created_at || log.updated_at || log.timestamp || log.date || log.time;
     if (!timeSource) return { day: '', month: '', time: '--:--', fullDate: '--/--/----' };
     try {
-      const date = new Date(timeSource);
+      let date;
+      if (typeof timeSource === 'string') {
+        // FORCE LOCAL TIME: Strip 'Z' and offset indicators (+05:30, etc.) exactly like Dashboard.js
+        let s = timeSource.replace(/[Zz]$/, '').replace(/[\+\-]\d{2}:\d{2}$/, '');
+        if (!s.includes('T') && s.includes('-')) s = s.replace(' ', 'T');
+        date = new Date(s);
+      } else {
+        date = new Date(timeSource);
+      }
+      
       const day = String(date.getDate()).padStart(2, '0');
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const monthShort = monthNames[date.getMonth()];
@@ -97,7 +106,7 @@ export default function FocusLogs({ onBack }) {
         hour: '2-digit',
         minute: '2-digit',
         hour12: true
-      }).toLowerCase();
+      });
 
       return {
         day,
@@ -110,16 +119,33 @@ export default function FocusLogs({ onBack }) {
     }
   };
 
+  const getFormatted = (timestamp) => {
+    if (!timestamp) return { date: '--/--/----', time: '--:--' };
+    try {
+      let s = typeof timestamp === 'string' ? timestamp.replace(/[Zz]$/, '').replace(/[\+\-]\d{2}:\d{2}$/, '') : timestamp;
+      if (typeof s === 'string' && !s.includes('T') && s.includes('-')) s = s.replace(' ', 'T');
+      const d = new Date(s);
+      if (isNaN(d.getTime())) return { date: '--/--/----', time: '--:--' };
+      
+      return {
+        date: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`,
+        time: d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+      };
+    } catch { return { date: '--/--/----', time: '--:--' }; }
+  };
+
   const downloadSpreadsheet = () => {
     if (filteredLogs.length === 0) return alert("No logs to download");
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Date,Time,Status,Tasks\n";
+    csvContent += "Report Date,Report Time,Status,Update Date,Update Time,Tasks\n";
+    
     filteredLogs.forEach(log => {
-      const { fullDate, time } = formatDateTime(log.timestamp, log.updated_at);
+      const created = getFormatted(log.created_at || log.timestamp || log.date);
+      const updated = getFormatted(log.updated_at);
       const status = log.overallStatus || "PENDING";
       const tasksStr = (log.tasks || []).map(t => t.text.replace(/"/g, '""')).join('; ');
 
-      const row = `"${fullDate}","${time}","${status}","${tasksStr}"`;
+      const row = `"${created.date}","${created.time}","${status}","${updated.date}","${updated.time}","${tasksStr}"`;
       csvContent += row + "\n";
     });
 
@@ -138,15 +164,17 @@ export default function FocusLogs({ onBack }) {
     const doc = new jsPDF();
     doc.text(`Personal Focus Logs: ${startDate} to ${endDate}`, 14, 15);
 
-    const tableColumn = ["Date", "Time", "Status", "Tasks"];
+    const tableColumn = ["Report Date", "Time", "Status", "Updated At", "Tasks"];
     const tableRows = [];
 
     filteredLogs.forEach(log => {
-      const { fullDate, time } = formatDateTime(log.timestamp, log.updated_at);
+      const created = getFormatted(log.created_at || log.timestamp || log.date);
+      const updated = getFormatted(log.updated_at);
       const logData = [
-        fullDate,
-        time,
+        created.date,
+        created.time,
         log.overallStatus || "PENDING",
+        updated.date !== '--/--/----' ? `${updated.date} ${updated.time}` : 'N/A',
         (log.tasks || []).map(t => t.text).join('\n')
       ];
       tableRows.push(logData);
@@ -156,8 +184,8 @@ export default function FocusLogs({ onBack }) {
       head: [tableColumn],
       body: tableRows,
       startY: 20,
-      styles: { fontSize: 10, cellPadding: 4 },
-      columnStyles: { 3: { cellWidth: 100 } }
+      styles: { fontSize: 9, cellPadding: 3 },
+      columnStyles: { 4: { cellWidth: 80 } }
     });
 
     doc.save(`focus_logs_${startDate}_to_${endDate}.pdf`);
@@ -326,7 +354,7 @@ export default function FocusLogs({ onBack }) {
               <div style={s.emptyState}>Fetching your logs...</div>
             ) : filteredLogs.length > 0 ? (
               filteredLogs.map((log, idx) => {
-                const { day, month, time } = formatDateTime(log.timestamp, log.updated_at);
+                const { day, month, time } = formatDateTime(log);
                 return (
                   <div key={log.id || `log-${idx}`} style={s.entry}>
                     <div style={s.dateBox}>

@@ -42,6 +42,12 @@ export default function ThreadScreen() {
     const [reactorModal, setReactorModal] = useState(null); // { postId, emoji, users, count }
     const [loadingReactors, setLoadingReactors] = useState(false);
     const [fullscreenMedia, setFullscreenMedia] = useState(null); // { src, type }
+    
+    const [editMediaFile, setEditMediaFile] = useState(null);
+    const [editMediaType, setEditMediaType] = useState(null);
+    const [editMediaPreview, setEditMediaPreview] = useState(null);
+    const [editRemoveMedia, setEditRemoveMedia] = useState(false);
+    const editFileInputRef = useRef(null);
 
     useEffect(() => {
         fetchProfiles();
@@ -85,6 +91,15 @@ export default function ThreadScreen() {
         setMediaPreview(null);
         setMediaType(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const handleEditFileSelect = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setEditMediaFile(file);
+        setEditMediaType(file.type.startsWith('video') ? 'video' : 'image');
+        setEditMediaPreview(URL.createObjectURL(file));
+        setEditRemoveMedia(false);
     };
 
     const handlePost = async () => {
@@ -399,6 +414,9 @@ export default function ThreadScreen() {
                                         onClick={() => {
                                             setEditingPostId(post.id);
                                             setEditContent(post.content);
+                                            setEditMediaFile(null);
+                                            setEditMediaPreview(null);
+                                            setEditRemoveMedia(false);
                                         }} 
                                         style={{ border: 'none', background: '#f8fafc', color: '#315A9E', padding: '10px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                         title="Edit post"
@@ -424,18 +442,69 @@ export default function ThreadScreen() {
                                         value={editContent}
                                         onChange={(e) => setEditContent(e.target.value)}
                                     />
-                                    <div style={{ display: 'flex', gap: '10px' }}>
+                                    
+                                    <input type="file" ref={editFileInputRef} onChange={handleEditFileSelect} hidden accept="image/*,video/*" />
+                                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                                        <div style={styles.mediaBtn} onClick={() => editFileInputRef.current?.click()}>
+                                            <ImageIcon size={18} color="#10b981" /> Replace Photo/Video
+                                        </div>
+                                        { (editMediaPreview || post.media_url || post.mediaUrl || post.media || post.image || post.media_path || post.file_path) && !editRemoveMedia && (
+                                            <div style={{ ...styles.mediaBtn, color: '#ef4444' }} onClick={() => { setEditRemoveMedia(true); setEditMediaFile(null); setEditMediaPreview(null); }}>
+                                                <Trash2 size={18} color="#ef4444" /> Remove Media
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    {(editMediaPreview && !editRemoveMedia) && (
+                                        <div style={{ marginTop: '10px', position: 'relative', borderRadius: '15px', overflow: 'hidden', maxWidth: '300px' }}>
+                                            <XCircle size={24} color="white" style={{ position: 'absolute', top: '10px', right: '10px', cursor: 'pointer', zIndex: 10 }} onClick={() => { setEditMediaFile(null); setEditMediaPreview(null); }} />
+                                            {editMediaType === 'video' ? ( <video src={editMediaPreview} controls style={{ width: '100%', display: 'block' }} /> ) : ( <img src={editMediaPreview} alt="" style={{ width: '100%', display: 'block' }} /> )}
+                                        </div>
+                                    )}
+
+                                    {(!editMediaPreview && !editRemoveMedia) && (() => {
+                                        const mediaPath = post.media_url || post.mediaUrl || post.media || post.image || post.media_path || post.file_path;
+                                        if (!mediaPath || typeof mediaPath !== 'string') return null;
+                                        const isVideo = post.media_type === 'video' || post.mediaType === 'video' || mediaPath.toLowerCase().includes('video') || mediaPath.toLowerCase().endsWith('.mp4');
+                                        let src = mediaPath;
+                                        if (!mediaPath.startsWith('http') && !mediaPath.startsWith('data:')) {
+                                            const separator = mediaPath.startsWith('/') ? '' : '/';
+                                            src = `${BASE_URL}${separator}${mediaPath}`;
+                                        }
+                                        return (
+                                            <div style={{ marginTop: '10px', borderRadius: '15px', overflow: 'hidden', maxWidth: '300px', opacity: 0.5 }}>
+                                                {isVideo ? ( <video src={src} controls style={{ width: '100%', display: 'block' }} /> ) : ( <img src={src} style={{ width: '100%', display: 'block' }} alt="" /> )}
+                                            </div>
+                                        );
+                                    })()}
+
+                                    <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
                                         <button 
-                                            onClick={() => {
-                                                updatePost(post.id, editContent);
-                                                setEditingPostId(null);
+                                            onClick={async () => {
+                                                const success = await updatePost(post.id, {
+                                                    content: editContent,
+                                                    file: editMediaFile,
+                                                    mediaType: editMediaType,
+                                                    removeMedia: editRemoveMedia
+                                                });
+                                                if (success) {
+                                                    setEditingPostId(null);
+                                                    setEditMediaFile(null);
+                                                    setEditMediaPreview(null);
+                                                    setEditRemoveMedia(false);
+                                                }
                                             }}
                                             style={{ backgroundColor: '#315A9E', color: 'white', border: 'none', padding: '8px 20px', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}
                                         >
                                             SAVE
                                         </button>
                                         <button 
-                                            onClick={() => setEditingPostId(null)}
+                                            onClick={() => {
+                                                setEditingPostId(null);
+                                                setEditMediaFile(null);
+                                                setEditMediaPreview(null);
+                                                setEditRemoveMedia(false);
+                                            }}
                                             style={{ background: 'none', border: '1.5px solid #e2e8f0', color: '#64748b', padding: '8px 20px', borderRadius: '10px', fontWeight: '900', cursor: 'pointer' }}
                                         >
                                             CANCEL
@@ -448,7 +517,7 @@ export default function ThreadScreen() {
                         </div>
 
                         {/* Support multiple field names and direct base64/relative URLs with type safety */}
-                        {(() => {
+                        {!isEditing && (() => {
                             const mediaPath = post.media_url || post.mediaUrl || post.media || post.image || post.media_path || post.file_path;
                             if (!mediaPath || typeof mediaPath !== 'string') return null;
                             const isVideo = post.media_type === 'video' || post.mediaType === 'video' || mediaPath.toLowerCase().includes('video') || mediaPath.toLowerCase().endsWith('.mp4');
@@ -595,7 +664,13 @@ export default function ThreadScreen() {
                                                                 {isMyComment && (
                                                                     <div style={{ display: 'flex', gap: '8px' }}>
                                                                         <button onClick={() => { setEditingCommentId(c.id); setEditCommentContent(cText); }} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px' }}><Edit3 size={13} /></button>
-                                                                        <button onClick={() => deleteComment(post.id, c.id)} style={{ border: 'none', background: 'none', color: '#fda4af', cursor: 'pointer', padding: '2px' }}><Trash2 size={13} /></button>
+                                                                        <button onClick={async () => {
+                                                                            const success = await deleteComment(post.id, c.id);
+                                                                            if (success) {
+                                                                                const comments = await fetchComments(post.id);
+                                                                                setPostComments(prev => ({ ...prev, [post.id]: comments }));
+                                                                            }
+                                                                        }} style={{ border: 'none', background: 'none', color: '#fda4af', cursor: 'pointer', padding: '2px' }}><Trash2 size={13} /></button>
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -609,7 +684,14 @@ export default function ThreadScreen() {
                                                                         autoFocus
                                                                     />
                                                                     <div style={{ display: 'flex', gap: '8px' }}>
-                                                                        <button onClick={() => { updateComment(post.id, c.id, editCommentContent); setEditingCommentId(null); }} style={{ fontSize: '11px', fontWeight: '900', color: 'white', background: '#315A9E', border: 'none', padding: '6px 15px', borderRadius: '8px', cursor: 'pointer' }}>UPDATE</button>
+                                                                        <button onClick={async () => { 
+                                                                            const success = await updateComment(post.id, c.id, editCommentContent); 
+                                                                            if (success) {
+                                                                                const comments = await fetchComments(post.id);
+                                                                                setPostComments(prev => ({ ...prev, [post.id]: comments }));
+                                                                                setEditingCommentId(null); 
+                                                                            }
+                                                                        }} style={{ fontSize: '11px', fontWeight: '900', color: 'white', background: '#315A9E', border: 'none', padding: '6px 15px', borderRadius: '8px', cursor: 'pointer' }}>UPDATE</button>
                                                                         <button onClick={() => setEditingCommentId(null)} style={{ fontSize: '11px', fontWeight: '900', color: '#64748b', background: 'none', border: '1.5px solid #e2e8f0', padding: '6px 15px', borderRadius: '8px', cursor: 'pointer' }}>CANCEL</button>
                                                                     </div>
                                                                 </div>
