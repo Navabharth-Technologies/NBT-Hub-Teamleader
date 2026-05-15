@@ -502,15 +502,15 @@ export default function CourseScreen() {
                                         boxShadow: '0 40px 100px rgba(0,0,0,0.3)'
                                     }}
                                 >
-                                    {/* 1. Employee Name (Arrow 1) */}
+                                    {/* 1. Employee Name (Centered on the main signature line) */}
                                     <div style={{
                                         position: 'absolute',
-                                        top: '48.5%',
+                                        top: '47.8%',
                                         left: '50%',
                                         transform: 'translate(-50%, -50%)',
                                         width: '80%',
                                         textAlign: 'center',
-                                        fontSize: '44px',
+                                        fontSize: '46px',
                                         fontWeight: '900',
                                         color: '#0B1E3F',
                                         fontFamily: "'Playfair Display', serif, 'Georgia', 'Times New Roman'",
@@ -518,16 +518,16 @@ export default function CourseScreen() {
                                     }}>
                                         {user?.name || 'VALUED EMPLOYEE'}
                                     </div>
-
+ 
                                     {/* 2. Course Title (Centered under 'Successfully Completed the') */}
                                     <div style={{
                                         position: 'absolute',
-                                        top: '64.5%',
+                                        top: '63.8%',
                                         left: '50%',
                                         transform: 'translate(-50%, -50%)',
                                         width: '80%',
                                         textAlign: 'center',
-                                        fontSize: '18px',
+                                        fontSize: '20px',
                                         fontWeight: '1000',
                                         color: '#1e40af',
                                         fontFamily: "'Inter', sans-serif",
@@ -535,16 +535,17 @@ export default function CourseScreen() {
                                     }}>
                                         {(selectedCourse?.title || 'PROFESSIONAL COURSE').toUpperCase()}
                                     </div>
-
-                                    {/* 3. Date (Arrow 3) */}
+ 
+                                    {/* 3. Date (Positioned after 'DATE:') */}
                                     <div style={{
                                         position: 'absolute',
-                                        top: '81.2%',
-                                        left: '30.5%',
+                                        top: '82.2%',
+                                        left: '28.5%',
                                         transform: 'translateY(-50%)',
-                                        fontSize: '14px',
-                                        fontWeight: '900',
-                                        color: '#0B1E3F'
+                                        fontSize: '15px',
+                                        fontWeight: '1000',
+                                        color: '#0B1E3F',
+                                        fontFamily: "'Inter', sans-serif"
                                     }}>
                                         {new Date().toLocaleDateString('en-GB')}
                                     </div>
