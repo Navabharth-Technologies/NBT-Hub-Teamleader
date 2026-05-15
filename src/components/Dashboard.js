@@ -42,6 +42,7 @@ const Dashboard = ({ setActiveTab }) => {
   const [activeCourses, setActiveCourses] = useState([]);
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
+  const [quizStats, setQuizStats] = useState({ score: 0, rank: '...' });
   const [leaveStats, setLeaveStats] = useState({
     total: 0,
     approved: 0,
@@ -255,6 +256,27 @@ const Dashboard = ({ setActiveTab }) => {
           });
         setTeamReports(filteredReports);
       }
+ 
+      // 4. Fetch Quiz Points and Leaderboard for Dashboard QuickView
+      try {
+        const [qRes, lbRes] = await Promise.all([
+          fetch(API_ENDPOINTS.QUIZ_USER_POINTS, fetchOptions),
+          fetch(API_ENDPOINTS.QUIZ_LEADERBOARD, fetchOptions)
+        ]);
+        if (qRes.ok && lbRes.ok) {
+          const [qData, lbData] = await Promise.all([qRes.json(), lbRes.json()]);
+          const qList = Array.isArray(qData) ? qData : (qData.data || []);
+          const lbList = Array.isArray(lbData) ? lbData : (lbData.data || []);
+          
+          const myQ = qList.find(s => String(s.employee_id || s.user_id || s.id) === String(uid));
+          const myRankIdx = lbList.findIndex(s => String(s.employee_id || s.user_id || s.id) === String(uid));
+          
+          setQuizStats({
+            score: Number(myQ?.total_quiz_points || 0),
+            rank: myRankIdx !== -1 ? `#${myRankIdx + 1}` : 'N/A'
+          });
+        }
+      } catch (err) { console.error("Quiz Fetch Error:", err); }
 
     } catch (err) {
       console.error("Dashboard Load Error:", err);
@@ -577,6 +599,48 @@ const Dashboard = ({ setActiveTab }) => {
               <span style={{ fontSize: isMobile ? '8px' : '10px', fontWeight: '900', color: '#16a34a' }}>● LIVE UPDATES</span>
             </div>
             <ChevronRight size={18} color="#94a3b8" />
+          </div>
+        </motion.div>
+ 
+        {/* ────── QUIZ PERFORMANCE QUICK VIEW ────── */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.1 }}
+          style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '20px' }}
+        >
+          <div 
+            onClick={() => setActiveTab('fun-quiz')}
+            style={{ 
+              padding: '20px 25px', backgroundColor: '#B2DCE2', borderRadius: '24px', border: '1.5px solid #000', 
+              display: 'flex', alignItems: 'center', gap: '15px', cursor: 'pointer' 
+            }}
+          >
+            <div style={{ backgroundColor: 'white', padding: '10px', borderRadius: '12px', border: '1.5px solid #000' }}>
+              <Trophy size={20} color="#0d676c" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '10px', fontWeight: '900', color: '#0d676c', textTransform: 'uppercase' }}>Overall Quiz Score</div>
+              <div style={{ fontSize: '20px', fontWeight: '900', color: '#0B1E3F' }}>{quizStats.score} Points</div>
+            </div>
+            <ChevronRight size={18} color="#0d676c" />
+          </div>
+ 
+          <div 
+            onClick={() => setActiveTab('awards')}
+            style={{ 
+              padding: '20px 25px', backgroundColor: '#e0f2fe', borderRadius: '24px', border: '1.5px solid #0B1E3F', 
+              display: 'flex', alignItems: 'center', gap: '15px', cursor: 'pointer' 
+            }}
+          >
+            <div style={{ backgroundColor: 'white', padding: '10px', borderRadius: '12px', border: '1.5px solid #0B1E3F' }}>
+              <Star size={20} color="#3B5998" fill="#3B5998" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '10px', fontWeight: '900', color: '#3B5998', textTransform: 'uppercase' }}>Global Leaderboard Rank</div>
+              <div style={{ fontSize: '20px', fontWeight: '900', color: '#0B1E3F' }}>{quizStats.rank} Ranking</div>
+            </div>
+            <ChevronRight size={18} color="#3B5998" />
           </div>
         </motion.div>
 
