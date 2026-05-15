@@ -39,12 +39,12 @@ const SECTIONS = [
       { key: 'father_husband_name', label: "Father/Husband's Name", type: 'text' },
       { key: 'category', label: 'Category', type: 'select', options: ['General', 'OBC', 'SC', 'ST', 'Other'] },
       { key: 'pan_number', label: 'PAN Number', type: 'text', placeholder: 'ABCDE1234F' },
-      { key: 'pancard_photo', label: 'PAN Card Proof', type: 'file' },
+      { key: 'pancard_photo', label: 'PAN Card Proof', type: 'file', onlyImages: true },
       { key: 'aadhar_number', label: 'Aadhar Number', type: 'text', placeholder: '1234 5678 9012' },
-      { key: 'adharcard_photo', label: 'Aadhar Card Proof', type: 'file' },
+      { key: 'adharcard_photo', label: 'Aadhar Card Proof', type: 'file', onlyImages: true },
       { key: 'voter_id', label: 'Voter ID Number', type: 'text' },
-      { key: 'voter_id_photo', label: 'Voter ID Proof', type: 'file' },
-      { key: 'passport_photo', label: 'Passport Photo', type: 'file' },
+      { key: 'voter_id_photo', label: 'Voter ID Proof', type: 'file', onlyImages: true },
+      { key: 'passport_photo', label: 'Passport Photo', type: 'file', onlyImages: true },
     ]
   },
   {
@@ -1220,11 +1220,14 @@ export default function DocumentsScreen({ onBack }) {
                               }}>
                                 <Camera size={18} /> UPLOAD
                               </div>
-                              <p style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700', margin: 0 }}>Image or PDF supported</p>
+                              <p style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700', margin: 0 }}>
+                                {field.onlyImages ? 'Only Images supported' : 'Image or PDF supported'}
+                              </p>
                             </div>
                           )}
                           <input
-                            type="file" id={`upload-${field.key}`} style={{ display: 'none' }} accept="image/*,application/pdf"
+                            type="file" id={`upload-${field.key}`} style={{ display: 'none' }} 
+                            accept={field.onlyImages ? "image/*" : "image/*,application/pdf"}
                             onChange={(e) => handleFileUpload(field.key, e.target.files[0])}
                           />
                         </div>
