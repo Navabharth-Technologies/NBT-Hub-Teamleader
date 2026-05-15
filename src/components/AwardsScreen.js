@@ -251,8 +251,7 @@ const AwardsScreen = ({ onBack }) => {
                     });
                 }
 
-                allRewards.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || b.date));
-                setRewards(allRewards);
+                allRewards.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
                 let degMap = {};
                 let managerId = '';
                 try {
