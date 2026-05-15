@@ -236,31 +236,31 @@ const FunQuizScreen = ({ onBack }) => {
     bottomSection: { backgroundColor: 'white', borderRadius: '24px', padding: isMobile ? '20px' : '30px', border: '1px solid #eef2f3' },
     option: (optObj, isAnswered) => {
       const isSelectedLocally = selectedOption === optObj.letter;
-      const isUserPicked = currentQ?.user_selected_letter === optObj.letter;
+      const isUserPicked = (currentQ?.user_selected_letter === optObj.letter) || (isAnswered && isSelectedLocally);
       const cleanCorrect = String(currentQ?.correct_answer || '').trim().toLowerCase();
       const cleanOpt = String(optObj.text || '').trim().toLowerCase();
-      // Use partial match to handle "Answer Option X" cases
       const isCorrectText = cleanCorrect.includes(cleanOpt) || cleanOpt.includes(cleanCorrect);
 
       let borderColor = '#eef2f3';
       let bgColor = 'white';
       let textColor = '#64748b';
+      let status = 'default'; // 'correct', 'wrong', 'selected', 'default'
 
       if (isAnswered) {
         if (isCorrectText) {
-          borderColor = '#22c55e'; bgColor = '#f0fdf4'; textColor = '#15803d';
+          borderColor = '#22c55e'; bgColor = '#f0fdf4'; textColor = '#15803d'; status = 'correct';
         } else if (isUserPicked) {
-          borderColor = '#ef4444'; bgColor = '#fef2f2'; textColor = '#b91c1c';
+          borderColor = '#ef4444'; bgColor = '#fef2f2'; textColor = '#b91c1c'; status = 'wrong';
         }
       } else if (isSelectedLocally) {
-        borderColor = '#0d676c'; bgColor = '#f0f9fa'; textColor = '#0d676c';
+        borderColor = '#0d676c'; bgColor = '#f0f9fa'; textColor = '#0d676c'; status = 'selected';
       }
 
       return {
         padding: '16px 20px', borderRadius: '14px', border: `1.5px solid ${borderColor}`, backgroundColor: bgColor,
         color: textColor, fontSize: '14px', fontWeight: '800', cursor: isAnswered ? 'default' : 'pointer',
         display: 'flex', alignItems: 'center', gap: '15px', transition: 'all 0.2s',
-        borderColor: borderColor // Export border color for the letter box
+        status: status
       };
     }
   };
@@ -581,15 +581,19 @@ const FunQuizScreen = ({ onBack }) => {
                             if (!currentQ.has_answered) setSelectedOption(optObj.letter);
                           }}
                         >
-                          <div style={{ width: '28px', height: '28px', borderRadius: '8px', backgroundColor: st.borderColor === '#22c55e' ? '#22c55e' : (st.borderColor === '#ef4444' ? '#ef4444' : '#0d676c'), display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: '900' }}>
+                          <div style={{ 
+                            width: '28px', height: '28px', borderRadius: '8px', 
+                            backgroundColor: st.status === 'correct' ? '#22c55e' : (st.status === 'wrong' ? '#ef4444' : '#0d676c'), 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: '900' 
+                          }}>
                             {optObj.letter}
                           </div>
                           {optObj.text}
 
-                          {currentQ.has_answered && (String(currentQ.correct_answer || '').trim().toLowerCase().includes(String(optObj.text || '').trim().toLowerCase()) || String(optObj.text || '').trim().toLowerCase().includes(String(currentQ.correct_answer || '').trim().toLowerCase())) && (
+                          {st.status === 'correct' && (
                             <div style={{ marginLeft: 'auto', backgroundColor: '#22c55e', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '900' }}>CORRECT</div>
                           )}
-                          {currentQ.has_answered && currentQ.user_selected_letter === optObj.letter && !(String(currentQ.correct_answer || '').trim().toLowerCase().includes(String(optObj.text || '').trim().toLowerCase()) || String(optObj.text || '').trim().toLowerCase().includes(String(currentQ.correct_answer || '').trim().toLowerCase())) && (
+                          {st.status === 'wrong' && (
                             <div style={{ marginLeft: 'auto', backgroundColor: '#ef4444', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '900' }}>YOUR CHOICE</div>
                           )}
                         </div>
