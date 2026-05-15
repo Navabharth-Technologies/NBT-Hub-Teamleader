@@ -60,7 +60,7 @@ const FunQuizScreen = ({ onBack }) => {
           already_answered: item.has_answered || false, // Track if it was already in DB
           previous_result: item.previous_result ? (item.previous_result === true || item.previous_result === 'correct' ? 'correct' : 'wrong') : null,
           correct_answer: item.correct_answer || null,
-          user_selected_letter: item.user_answer || item.selected_option || null,
+          user_selected_letter: null,
           quiz_id: item.quiz_id || item.id || 1
         }));
         setQuestions(mapped);
@@ -249,7 +249,7 @@ const FunQuizScreen = ({ onBack }) => {
       if (isAnswered) {
         if (isCorrectText) {
           borderColor = '#22c55e'; bgColor = '#f0fdf4'; textColor = '#15803d'; status = 'correct';
-        } else if (isUserPicked) {
+        } else if (optObj.letter === currentQ?.user_selected_letter || optObj.letter === selectedOption) {
           borderColor = '#ef4444'; bgColor = '#fef2f2'; textColor = '#b91c1c'; status = 'wrong';
         }
       } else if (isSelectedLocally) {
@@ -596,7 +596,7 @@ const FunQuizScreen = ({ onBack }) => {
 
                           {st.status === 'correct' && (
                             <div style={{ marginLeft: 'auto', backgroundColor: '#22c55e', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '900' }}>
-                              {currentQ?.user_selected_letter === optObj.letter || selectedOption === optObj.letter ? 'CORRECT (YOUR CHOICE)' : 'CORRECT'}
+                              {(currentQ?.user_selected_letter === optObj.letter || selectedOption === optObj.letter) ? 'CORRECT (YOUR CHOICE)' : 'CORRECT'}
                             </div>
                           )}
                           {st.status === 'wrong' && (
