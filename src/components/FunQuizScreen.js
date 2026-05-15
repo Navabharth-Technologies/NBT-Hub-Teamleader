@@ -145,8 +145,8 @@ const FunQuizScreen = ({ onBack }) => {
         });
         if (pointsRes.ok) {
           const pData = await pointsRes.json();
-          // Expecting { total_points: X } or { points: X } or { score: X }
-          quizOverallTotal = Number(pData.total_points || pData.points || pData.score || pData.total_score || 0);
+          // Expecting { total_points: X } or { points: X } or { score: X } or { user_points: X }
+          quizOverallTotal = Number(pData.user_points || pData.total_points || pData.points || pData.score || pData.total_score || 0);
         }
       } catch (e) {
         console.warn("Dedicated points fetch failed, falling back to leaderboard sum:", e);
