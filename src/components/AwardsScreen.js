@@ -898,7 +898,6 @@ const AwardsScreen = ({ onBack }) => {
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, paddingRight: isQuiz ? '15px' : '0' }}>
                                                                     <div style={{ fontSize: '13px', fontWeight: '900', color: '#1e293b' }}>{displayTitle}</div>
-                                                                    {aw.note && <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '600', fontStyle: 'italic' }}>{aw.note}</div>}
                                                                 </div>
                                                                 <div style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8', flexShrink: 0 }}>{aw.created_at || aw.date ? new Date(aw.created_at || aw.date).toLocaleDateString() : 'Recent'}</div>
                                                             </div>
