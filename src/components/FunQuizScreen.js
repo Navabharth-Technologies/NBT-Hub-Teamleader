@@ -14,8 +14,6 @@ const FunQuizScreen = ({ onBack }) => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isQuestionsLoading, setIsQuestionsLoading] = useState(true);
-  const [rankingType, setRankingType] = useState('quiz'); // 'quiz' or 'global'
-  const [globalLeaderboard, setGlobalLeaderboard] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -101,24 +99,6 @@ const FunQuizScreen = ({ onBack }) => {
         setLeaderboard(list);
         const myData = pointsList.find(s => String(s.employee_id || s.user_id || s.id) === String(uid));
         setUserLifetimeScore(myData ? Number(myData.total_quiz_points || myData.points || 0) : 0);
-      }
-
-      // 2. Fetch the Unified Global Leaderboard
-      const gRes = await fetch(API_ENDPOINTS.QUIZ_LEADERBOARD, { 
-        headers: { 'Authorization': `Bearer ${token?.trim()}` } 
-      });
-      if (gRes.ok) {
-        const gData = await gRes.json();
-        const gList = Array.isArray(gData) ? gData : (gData.data || []);
-        setGlobalLeaderboard(gList.map((u, i) => ({
-          name: u.name || `Employee ${u.employee_id || 'Resource'}`,
-          score: Number(u.total_points || u.total_rep || u.points || 0),
-          reward_points: Number(u.rewardPoints || 0),
-          quiz_points: Number(u.quizPoints || 0),
-          rank: i + 1,
-          color: ['#FBBC05', '#EA4335', '#34A853', '#4285F4', '#FBBC05'][i % 5],
-          initial: (u.name || 'U').charAt(0).toUpperCase()
-        })));
       }
     } catch (err) {
       console.error("Quiz Sync failed:", err);
@@ -310,29 +290,14 @@ const FunQuizScreen = ({ onBack }) => {
           <h3 style={{ fontSize: '15px', fontWeight: '900', color: '#0B1E3F', margin: 0 }}>Hall of Fame</h3>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ fontSize: '9px', fontWeight: '900', background: '#0d676c', color: 'white', padding: '4px 10px', borderRadius: '20px', textTransform: 'uppercase' }}>{rankingType.toUpperCase()}</div>
+          <div style={{ fontSize: '9px', fontWeight: '900', background: '#0d676c', color: 'white', padding: '4px 10px', borderRadius: '20px', textTransform: 'uppercase' }}>QUIZ ACHIEVERS</div>
         </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: '5px', marginBottom: '15px' }}>
-        <button 
-          onClick={() => setRankingType('quiz')}
-          style={{ flex: 1, padding: '10px', borderRadius: '12px', fontSize: '10px', fontWeight: '900', border: '1.5px solid', borderColor: rankingType === 'quiz' ? '#0d676c' : '#f1f5f9', backgroundColor: rankingType === 'quiz' ? '#0d676c' : 'white', color: rankingType === 'quiz' ? 'white' : '#64748b', cursor: 'pointer', transition: 'all 0.2s' }}
-        >
-          QUIZ ONLY
-        </button>
-        <button 
-          onClick={() => setRankingType('global')}
-          style={{ flex: 1, padding: '10px', borderRadius: '12px', fontSize: '10px', fontWeight: '900', border: '1.5px solid', borderColor: rankingType === 'global' ? '#3B5998' : '#f1f5f9', backgroundColor: rankingType === 'global' ? '#3B5998' : 'white', color: rankingType === 'global' ? 'white' : '#64748b', cursor: 'pointer', transition: 'all 0.2s' }}
-        >
-          GLOBAL (COMBINED)
-        </button>
       </div>
 
       {/* Leaderboard Table Header */}
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: rankingType === 'quiz' ? '2fr 1fr 1fr' : '2fr 1fr 1fr 1fr', 
+        gridTemplateColumns: '2fr 1fr 1fr', 
         padding: '12px 10px', 
         borderBottom: '2px solid #f1f5f9',
         fontSize: '10px',
@@ -342,8 +307,7 @@ const FunQuizScreen = ({ onBack }) => {
         letterSpacing: '0.5px'
       }}>
         <span>Name</span>
-        {rankingType !== 'quiz' && <span style={{ textAlign: 'center' }}>Reward</span>}
-        <span style={{ textAlign: 'center' }}>Quiz</span>
+        <span style={{ textAlign: 'center' }}>Quiz Points</span>
         <span style={{ textAlign: 'right' }}>TOTAL</span>
       </div>
 
@@ -356,8 +320,7 @@ const FunQuizScreen = ({ onBack }) => {
         paddingRight: showFullList ? '10px' : '0'
       }}>
         {(() => {
-          const currentList = rankingType === 'quiz' ? leaderboard : globalLeaderboard;
-          const displayList = showFullList ? currentList : currentList.slice(0, 8);
+          const displayList = showFullList ? leaderboard : leaderboard.slice(0, 8);
           
           if (displayList.length === 0) return <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: '12px' }}>No rankings available yet</div>;
 
@@ -366,7 +329,7 @@ const FunQuizScreen = ({ onBack }) => {
             return (
               <div key={i} style={{ 
                 display: 'grid', 
-                gridTemplateColumns: rankingType === 'quiz' ? '2fr 1fr 1fr' : '2fr 1fr 1fr 1fr', 
+                gridTemplateColumns: '2fr 1fr 1fr', 
                 alignItems: 'center', 
                 padding: '14px 10px', 
                 borderBottom: '1px solid #f8fafc',
@@ -384,14 +347,8 @@ const FunQuizScreen = ({ onBack }) => {
                   <div style={{ fontSize: '11px', fontWeight: '800', color: '#0B1E3F', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
                 </div>
                 
-                {rankingType !== 'quiz' && (
-                  <div style={{ textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#64748b' }}>
-                    {p.reward_points || p.manual_points || (p.score - (p.quiz_points || p.total_quiz_points || 0)) || 0}
-                  </div>
-                )}
-                
                 <div style={{ textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#64748b' }}>
-                  {p.quiz_points || p.total_quiz_points || 0}
+                  {p.quiz_points || p.score || 0}
                 </div>
                 
                 <div style={{ textAlign: 'right', fontSize: '13px', fontWeight: '1000', color: '#0B1E3F' }}>
@@ -408,7 +365,7 @@ const FunQuizScreen = ({ onBack }) => {
         style={{ 
           marginTop: '15px', width: '100%', padding: '10px', borderRadius: '12px', 
           backgroundColor: '#f8fafc', border: '1px solid #eef2f3', color: '#3B5998', 
-          fontSize: '11px', fontWeight: '1000', cursor: '#pointer' 
+          fontSize: '11px', fontWeight: '1000', cursor: 'pointer' 
         }}
       >
         {showFullList ? 'SHOW TOP 8' : 'VIEW FULL HALL OF FAME'}
