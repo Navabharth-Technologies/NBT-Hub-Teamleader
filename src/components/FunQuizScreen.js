@@ -60,7 +60,7 @@ const FunQuizScreen = ({ onBack }) => {
           already_answered: item.has_answered || false, // Track if it was already in DB
           previous_result: item.previous_result ? (item.previous_result === true || item.previous_result === 'correct' ? 'correct' : 'wrong') : null,
           correct_answer: item.correct_answer || null,
-          user_selected_letter: null,
+          user_selected_letter: item.user_selected_letter || item.user_answer || item.selected_option || null,
           quiz_id: item.quiz_id || item.id || 1
         }));
         setQuestions(mapped);
