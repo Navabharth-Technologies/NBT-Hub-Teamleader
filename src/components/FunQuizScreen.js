@@ -591,7 +591,9 @@ const FunQuizScreen = ({ onBack }) => {
                           {optObj.text}
 
                           {st.status === 'correct' && (
-                            <div style={{ marginLeft: 'auto', backgroundColor: '#22c55e', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '900' }}>CORRECT</div>
+                            <div style={{ marginLeft: 'auto', backgroundColor: '#22c55e', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '900' }}>
+                              {currentQ?.user_selected_letter === optObj.letter || selectedOption === optObj.letter ? 'CORRECT (YOUR CHOICE)' : 'CORRECT'}
+                            </div>
                           )}
                           {st.status === 'wrong' && (
                             <div style={{ marginLeft: 'auto', backgroundColor: '#ef4444', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '900' }}>YOUR CHOICE</div>
