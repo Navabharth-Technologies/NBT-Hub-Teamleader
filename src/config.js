@@ -130,5 +130,6 @@ export const API_ENDPOINTS = {
   MY_ASSETS: (id) => `${BASE_URL}/api/my-assets?employee_id=${cleanId(id)}`,
   SUGGESTIONS: `${BASE_URL}/api/suggestions`,
   INTERNS: `${BASE_URL}/api/interns`,
-  BANK_IFSC: (code) => `${BASE_URL}/api/bank/ifsc/${code}`
+  BANK_IFSC: (code) => `${BASE_URL}/api/bank/ifsc/${code}`,
+  QUIZ_USER_POINTS: `${BASE_URL}/api/quizzes/user-points`
 };

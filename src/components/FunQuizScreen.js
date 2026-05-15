@@ -137,11 +137,24 @@ const FunQuizScreen = ({ onBack }) => {
 
       setLeaderboard(list);
 
-      // 3. Calculate Current User's absolute Overall Quiz Total directly from the quiz scores
+      // 3. Dedicated fetch for Current User's absolute True Overall Total from dedicated quiz points endpoint
       let quizOverallTotal = 0;
-      if (Array.isArray(scoreList)) {
-        const myEntries = scoreList.filter(s => String(s.employee_id || s.user_id || s.id) === String(uid));
-        quizOverallTotal = myEntries.reduce((sum, s) => sum + Number(s.total_score || s.points || s.quiz_score || s.score || 0), 0);
+      try {
+        const pointsRes = await fetch(API_ENDPOINTS.QUIZ_USER_POINTS, { 
+          headers: { 'Authorization': `Bearer ${token?.trim()}` } 
+        });
+        if (pointsRes.ok) {
+          const pData = await pointsRes.json();
+          // Expecting { total_points: X } or { points: X } or { score: X }
+          quizOverallTotal = Number(pData.total_points || pData.points || pData.score || pData.total_score || 0);
+        }
+      } catch (e) {
+        console.warn("Dedicated points fetch failed, falling back to leaderboard sum:", e);
+        // Fallback to calculation from leaderboard scoreList if direct fetch fails
+        if (Array.isArray(scoreList)) {
+          const myEntries = scoreList.filter(s => String(s.employee_id || s.user_id || s.id) === String(uid));
+          quizOverallTotal = myEntries.reduce((sum, s) => sum + Number(s.total_score || s.points || s.quiz_score || s.score || 0), 0);
+        }
       }
 
       setUserLifetimeScore(quizOverallTotal);
