@@ -57,7 +57,7 @@ const FunQuizScreen = ({ onBack }) => {
           ],
           points_reward: item.points_reward,
           has_answered: item.has_answered || false,
-          already_answered: item.has_answered || false, // Track if it was already in DB
+          already_answered: item.has_answered || false,
           previous_result: item.previous_result ? (item.previous_result === true || item.previous_result === 'correct' ? 'correct' : 'wrong') : null,
           correct_answer: item.correct_answer || null,
           user_selected_letter: item.user_selected_letter || item.user_answer || item.selected_option || null,
