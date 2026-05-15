@@ -424,40 +424,21 @@ const FunQuizScreen = ({ onBack }) => {
               <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: isMobile ? 'center' : 'flex-start' }}>
                 <h2 style={s.heroTitle}>Get Ready for<br />a Fun Quiz!</h2>
                 <p style={s.heroDesc}>Train your brain with smart, scientifically backed games that enhance various cognitive functions.</p>
-
                 <div style={{ 
                   marginTop: '15px', 
                   display: 'grid', 
-                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', 
+                  gridTemplateColumns: '1fr', 
                   gap: '10px', 
-                  width: isMobile ? '100%' : 'auto' 
+                  width: isMobile ? '100%' : '250px' 
                 }}>
-                  <div style={{ backgroundColor: 'rgba(255,255,255,0.7)', padding: '10px 16px', borderRadius: '14px', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: '900', color: '#1e40af', textTransform: 'uppercase' }}>Daily Questions</div>
-                    <div style={{ fontSize: '16px', fontWeight: '1000', color: '#0B1E3F' }}>{questions.length}</div>
-                  </div>
-
-                  <div style={{ backgroundColor: 'rgba(255,255,255,0.7)', padding: '10px 16px', borderRadius: '14px', border: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: '900', color: '#b45309', textTransform: 'uppercase' }}>Points Remaining</div>
-                    <div style={{ fontSize: '16px', fontWeight: '1000', color: '#0B1E3F' }}>{questions.filter(q => !q.has_answered).reduce((sum, q) => sum + (q.points_reward || 0), 0)}</div>
-                  </div>
-
-                  {/* Session score calculation */}
+                  {/* Dedicated fetch for Current User's absolute True Overall Total */}
                   {(() => {
-                    const sessionScoreForDisplay = questions.filter(q => q.previous_result === 'correct').reduce((sum, q) => sum + (q.points_reward || 0), 0);
                     const newSessionPoints = questions.filter(q => q.previous_result === 'correct' && !q.already_answered).reduce((sum, q) => sum + (q.points_reward || 0), 0);
                     return (
-                      <>
-                        <div style={{ backgroundColor: 'rgba(255,255,255,0.7)', padding: '10px 16px', borderRadius: '14px', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                          <div style={{ fontSize: '12px', fontWeight: '900', color: '#1e40af', textTransform: 'uppercase' }}>Overall Score</div>
-                          <div style={{ fontSize: '16px', fontWeight: '1000', color: '#0B1E3F' }}>{userLifetimeScore + newSessionPoints}</div>
-                        </div>
- 
-                        <div style={{ backgroundColor: 'rgba(255,255,255,0.7)', padding: '10px 16px', borderRadius: '14px', border: '1px solid #dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                          <div style={{ fontSize: '12px', fontWeight: '900', color: '#15803d', textTransform: 'uppercase' }}>Session Score</div>
-                          <div style={{ fontSize: '16px', fontWeight: '1000', color: '#0B1E3F' }}>{sessionScoreForDisplay}</div>
-                        </div>
-                      </>
+                      <div style={{ backgroundColor: 'rgba(255,255,255,0.7)', padding: '12px 20px', borderRadius: '14px', border: '1.5px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: '900', color: '#1e40af', textTransform: 'uppercase' }}>Overall Score</div>
+                        <div style={{ fontSize: '18px', fontWeight: '1000', color: '#0B1E3F' }}>{userLifetimeScore + newSessionPoints}</div>
+                      </div>
                     );
                   })()}
                 </div>
