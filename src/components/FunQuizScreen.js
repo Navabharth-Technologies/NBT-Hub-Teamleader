@@ -235,30 +235,29 @@ const FunQuizScreen = ({ onBack }) => {
     },
     bottomSection: { backgroundColor: 'white', borderRadius: '24px', padding: isMobile ? '20px' : '30px', border: '1px solid #eef2f3' },
     option: (optObj, isAnswered) => {
-      const isSelectedLocally = selectedOption === optObj.letter;
-      const isUserPicked = (currentQ?.user_selected_letter === optObj.letter) || (isAnswered && isSelectedLocally);
+      const isUserChoice = (optObj.letter === currentQ?.user_selected_letter || optObj.letter === selectedOption);
       const cleanCorrect = String(currentQ?.correct_answer || '').trim().toLowerCase();
       const cleanOpt = String(optObj.text || '').trim().toLowerCase();
-      const isCorrectText = cleanCorrect.includes(cleanOpt) || cleanOpt.includes(cleanCorrect);
+      const isActuallyCorrect = cleanOpt && cleanCorrect && (cleanCorrect.includes(cleanOpt) || cleanOpt.includes(cleanCorrect));
 
-      let borderColor = '#eef2f3';
-      let bgColor = 'white';
-      let textColor = '#64748b';
-      let status = 'default'; // 'correct', 'wrong', 'selected', 'default'
+      let border = '1.5px solid #eef2f3';
+      let bg = 'white';
+      let color = '#64748b';
+      let status = 'default';
 
       if (isAnswered) {
-        if (isCorrectText) {
-          borderColor = '#22c55e'; bgColor = '#f0fdf4'; textColor = '#15803d'; status = 'correct';
-        } else if (optObj.letter === currentQ?.user_selected_letter || optObj.letter === selectedOption) {
-          borderColor = '#ef4444'; bgColor = '#fef2f2'; textColor = '#b91c1c'; status = 'wrong';
+        if (isActuallyCorrect) {
+          border = '2.5px solid #22c55e'; bg = '#f0fdf4'; color = '#15803d'; status = 'correct';
+        } else if (isUserChoice) {
+          border = '2.5px solid #ef4444'; bg = '#fef2f2'; color = '#b91c1c'; status = 'wrong';
         }
-      } else if (isSelectedLocally) {
-        borderColor = '#0d676c'; bgColor = '#f0f9fa'; textColor = '#0d676c'; status = 'selected';
+      } else if (isUserChoice) {
+        border = '2.5px solid #0d676c'; bg = '#f0f9fa'; color = '#0d676c'; status = 'selected';
       }
 
       return {
-        padding: '16px 20px', borderRadius: '14px', border: `1.5px solid ${borderColor}`, backgroundColor: bgColor,
-        color: textColor, fontSize: '14px', fontWeight: '800', cursor: isAnswered ? 'default' : 'pointer',
+        padding: '16px 20px', borderRadius: '14px', border: border, backgroundColor: bg,
+        color: color, fontSize: '14px', fontWeight: '800', cursor: isAnswered ? 'default' : 'pointer',
         display: 'flex', alignItems: 'center', gap: '15px', transition: 'all 0.2s',
         status: status
       };
