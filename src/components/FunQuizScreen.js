@@ -130,7 +130,7 @@ const FunQuizScreen = ({ onBack }) => {
 
     // LOCAL ASSESSMENT (Checking correct answer locally as per user instruction)
     const optObj = currentQ.options.find(o => o.letter === selectedOption);
-    const isCorrect = optObj?.text === currentQ.correct_answer;
+    const isCorrect = String(optObj?.text || '').trim().toLowerCase() === String(currentQ.correct_answer || '').trim().toLowerCase();
 
     setQuestions(prev => prev.map((q, i) => i === currentIdx ? {
       ...q,
@@ -235,7 +235,7 @@ const FunQuizScreen = ({ onBack }) => {
     option: (optObj, isAnswered) => {
       const isSelectedLocally = selectedOption === optObj.letter;
       const isUserPicked = currentQ?.user_selected_letter === optObj.letter;
-      const isCorrectText = currentQ?.correct_answer === optObj.text;
+      const isCorrectText = String(currentQ?.correct_answer || '').trim().toLowerCase() === String(optObj.text || '').trim().toLowerCase();
 
       let borderColor = '#eef2f3';
       let bgColor = 'white';
@@ -553,7 +553,9 @@ const FunQuizScreen = ({ onBack }) => {
                     <div style={{ marginBottom: '20px', padding: '12px 16px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: currentQ.previous_result === 'correct' ? '#f0fdf4' : '#fef2f2', border: `1.5px solid ${currentQ.previous_result === 'correct' ? '#bbf7d0' : '#fecaca'}` }}>
                       {currentQ.previous_result === 'correct' ? <CheckIcon size={18} color="#15803d" /> : <XIcon size={18} color="#b91c1c" />}
                       <span style={{ fontSize: '14px', fontWeight: '800', color: currentQ.previous_result === 'correct' ? '#15803d' : '#b91c1c' }}>
-                        {currentQ.previous_result === 'correct' ? 'You answered this correctly!' : 'You answered this incorrectly.'}
+                        {currentQ.previous_result === 'correct' ? 
+                          'Excellent! You answered this correctly.' : 
+                          `Incorrect. The correct answer was: ${currentQ.correct_answer}`}
                       </span>
                     </div>
                   )}
@@ -579,10 +581,10 @@ const FunQuizScreen = ({ onBack }) => {
                           </div>
                           {optObj.text}
 
-                          {currentQ.has_answered && currentQ.correct_answer === optObj.text && (
+                          {currentQ.has_answered && String(currentQ.correct_answer || '').trim().toLowerCase() === String(optObj.text || '').trim().toLowerCase() && (
                             <div style={{ marginLeft: 'auto', backgroundColor: '#22c55e', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '900' }}>CORRECT</div>
                           )}
-                          {currentQ.has_answered && currentQ.user_selected_letter === optObj.letter && currentQ.correct_answer !== optObj.text && (
+                          {currentQ.has_answered && currentQ.user_selected_letter === optObj.letter && String(currentQ.correct_answer || '').trim().toLowerCase() !== String(optObj.text || '').trim().toLowerCase() && (
                             <div style={{ marginLeft: 'auto', backgroundColor: '#ef4444', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '900' }}>WRONG</div>
                           )}
                         </div>
