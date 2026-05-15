@@ -10,7 +10,7 @@ export default function ResignationScreen({ onBack }) {
   const [winWidth, setWinWidth] = useState(window.innerWidth);
   const isMobile = winWidth < 768;
   const isTablet = winWidth < 1024;
-  
+
   // Tabs: 'main' (Submit + My History), 'team' (Team notice)
   const [activeTab, setActiveTab] = useState('main');
 
@@ -21,15 +21,28 @@ export default function ResignationScreen({ onBack }) {
   const [detailedReason, setDetailedReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [attachment, setAttachment] = useState(null); // base64
+  const [attachmentName, setAttachmentName] = useState('');
 
   // UI simulation states
   const [myHistory, setMyHistory] = useState([]);
   const [teamResignations, setTeamResignations] = useState([]);
   const [showRevokeModal, setShowRevokeModal] = useState(false);
   const [revokeData, setRevokeData] = useState({ id: '', reason: '' });
-  
+
   // Detail Overlay State
   const [selectedResignation, setSelectedResignation] = useState(null);
+
+  // Robust PDF detection
+  const isPDF = (url) => {
+    if (!url) return false;
+    const s = String(url).toLowerCase();
+    const base = s.split('?')[0];
+    return base.endsWith('.pdf') || 
+           s.includes('.pdf?') || 
+           s.startsWith('data:application/pdf') ||
+           s.includes('/api/drive/stream/');
+  };
 
   useEffect(() => {
     const handleResize = () => setWinWidth(window.innerWidth);
@@ -87,11 +100,26 @@ export default function ResignationScreen({ onBack }) {
     }
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        return alert("File size too large (Max 5MB)");
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        setAttachment(reader.result);
+        setAttachmentName(file.name);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!lastWorkingDay || !reason || !detailedReason.trim()) {
       return alert("Please fill in all required fields.");
     }
-    
+
     // Check for existing pending resignation
     if (myHistory.some(r => r.status === 'PENDING')) {
       return alert("You already have a pending resignation request.");
@@ -101,7 +129,7 @@ export default function ResignationScreen({ onBack }) {
     try {
       const uid = user?.id || user?.employee_id || user?.empId || user?.userId;
       const mid = user?.reporting_manager_id || user?.reportingManagerId || user?.managerId || '';
-      
+
       const payload = {
         userId: uid,
         user_id: uid,
@@ -121,13 +149,15 @@ export default function ResignationScreen({ onBack }) {
         status: 'PENDING',
         manager_id: mid,
         reporting_manager_id: mid,
-        managerId: mid
+        managerId: mid,
+        attachment_data: attachment, // Sent as base64
+        attachment_name: attachmentName
       };
 
       const token = localStorage.getItem('token');
       const res = await fetch(API_ENDPOINTS.RESIGNATIONS, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token?.trim()}`
         },
@@ -136,9 +166,11 @@ export default function ResignationScreen({ onBack }) {
 
       if (res.ok) {
         setSubmitted(true);
-        setLastWorkingDay(''); 
-        setReason(''); 
+        setLastWorkingDay('');
+        setReason('');
         setDetailedReason('');
+        setAttachment(null);
+        setAttachmentName('');
         fetchMyHistory();
       } else {
         const err = await res.text();
@@ -159,7 +191,7 @@ export default function ResignationScreen({ onBack }) {
       const token = localStorage.getItem('token');
       const res = await fetch(API_ENDPOINTS.REVOKE_RESIGNATION(revokeData.id), {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -199,27 +231,27 @@ export default function ResignationScreen({ onBack }) {
     historyItem: { padding: isMobile ? '20px' : '25px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1px solid #f1f5f9', marginBottom: '15px' },
     statusBadge: (s) => {
       const status = (s || '').toUpperCase();
-      return { 
-        padding: '6px 14px', 
-        borderRadius: '10px', 
-        fontSize: '10px', 
-        fontWeight: '900', 
-        textTransform: 'uppercase', 
-        backgroundColor: status === 'PENDING' ? '#fffbeb' : (status === 'REVOKED' || status === 'REJECTED' ? '#f1f5f9' : '#f0fdf4'), 
-        color: status === 'PENDING' ? '#d97706' : (status === 'REVOKED' || status === 'REJECTED' ? '#64748b' : '#16a34a') 
+      return {
+        padding: '6px 14px',
+        borderRadius: '10px',
+        fontSize: '10px',
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        backgroundColor: status === 'PENDING' ? '#fffbeb' : (status === 'REVOKED' || status === 'REJECTED' ? '#f1f5f9' : '#f0fdf4'),
+        color: status === 'PENDING' ? '#d97706' : (status === 'REVOKED' || status === 'REJECTED' ? '#64748b' : '#16a34a')
       };
     },
     revokeBtn: { padding: '10px 20px', borderRadius: '12px', backgroundColor: 'transparent', color: '#dc2626', border: '1.5px solid #dc2626', fontSize: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', width: isMobile ? '100%' : 'auto', justifyContent: 'center' },
-    
+
     // Detail View Styles
     overlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', zIndex: 11000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '0' : '40px' },
-    detailCard: { 
-      backgroundColor: 'white', 
-      borderRadius: isMobile ? '0' : '40px', 
-      width: '100%', 
-      maxWidth: '800px', 
-      height: isMobile ? '100%' : '85vh', 
-      display: 'flex', 
+    detailCard: {
+      backgroundColor: 'white',
+      borderRadius: isMobile ? '0' : '40px',
+      width: '100%',
+      maxWidth: '800px',
+      height: isMobile ? '100%' : '85vh',
+      display: 'flex',
       flexDirection: 'column',
       position: 'relative',
       boxShadow: '0 30px 100px rgba(0,0,0,0.2)',
@@ -298,6 +330,24 @@ export default function ResignationScreen({ onBack }) {
                 <label style={s.label}>Formal Letter Content <span style={{ color: '#ef4444' }}>*</span></label>
                 <textarea style={s.textarea} placeholder="Write your formal letter..." value={detailedReason} onChange={e => setDetailedReason(e.target.value)} />
 
+                <label style={s.label}>Attach Formal Document (Optional - PDF or Image)</label>
+                <div style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                  <input 
+                    type="file" 
+                    accept="application/pdf,image/*" 
+                    onChange={handleFileChange}
+                    style={{ display: 'none' }}
+                    id="resig-upload"
+                  />
+                  <button 
+                    onClick={() => document.getElementById('resig-upload').click()}
+                    style={{ padding: '12px 20px', borderRadius: '12px', background: '#f1f5f9', border: '1.5px solid #e2e8f0', color: '#0B1E3F', fontSize: '13px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Info size={16} /> {attachmentName ? 'Change File' : 'Choose File'}
+                  </button>
+                  {attachmentName && <span style={{ fontSize: '13px', fontWeight: '700', color: '#16a34a' }}>✓ {attachmentName}</span>}
+                </div>
+
                 <button style={{ ...s.submitBtn, opacity: loading ? 0.7 : 1 }} onClick={handleSubmit}>
                   {loading ? "Processing..." : <><Send size={18} /> Submit Formal Notice</>}
                 </button>
@@ -320,7 +370,17 @@ export default function ResignationScreen({ onBack }) {
                         <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F', marginBottom: '4px' }}>{r.reason}</div>
                         <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700' }}>Submitted: {r.resignation_date || r.resignationDate} • LWD: {r.last_working_day || r.lastWorkingDay}</div>
                       </div>
-                      <div style={s.statusBadge(r.status)}>{r.status}</div>
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        {(r.attachment_data || r.file_path || r.document_url) && (
+                          <button 
+                            onClick={() => setSelectedResignation(r)}
+                            style={{ padding: '6px 12px', borderRadius: '8px', background: '#eff6ff', border: '1px solid #dbeafe', color: '#3b82f6', fontSize: '10px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <Info size={12} /> View Doc
+                          </button>
+                        )}
+                        <div style={s.statusBadge(r.status)}>{r.status}</div>
+                      </div>
                     </div>
                     {((r.status || '').toUpperCase() === 'PENDING' || (r.status || '').toUpperCase() === 'NEW') && (
                       <button style={s.revokeBtn} onClick={() => { setRevokeData({ id: r.id, reason: '' }); setShowRevokeModal(true); }}>
@@ -345,8 +405,8 @@ export default function ResignationScreen({ onBack }) {
                 {teamResignations.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontWeight: '700' }}>No team resignations logged.</div>
                 ) : teamResignations.map(r => (
-                  <motion.div 
-                    key={r.id} 
+                  <motion.div
+                    key={r.id}
                     whileHover={{ scale: 1.01, boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}
                     onClick={() => setSelectedResignation(r)}
                     style={{ ...s.historyItem, borderLeft: '4px solid #dc2626', cursor: 'pointer', transition: 'all 0.2s ease' }}
@@ -370,7 +430,7 @@ export default function ResignationScreen({ onBack }) {
         <AnimatePresence>
           {selectedResignation && (
             <div style={s.overlay} onClick={() => setSelectedResignation(null)}>
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -378,7 +438,7 @@ export default function ResignationScreen({ onBack }) {
                 style={s.detailCard}
               >
                 <div style={s.detailHeader}>
-                  <button 
+                  <button
                     onClick={() => setSelectedResignation(null)}
                     style={{ ...s.backBtn, boxShadow: 'none' }}
                   >
@@ -417,28 +477,49 @@ export default function ResignationScreen({ onBack }) {
                     </div>
                   </div>
 
-                  <div style={{ marginBottom: '10px' }}>
+                  <div style={{ marginBottom: '35px' }}>
                     <div style={s.label}>Formal Letter Content</div>
                     <div style={{ padding: '25px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1.5px solid #f1f5f9', fontSize: '14px', color: '#475569', lineHeight: '1.7', whiteSpace: 'pre-wrap', minHeight: '150px' }}>
                       {selectedResignation.letter_content || selectedResignation.detailed_reason || selectedResignation.detailedReason}
                     </div>
                   </div>
+
+                  {(selectedResignation.attachment_data || selectedResignation.file_path || selectedResignation.document_url) && (
+                    <div style={{ marginBottom: '35px' }}>
+                      <div style={s.label}>Attached Document</div>
+                      <div style={{ width: '100%', height: '400px', backgroundColor: '#f1f5f9', borderRadius: '25px', overflow: 'hidden', border: '1.5px solid #e2e8f0' }}>
+                        {isPDF(selectedResignation.attachment_data || selectedResignation.file_path || selectedResignation.document_url) ? (
+                          <iframe 
+                            src={selectedResignation.attachment_data || (selectedResignation.file_path?.startsWith('http') ? selectedResignation.file_path : `${BASE_URL}${selectedResignation.file_path}`)} 
+                            title="Resignation Attachment"
+                            style={{ width: '100%', height: '100%', border: 'none' }}
+                          />
+                        ) : (
+                          <img 
+                            src={selectedResignation.attachment_data || (selectedResignation.file_path?.startsWith('http') ? selectedResignation.file_path : `${BASE_URL}${selectedResignation.file_path}`)} 
+                            alt="Attachment"
+                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div style={s.detailFooter}>
-                  <button 
-                    style={{ 
-                      flex: 1, 
-                      padding: '18px', 
-                      borderRadius: '18px', 
-                      backgroundColor: '#0B1E3F', 
-                      border: 'none', 
-                      color: 'white', 
-                      fontSize: '14px', 
-                      fontWeight: '800', 
+                  <button
+                    style={{
+                      flex: 1,
+                      padding: '18px',
+                      borderRadius: '18px',
+                      backgroundColor: '#0B1E3F',
+                      border: 'none',
+                      color: 'white',
+                      fontSize: '14px',
+                      fontWeight: '800',
                       cursor: 'pointer',
                       boxShadow: '0 4px 12px rgba(11, 30, 63, 0.2)'
-                    }} 
+                    }}
                     onClick={() => setSelectedResignation(null)}
                   >
                     Close Details
@@ -448,21 +529,20 @@ export default function ResignationScreen({ onBack }) {
             </div>
           )}
         </AnimatePresence>
-ce>
 
-      {showRevokeModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ backgroundColor: 'white', borderRadius: '30px', padding: '40px', maxWidth: '450px', width: '100%', boxShadow: '0 30px 60px rgba(0,0,0,0.2)' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#0B1E3F', marginBottom: '25px' }}>Revoke Resignation</h2>
-            <label style={s.label}>Reason for Revoking</label>
-            <textarea style={{ ...s.textarea, minHeight: '100px' }} placeholder="Why are you revoking?" value={revokeData.reason} onChange={e => setRevokeData({ ...revokeData, reason: e.target.value })} />
-            <div style={{ display: 'flex', gap: '15px' }}>
+        {showRevokeModal && (
+          <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ backgroundColor: 'white', borderRadius: '30px', padding: '40px', maxWidth: '450px', width: '100%', boxShadow: '0 30px 60px rgba(0,0,0,0.2)' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#0B1E3F', marginBottom: '25px' }}>Revoke Resignation</h2>
+              <label style={s.label}>Reason for Revoking</label>
+              <textarea style={{ ...s.textarea, minHeight: '100px' }} placeholder="Why are you revoking?" value={revokeData.reason} onChange={e => setRevokeData({ ...revokeData, reason: e.target.value })} />
+              <div style={{ display: 'flex', gap: '15px' }}>
                 <button onClick={() => setShowRevokeModal(false)} style={{ flex: 1, padding: '15px', borderRadius: '15px', background: '#f1f5f9', border: 'none', fontWeight: '800', cursor: 'pointer' }}>Cancel</button>
                 <button onClick={handleRevoke} style={{ flex: 2, ...s.submitBtn, backgroundColor: '#0B1E3F', padding: '15px' }}>{loading ? "Revoking..." : "Confirm Revoke"}</button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+              </div>
+            </motion.div>
+          </div>
+        )}
       </div>
     </div>
   );

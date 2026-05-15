@@ -214,6 +214,18 @@ export default function DocumentsScreen({ onBack }) {
   const [viewImage, setViewImage] = useState(null);
   const tabsRef = useRef(null);
 
+  // Enhanced PDF detection to handle query params, data URIs, and Drive streams
+  const isPDF = (url) => {
+    if (!url) return false;
+    const s = String(url).toLowerCase();
+    // Handle query parameters by splitting at '?'
+    const base = s.split('?')[0];
+    return base.endsWith('.pdf') || 
+           s.includes('.pdf?') || 
+           s.startsWith('data:application/pdf') ||
+           s.includes('/api/drive/stream/');
+  };
+
   const scrollTabs = (direction) => {
     if (tabsRef.current) {
       console.log(`[Nav] Scrolling ${direction}`);
@@ -737,7 +749,7 @@ export default function DocumentsScreen({ onBack }) {
         )}
       </AnimatePresence>
 
-      {/* Full Screen Image Modal */}
+      {/* Full Screen Image/PDF Modal */}
       <AnimatePresence>
         {viewImage && (
           <motion.div
@@ -748,17 +760,30 @@ export default function DocumentsScreen({ onBack }) {
             style={{
               position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.95)',
               zIndex: 10001, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: '40px', cursor: 'zoom-out'
+              padding: isMobile ? '20px' : '40px', cursor: 'zoom-out'
             }}
           >
-            <motion.img
-              initial={{ scale: 0.8 }}
-              animate={{ scale: 1 }}
-              src={viewImage}
-              style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: '12px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}
-            />
-            <button style={{ position: 'absolute', top: '30px', right: '30px', background: 'white', border: 'none', borderRadius: '50%', padding: '10px', cursor: 'pointer' }}>
-              <Trash2 size={20} color="#ef4444" onClick={(e) => { e.stopPropagation(); setViewImage(null); }} />
+            {isPDF(viewImage) ? (
+              <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+                 <iframe
+                  src={viewImage}
+                  title="PDF Viewer"
+                  style={{ width: '100%', height: '100%', border: 'none', borderRadius: '12px', backgroundColor: 'white' }}
+                />
+              </div>
+            ) : (
+              <motion.img
+                initial={{ scale: 0.8 }}
+                animate={{ scale: 1 }}
+                src={viewImage}
+                style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: '12px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}
+              />
+            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); setViewImage(null); }}
+              style={{ position: 'absolute', top: '30px', right: '30px', background: 'white', border: 'none', borderRadius: '50%', padding: '10px', cursor: 'pointer', zIndex: 10002, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <X size={20} color="#0B1E3F" />
             </button>
           </motion.div>
         )}
@@ -1170,7 +1195,7 @@ export default function DocumentsScreen({ onBack }) {
                         }}>
                           {form[field.key] && (form[field.key].length > 100 || !form[field.key].startsWith('data:')) ? (
                             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                              {String(form[field.key]).toLowerCase().endsWith('.pdf') || String(form[field.key]).startsWith('data:application/pdf') ? (
+                              {isPDF(form[field.key]) ? (
                                 <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' }}>
                                   <FileText size={48} color="#ef4444" />
                                   <span style={{ fontSize: '12px', fontWeight: '800', color: '#1e293b', marginTop: '8px' }}>PDF DOCUMENT</span>
@@ -1216,7 +1241,7 @@ export default function DocumentsScreen({ onBack }) {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const url = form[field.key].startsWith('http') || form[field.key].startsWith('data:') ? form[field.key] : `${BASE_URL}${form[field.key]}`;
-                                if (url.toLowerCase().endsWith('.pdf') || url.startsWith('data:application/pdf')) {
+                                if (isPDF(url)) {
                                   if (url.startsWith('data:application/pdf')) {
                                     fetch(url).then(res => res.blob()).then(blob => {
                                       const blobUrl = URL.createObjectURL(blob);
