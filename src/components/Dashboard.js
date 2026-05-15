@@ -602,48 +602,6 @@ const Dashboard = ({ setActiveTab }) => {
           </div>
         </motion.div>
  
-        {/* ────── QUIZ PERFORMANCE QUICK VIEW ────── */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }} 
-          animate={{ opacity: 1, y: 0 }} 
-          transition={{ delay: 0.1 }}
-          style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '20px' }}
-        >
-          <div 
-            onClick={() => setActiveTab('fun-quiz')}
-            style={{ 
-              padding: '20px 25px', backgroundColor: '#B2DCE2', borderRadius: '24px', border: '1.5px solid #000', 
-              display: 'flex', alignItems: 'center', gap: '15px', cursor: 'pointer' 
-            }}
-          >
-            <div style={{ backgroundColor: 'white', padding: '10px', borderRadius: '12px', border: '1.5px solid #000' }}>
-              <Trophy size={20} color="#0d676c" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '10px', fontWeight: '900', color: '#0d676c', textTransform: 'uppercase' }}>Overall Quiz Score</div>
-              <div style={{ fontSize: '20px', fontWeight: '900', color: '#0B1E3F' }}>{quizStats.score} Points</div>
-            </div>
-            <ChevronRight size={18} color="#0d676c" />
-          </div>
- 
-          <div 
-            onClick={() => setActiveTab('awards')}
-            style={{ 
-              padding: '20px 25px', backgroundColor: '#e0f2fe', borderRadius: '24px', border: '1.5px solid #0B1E3F', 
-              display: 'flex', alignItems: 'center', gap: '15px', cursor: 'pointer' 
-            }}
-          >
-            <div style={{ backgroundColor: 'white', padding: '10px', borderRadius: '12px', border: '1.5px solid #0B1E3F' }}>
-              <Star size={20} color="#3B5998" fill="#3B5998" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '10px', fontWeight: '900', color: '#3B5998', textTransform: 'uppercase' }}>Global Leaderboard Rank</div>
-              <div style={{ fontSize: '20px', fontWeight: '900', color: '#0B1E3F' }}>{quizStats.rank} Ranking</div>
-            </div>
-            <ChevronRight size={18} color="#3B5998" />
-          </div>
-        </motion.div>
-
         {/* ────── MASTER CONTAINER WRAPPER ────── */}
         <div style={{ display: 'grid', gridTemplateColumns: isTablet ? '1fr' : '3fr 1fr', gap: '32px' }}>
 
