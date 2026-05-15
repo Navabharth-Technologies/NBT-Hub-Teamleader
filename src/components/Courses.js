@@ -522,7 +522,7 @@ export default function CourseScreen() {
                                     {/* 2. Course Title (Centered horizontally and vertically in the provided space) */}
                                     <div style={{
                                         position: 'absolute',
-                                        top: '64.2%',
+                                        top: '63.5%',
                                         left: '50%',
                                         transform: 'translate(-50%, -50%)',
                                         width: '85%',
