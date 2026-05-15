@@ -560,7 +560,7 @@ const FunQuizScreen = ({ onBack }) => {
                       <span style={{ fontSize: '14px', fontWeight: '800', color: currentQ.previous_result === 'correct' ? '#15803d' : '#b91c1c' }}>
                         {currentQ.previous_result === 'correct' ? 
                           'Excellent! You answered this correctly.' : 
-                          `Incorrect. The correct answer was: ${currentQ.correct_answer}`}
+                          `Incorrect. You selected: ${currentQ.options.find(o => o.letter === currentQ.user_selected_letter || o.letter === selectedOption)?.text}. The correct answer was: ${currentQ.correct_answer}`}
                       </span>
                     </div>
                   )}
