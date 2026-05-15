@@ -1039,9 +1039,15 @@ const AwardsScreen = ({ onBack }) => {
                             </div>
 
                             <div style={{ backgroundColor: 'white', borderRadius: '30px', border: '1.5px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 10px 40px rgba(0,0,0,0.03)' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '20px 30px', backgroundColor: '#fcfdfe', borderBottom: '2px solid #f1f5f9' }}>
+                                <div style={{ 
+                                    display: 'grid', 
+                                    gridTemplateColumns: rankingType === 'quiz' ? '2fr 1fr 1fr' : '2fr 1fr 1fr 1fr', 
+                                    padding: '20px 30px', 
+                                    backgroundColor: '#fcfdfe', 
+                                    borderBottom: '2px solid #f1f5f9' 
+                                }}>
                                     <span style={{ fontSize: '11px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase' }}>Name</span>
-                                    <span style={{ fontSize: '11px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase', textAlign: 'center' }}>Reward</span>
+                                    {rankingType !== 'quiz' && <span style={{ fontSize: '11px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase', textAlign: 'center' }}>Reward</span>}
                                     <span style={{ fontSize: '11px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase', textAlign: 'center' }}>Quiz</span>
                                     <span style={{ fontSize: '11px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase', textAlign: 'right' }}>Total</span>
                                 </div>
@@ -1050,7 +1056,9 @@ const AwardsScreen = ({ onBack }) => {
                                         const isMe = cleanIdLocal(p.employee_id || p.id || p.userId) === cleanIdLocal(user?.employee_id || user?.userId || user?.id);
                                         return (
                                             <div key={i} style={{ 
-                                                display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '18px 30px', 
+                                                display: 'grid', 
+                                                gridTemplateColumns: rankingType === 'quiz' ? '2fr 1fr 1fr' : '2fr 1fr 1fr 1fr', 
+                                                padding: '18px 30px', 
                                                 borderBottom: i === 9 ? 'none' : '1px solid #f8fafc', alignItems: 'center',
                                                 backgroundColor: isMe ? '#f0f9fa' : 'transparent'
                                             }}>
@@ -1060,7 +1068,7 @@ const AwardsScreen = ({ onBack }) => {
                                                     </div>
                                                     <span style={{ fontSize: '14px', fontWeight: '900', color: '#0B1E3F' }}>{p.name}</span>
                                                 </div>
-                                                <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', textAlign: 'center' }}>{p.reward_points || (Number(p.total_points || p.points || 0) - Number(p.total_quiz_points || p.quiz_points || 0)) || 0}</span>
+                                                {rankingType !== 'quiz' && <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', textAlign: 'center' }}>{p.reward_points || (Number(p.total_points || p.points || 0) - Number(p.total_quiz_points || p.quiz_points || 0)) || 0}</span>}
                                                 <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', textAlign: 'center' }}>{p.total_quiz_points || p.quiz_points || 0}</span>
                                                 <span style={{ fontSize: '15px', fontWeight: '1000', color: '#0B1E3F', textAlign: 'right' }}>{p.total_points || p.points || 0}</span>
                                             </div>

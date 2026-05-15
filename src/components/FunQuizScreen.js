@@ -91,6 +91,8 @@ const FunQuizScreen = ({ onBack }) => {
         const list = pointsList.map((u, i) => ({
           name: u.name || `Employee ${u.employee_id || 'Resource'}`,
           score: Number(u.total_quiz_points || u.points || 0),
+          reward_points: 0,
+          quiz_points: Number(u.total_quiz_points || u.points || 0),
           count: Number(u.quizzes_completed || 0),
           rank: i + 1,
           color: ['#FBBC05', '#EA4335', '#34A853', '#4285F4', '#FBBC05'][i % 5],
@@ -330,7 +332,7 @@ const FunQuizScreen = ({ onBack }) => {
       {/* Leaderboard Table Header */}
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: '2fr 1fr 1fr 1fr', 
+        gridTemplateColumns: rankingType === 'quiz' ? '2fr 1fr 1fr' : '2fr 1fr 1fr 1fr', 
         padding: '12px 10px', 
         borderBottom: '2px solid #f1f5f9',
         fontSize: '10px',
@@ -340,7 +342,7 @@ const FunQuizScreen = ({ onBack }) => {
         letterSpacing: '0.5px'
       }}>
         <span>Name</span>
-        <span style={{ textAlign: 'center' }}>Reward</span>
+        {rankingType !== 'quiz' && <span style={{ textAlign: 'center' }}>Reward</span>}
         <span style={{ textAlign: 'center' }}>Quiz</span>
         <span style={{ textAlign: 'right' }}>TOTAL</span>
       </div>
@@ -364,7 +366,7 @@ const FunQuizScreen = ({ onBack }) => {
             return (
               <div key={i} style={{ 
                 display: 'grid', 
-                gridTemplateColumns: '2fr 1fr 1fr 1fr', 
+                gridTemplateColumns: rankingType === 'quiz' ? '2fr 1fr 1fr' : '2fr 1fr 1fr 1fr', 
                 alignItems: 'center', 
                 padding: '14px 10px', 
                 borderBottom: '1px solid #f8fafc',
@@ -382,9 +384,11 @@ const FunQuizScreen = ({ onBack }) => {
                   <div style={{ fontSize: '11px', fontWeight: '800', color: '#0B1E3F', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
                 </div>
                 
-                <div style={{ textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#64748b' }}>
-                  {p.reward_points || p.manual_points || (p.score - (p.quiz_points || p.total_quiz_points || 0)) || 0}
-                </div>
+                {rankingType !== 'quiz' && (
+                  <div style={{ textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#64748b' }}>
+                    {p.reward_points || p.manual_points || (p.score - (p.quiz_points || p.total_quiz_points || 0)) || 0}
+                  </div>
+                )}
                 
                 <div style={{ textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#64748b' }}>
                   {p.quiz_points || p.total_quiz_points || 0}
