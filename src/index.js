@@ -22,7 +22,7 @@ window.fetch = async (...args) => {
         isRedirecting = true;
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = `/login?reason=${body.reason || 'token_expired'}`;
+        window.location.href = `/?reason=${body.reason || 'token_expired'}`;
       }
     } catch (e) {
       // JSON parse failed, ignore
