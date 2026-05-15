@@ -590,7 +590,7 @@ const FunQuizScreen = ({ onBack }) => {
                             <div style={{ marginLeft: 'auto', backgroundColor: '#22c55e', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '900' }}>CORRECT</div>
                           )}
                           {currentQ.has_answered && currentQ.user_selected_letter === optObj.letter && !(String(currentQ.correct_answer || '').trim().toLowerCase().includes(String(optObj.text || '').trim().toLowerCase()) || String(optObj.text || '').trim().toLowerCase().includes(String(currentQ.correct_answer || '').trim().toLowerCase())) && (
-                            <div style={{ marginLeft: 'auto', backgroundColor: '#ef4444', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '900' }}>WRONG</div>
+                            <div style={{ marginLeft: 'auto', backgroundColor: '#ef4444', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '900' }}>YOUR CHOICE</div>
                           )}
                         </div>
                       );
