@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Award, Star, Medal, ArrowLeft, Trophy, Calendar, User, Search, CheckCircle, AlertCircle, Zap, ChevronDown, Clock } from 'lucide-react';
+import { Award, Star, ArrowLeft, Trophy, Calendar, CheckCircle, AlertCircle, Zap, ChevronDown } from 'lucide-react';
 import { API_ENDPOINTS, BASE_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 
 const AwardsScreen = ({ onBack }) => {
-    const { user } = useAuth(); // Active session hook
+    const { user } = useAuth();
     const [rewardData, setRewardData] = useState(null);
     const [team, setTeam] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -17,10 +18,8 @@ const AwardsScreen = ({ onBack }) => {
     const [grantedLoading, setGrantedLoading] = useState(false);
     const [designationMap, setDesignationMap] = useState({});
     const [selectedMemberRewards, setSelectedMemberRewards] = useState({ history: [], totalPoints: 0, loading: false });
-    const [quizPoints, setQuizPoints] = useState(0);
     const [winWidth, setWinWidth] = useState(window.innerWidth);
 
-    // Custom Award States
     const [customAwardTitle, setCustomAwardTitle] = useState('');
     const [customAwardPoints, setCustomAwardPoints] = useState('');
 
@@ -30,27 +29,14 @@ const AwardsScreen = ({ onBack }) => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const getOrdinalSuffix = (i) => {
-        const j = i % 10, k = i % 100;
-        if (j === 1 && k !== 11) return i + "st";
-        if (j === 2 && k !== 12) return i + "nd";
-        if (j === 3 && k !== 13) return i + "rd";
-        return i + "th";
-    };
-
     const cleanIdLocal = (id) => {
         if (!id) return '';
         let s = String(id).trim();
-        
-        // Handle comma-separated IDs (take the first one)
         if (s.includes(',')) s = s.split(',')[0].trim();
-
-        // Handle triple repetition bug (e.g. 202516202516202516)
         if (s.length >= 9 && s.length % 3 === 0) {
             const partLen = s.length / 3;
             if (s.substring(0, partLen) === s.substring(partLen, partLen * 2)) return s.substring(0, partLen);
         }
-        // Handle double repetition bug (e.g. 202512202512)
         if (s.length >= 6 && s.length % 2 === 0) {
             const partLen = s.length / 2;
             if (s.substring(0, partLen) === s.substring(partLen)) return s.substring(0, partLen);
@@ -60,7 +46,6 @@ const AwardsScreen = ({ onBack }) => {
 
     const isMobile = winWidth < 768;
     const isTablet = winWidth < 1024;
-
 
     const formatLocalDate = (date) => {
         const y = date.getFullYear();
@@ -78,7 +63,7 @@ const AwardsScreen = ({ onBack }) => {
     const [endFilter, setEndFilter] = useState(formatLocalDate(lastDay));
     const [activeView, setActiveView] = useState('MAIN');
 
-    const [availableAwards, setAvailableAwards] = useState([
+    const [availableAwards] = useState([
         { id: 'visionary', title: "Visionary Lead", rep: 200, desc: "Acknowledge exceptional leadership and vision.", category: "Performance" },
         { id: 'growth', title: "Team Growth", rep: 150, desc: "For scaling team skills and results.", category: "Performance" },
         { id: 'star', title: "Star Performer", rep: 50, desc: "Extraordinary monthly contribution.", category: "Performance" },
@@ -95,7 +80,6 @@ const AwardsScreen = ({ onBack }) => {
         }
     }, [user]);
 
-    // Ensure history is fresh when switching to audit view
     useEffect(() => {
         if (activeView === 'AUDIT' && user) {
             fetchGrantedHistory();
@@ -109,7 +93,6 @@ const AwardsScreen = ({ onBack }) => {
         }
     };
 
-    // 3. Fetch specific user rewards when selected (Public Profile logic)
     useEffect(() => {
         const fetchSelectedUserRewards = async () => {
             if (!selectedEmployee) {
@@ -122,7 +105,6 @@ const AwardsScreen = ({ onBack }) => {
                 const token = localStorage.getItem('token');
                 const eid = selectedEmployee.id || selectedEmployee.userId || selectedEmployee.employee_id;
                 
-                // Fetch Reward History (Now includes Quizzes from the unified rewards table)
                 const res = await fetch(API_ENDPOINTS.REWARDS_USER(eid), {
                     headers: { 'Authorization': `Bearer ${token?.trim()}` }
                 });
@@ -135,7 +117,6 @@ const AwardsScreen = ({ onBack }) => {
                     mainHistory = data.history || data.awards || (Array.isArray(data) ? data : (data.data || []));
                     mainTotal = Number(data.totalPoints || 0);
                     
-                    // Fallback for Quiz Points if missing from history
                     const hasQuiz = mainHistory.some(r => {
                         const cat = String(r.category || '').toUpperCase();
                         const name = String(r.title || r.award_name || '').toUpperCase();
@@ -187,32 +168,19 @@ const AwardsScreen = ({ onBack }) => {
         fetchSelectedUserRewards();
     }, [selectedEmployee]);
 
-
-
-    useEffect(() => {
-        if (user) {
-            fetchMyRewards();
-            fetchTeam();
-            fetchGrantedHistory();
-        }
-    }, [user]); // Only fetch on mount/user change. Filtering will happen in render.
-
     const fetchMyRewards = async () => {
         try {
             const token = localStorage.getItem('token');
             const uid = cleanIdLocal(user?.employee_id || user?.userId || user?.id);
 
-            // 1. Fetch ALL rewards summary
             const res = await fetch(API_ENDPOINTS.REWARDS_MY, {
                 headers: { 'Authorization': `Bearer ${token?.trim()}` }
             });
 
             if (res.ok) {
                 const data = await res.json();
-                // Robust extraction matching FunQuizScreen
                 let allRewards = data.awards || data.history || (Array.isArray(data) ? data : (data.data || data.records || []));
                 
-                // 2. Fetch Unified Global Leaderboard (Combined Manual + Quiz) AND Quiz-Only Points for fallback
                 const [lbRes, quizPointsRes] = await Promise.all([
                     fetch(API_ENDPOINTS.QUIZ_LEADERBOARD, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
                     fetch(API_ENDPOINTS.QUIZ_USER_POINTS, { headers: { 'Authorization': `Bearer ${token?.trim()}` } })
@@ -231,7 +199,6 @@ const AwardsScreen = ({ onBack }) => {
                     quizOnlyList = Array.isArray(qData) ? qData : (qData.data || []);
                 }
 
-                // 3. Fallback: If no quiz rewards in the main table, synthesize one from the quiz-only points list
                 const hasQuizInHistory = allRewards.some(r => {
                     const cat = String(r.category || '').toUpperCase();
                     const name = String(r.title || r.award_name || '').toUpperCase();
@@ -251,11 +218,9 @@ const AwardsScreen = ({ onBack }) => {
                             description: `Accumulated from ${myQuizEntry.quizzes_completed || 'multiple'} sessions`
                         };
                         allRewards = [...allRewards, synthesizedQuiz];
-                        setQuizPoints(synthesizedQuiz.points);
                     }
                 }
 
-                // 4. Fetch Dependencies (Employees, Manager) for accurate PM vs HR filtering
                 let degMap = {};
                 let managerId = '';
                 try {
@@ -286,7 +251,6 @@ const AwardsScreen = ({ onBack }) => {
                     const deg = degMap[grantorId] || '';
                     const role = String(r.granted_by_role || r.giver_role || r.role || '').toUpperCase();
 
-                    // 1. Mandatory HR/Game Column Routing
                     if (cat === 'QUIZ' || cat === 'FUN QUIZ GAME' || name.includes('QUIZ')) return false;
                     if (cat === 'HR' || cat === 'ADMIN' || cat === 'RECRUITMENT' || cat === 'GAME') return false;
                     
@@ -297,41 +261,31 @@ const AwardsScreen = ({ onBack }) => {
                     
                     if (isHrDept) return false;
 
-                    // 2. Verified Leadership Routing (Manager or Self)
                     const isVerifiedLeadership = (grantorId && (grantorId === managerId || grantorId === uid));
                     if (isVerifiedLeadership) return true;
 
-                    // 3. Category-Based Routing
-                    // If the backend explicitly marked it as Performance, it's PM
                     if (cat === 'PERFORMANCE' || cat === 'PM') return true;
 
-                    // 4. Designation-Based Routing (Non-HR)
                     const isLeadershipDesignation = deg.includes('PROJECT MANAGER') || deg.includes('PM') || deg.includes('MANAGER') || 
                                                    deg.includes('LEAD') || deg.includes('DIRECTOR') || deg.includes('TL') || 
                                                    deg.includes('TEAM LEADER');
                     if (isLeadershipDesignation) return true;
 
-                    // 5. Title-Based Routing (Last Resort)
-                    // If it's a known PM title BUT category is NOT 'OTHER', we can trust it.
-                    // If category is 'OTHER' and we don't have a verified ID/Designation, we default to HR to be safe.
                     const isKnownPmTitle = pmTitles.some(t => name.includes(t));
                     if (isKnownPmTitle && cat !== 'OTHER') return true;
 
-                    return false; // Default to HR & Game Column for everything else
+                    return false;
                 });
                 
                 const hr = allRewards.filter(r => !pm.includes(r));
 
-                // Store designation map for display purposes
                 setDesignationMap(degMap);
 
                 const totalRep = allRewards.reduce((sum, r) => sum + (Number(r.points) || Number(r.rep) || 0), 0);
                 const endorsements = allRewards.length;
 
-                // 4. Calculate Official Global Ranking using the leaderboard API
                 let finalRank = "Unranked";
                 if (lbList.length > 0) {
-                    // Create virtual leaderboard with my updated points to see my current standing
                     const virtualLB = lbList.map(entry => {
                         const entryId = cleanIdLocal(entry.employee_id || entry.userId || entry.id);
                         const isMe = entryId === uid || (entry.employee_name || entry.name || "").toLowerCase().trim() === (user?.employee_name || user?.name || "").toLowerCase().trim();
@@ -400,7 +354,6 @@ const AwardsScreen = ({ onBack }) => {
 
             setTeam(subordinates);
 
-            // Parallel fetch of reward history for EVERY subordinate (including interns)
             const historyMap = {};
             await Promise.all(subordinates.map(async (m) => {
                 try {
@@ -424,7 +377,6 @@ const AwardsScreen = ({ onBack }) => {
             const token = localStorage.getItem('token');
             const uid = user?.employee_id || user?.userId || user?.id;
             
-            // Passing date filters to the backend to potentially get filtered results directly
             const query = `?start_date=${startFilter}&end_date=${endFilter}`;
             const res = await fetch(`${API_ENDPOINTS.REWARDS_GIVEN(uid)}${query}`, {
                 headers: { 'Authorization': `Bearer ${token?.trim()}` }
@@ -433,13 +385,10 @@ const AwardsScreen = ({ onBack }) => {
             if (res.ok) {
                 const data = await res.json();
                 const allLogs = data.awards || (Array.isArray(data) ? data : (data.records || data.data || []));
-                console.log("[RewardsHistory] Raw data from API:", allLogs);
                 const myUid = cleanIdLocal(uid);
-                console.log("[RewardsHistory] My UID:", myUid);
                 
                 const givenByMe = allLogs.filter(log => {
                     const gby = cleanIdLocal(log.granted_by || log.grantedBy || log.granted_id || log.grantor_id || log.userId);
-                    console.log("[RewardsHistory] Checking log:", log.reward_name, "GrantedBy:", gby);
                     return gby === myUid;
                 });
                 const sortedLogs = givenByMe.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
@@ -455,7 +404,6 @@ const AwardsScreen = ({ onBack }) => {
     const handleGrantAward = async () => {
         if (!selectedEmployee || !selectedAward) return;
         
-        // Resolve target values
         const finalTitle = selectedAward.id === 'custom' ? customAwardTitle : selectedAward.title;
         const finalPoints = selectedAward.id === 'custom' ? Number(customAwardPoints) : Number(selectedAward.rep);
         const finalDesc = selectedAward.id === 'custom' ? `Custom leadership recognition: ${finalTitle}` : selectedAward.desc;
@@ -490,7 +438,6 @@ const AwardsScreen = ({ onBack }) => {
             });
             if (res.ok) {
                 showFeedback(`Successfully awarded "${finalTitle}" to ${selectedEmployee.employee_name || selectedEmployee.name}`, 'success');
-                // Optimistically update the selected member's local REP count and history
                 setSelectedMemberRewards(prev => ({
                     ...prev,
                     totalPoints: Number(prev.totalPoints) + finalPoints,
@@ -500,9 +447,8 @@ const AwardsScreen = ({ onBack }) => {
                         created_at: new Date().toISOString()
                     }, ...prev.history]
                 }));
-                // Optimistically update grantedHistory for the Recent Audit Logs snippet
                 const newLog = {
-                    id: Date.now(), // Temporary ID
+                    id: Date.now(),
                     employee_name: selectedEmployee.employee_name || selectedEmployee.name,
                     targetName: selectedEmployee.employee_name || selectedEmployee.name,
                     reward_name: finalTitle,
@@ -519,7 +465,7 @@ const AwardsScreen = ({ onBack }) => {
                 setCustomAwardTitle('');
                 setCustomAwardPoints('');
                 fetchGrantedHistory();
-                fetchMyRewards(); // Refresh rank and points after grant
+                fetchMyRewards();
             } else {
                 const err = await res.json().catch(() => ({}));
                 console.error("Grant Award Failed:", err);
@@ -532,7 +478,6 @@ const AwardsScreen = ({ onBack }) => {
         }
     };
 
-    // Seamless loading: Only show full-screen spinner if we have NO data yet
     if (loading && !rewardData) return (
         <div style={{ padding: '60px', textAlign: 'center', color: '#64748b', fontWeight: '800' }}>
             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} style={{ display: 'inline-block', marginBottom: '15px' }}>
@@ -545,7 +490,6 @@ const AwardsScreen = ({ onBack }) => {
     const rawStats = rewardData?.stats || { rank: "Calculating...", points: 0, endorsements: 0, score: "Normal" };
     const history = rewardData?.history || { pm: [], hr: [] };
 
-    // Calculate dynamic stats based on filters
     const allHistory = [...(history.pm || []), ...(history.hr || [])];
     const filteredHistory = allHistory.filter(aw => {
         const d = new Date(aw.created_at || aw.date).getTime();
@@ -565,7 +509,6 @@ const AwardsScreen = ({ onBack }) => {
 
     return (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ padding: isMobile ? '16px 20px' : (isTablet ? '30px 30px' : '40px 100px'), width: '100%', boxSizing: 'border-box', position: 'relative' }}>
-            {/* Feedback Modal */}
             <AnimatePresence>
                 {feedback.show && (
                     <motion.div
@@ -596,7 +539,6 @@ const AwardsScreen = ({ onBack }) => {
             <AnimatePresence mode="wait">
                 {activeView === 'MAIN' ? (
                     <motion.div key="main" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                        {/* Header */}
                         <div style={{ display: 'flex', flexDirection: isTablet ? 'column' : 'row', justifyContent: 'space-between', alignItems: isTablet ? 'flex-start' : 'center', gap: isTablet ? '20px' : '0', marginBottom: '40px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                                 <button onClick={onBack} style={{ backgroundColor: 'white', border: 'none', width: '45px', height: '45px', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
@@ -609,7 +551,6 @@ const AwardsScreen = ({ onBack }) => {
                             </div>
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: isTablet ? 'wrap' : 'nowrap', width: isTablet ? '100%' : 'auto' }}>
-                                {/* Shared Filters on Main Screen */}
                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: isTablet ? 'wrap' : 'nowrap' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'white', padding: '10px 16px', borderRadius: '14px', border: '1.5px solid #e2e8f0' }}>
                                         <span style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8' }}>FROM</span>
@@ -630,7 +571,6 @@ const AwardsScreen = ({ onBack }) => {
                             </div>
                         </div>
 
-                        {/* Stats Banner */}
                         <div style={{ 
                             display: 'flex', 
                             flexDirection: isMobile ? 'column' : 'row',
@@ -673,10 +613,7 @@ const AwardsScreen = ({ onBack }) => {
                             </div>
                         </div>
 
-
-
                         <div style={{ display: 'grid', gridTemplateColumns: isTablet ? '1fr' : '1fr 1fr 1fr', gap: '20px', alignItems: 'start', marginBottom: '40px' }}>
-                            {/* Column 1: GRANT REWARDS CENTER (Integrated) */}
                             <div style={{ 
                                 backgroundColor: '#ffffff', padding: '25px', borderRadius: '24px', 
                                 border: '1.5px solid #fef3c7', boxShadow: '0 10px 40px rgba(217, 119, 6, 0.05)',
@@ -690,7 +627,6 @@ const AwardsScreen = ({ onBack }) => {
                                 </div>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                    {/* Step 1: Tier Selection */}
                                     <div>
                                         <div style={{ fontSize: '12px', fontWeight: '1000', color: '#92400e', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <div style={{ width: '18px', height: '18px', borderRadius: '50%', backgroundColor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px' }}>1</div>
@@ -722,7 +658,6 @@ const AwardsScreen = ({ onBack }) => {
                                             </div>
                                         </div>
 
-                                        {/* Custom Award Edit Options */}
                                         <AnimatePresence>
                                             {selectedAward?.id === 'custom' && (
                                                 <motion.div 
@@ -756,7 +691,6 @@ const AwardsScreen = ({ onBack }) => {
                                         </AnimatePresence>
                                     </div>
 
-                                    {/* Step 2: User Selection */}
                                     <div>
                                         <div style={{ fontSize: '12px', fontWeight: '1000', color: '#92400e', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <div style={{ width: '18px', height: '18px', borderRadius: '50%', backgroundColor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px' }}>2</div>
@@ -787,7 +721,6 @@ const AwardsScreen = ({ onBack }) => {
                                         </div>
                                     </div>
 
-                                    {/* Step 3: Action */}
                                     <button 
                                         disabled={!selectedAward || !selectedEmployee || granting} 
                                         onClick={handleGrantAward} 
@@ -803,7 +736,6 @@ const AwardsScreen = ({ onBack }) => {
                                     </button>
                                 </div>
 
-                                {/* Mini History below the form: Showing Global Recent Audits (PM, HR, TL) */}
                                 <div style={{ marginTop: '25px', paddingTop: '20px', borderTop: '1px dashed #fef3c7' }}>
                                     <div style={{ fontSize: '11px', fontWeight: '1000', color: '#92400e', marginBottom: '12px' }}>RECENT AUDIT LOGS</div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -867,13 +799,6 @@ const AwardsScreen = ({ onBack }) => {
                                             .map((aw, i) => {
                                                 const gid = cleanIdLocal(aw.granted_by || aw.giver_id || aw.grantor_id);
                                                 const deg = designationMap[gid] || '';
-                                                let roleLabel = 'Recognition Grant';
-                                                
-                                                if (deg.includes('HR')) roleLabel = 'HR Dept';
-                                                else if (deg.includes('PROJECT MANAGER') || deg.includes('PM')) roleLabel = 'Project Manager';
-                                                else if (deg.includes('MANAGER') || deg.includes('LEAD')) roleLabel = 'Leadership';
-
-                                                const displayDesc = aw.description || aw.note || `${roleLabel} (Hub)`;
                                                 
                                                 return (
                                                     <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} style={{ backgroundColor: '#fcfdfe', padding: '15px', borderRadius: '18px', border: `1px solid #e0f2fe` }}>
@@ -891,7 +816,6 @@ const AwardsScreen = ({ onBack }) => {
                                 </div>
                             </div>
 
-                            {/* Column 3: HR & Game Recognition List */}
                             <div style={{ 
                                 backgroundColor: '#ffffff', padding: '25px', borderRadius: '24px', 
                                 border: '1.5px solid #f0fdf4', boxShadow: '0 10px 40px rgba(74, 222, 128, 0.05)',
@@ -930,17 +854,7 @@ const AwardsScreen = ({ onBack }) => {
                                                 const cat = String(aw.category || '').toUpperCase();
                                                 const isQuiz = cat === 'FUN QUIZ GAME' || cat === 'QUIZ' || rawTitle.toLowerCase().includes('points earned by quiz');
                                                 
-                                                const gid = cleanIdLocal(aw.granted_by || aw.giver_id || aw.grantor_id);
-                                                const deg = String(designationMap[gid] || '').toUpperCase();
-                                                
-                                                let roleLabel = 'Recognition Grant';
-                                                if (isQuiz) roleLabel = 'Cognitive Challenge';
-                                                else if (deg.includes('HR')) roleLabel = 'HR Dept';
-                                                else if (deg.includes('PROJECT MANAGER') || deg.includes('PM')) roleLabel = 'Project Manager';
-                                                else if (deg.includes('MANAGER') || deg.includes('LEAD')) roleLabel = 'Leadership';
-                                                
                                                 const displayTitle = isQuiz ? 'Brain Teaser Achievement' : rawTitle;
-                                                const displayDesc = isQuiz ? (aw.description || aw.note || 'Cognitive Challenge Completed') : (aw.description || aw.note || `${roleLabel} (Hub)`);
 
                                                 return (
                                                     <motion.div key={i} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} style={{ 
@@ -967,7 +881,6 @@ const AwardsScreen = ({ onBack }) => {
                     </motion.div>
                 ) : (
                     <motion.div key="audit" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
-                        {/* Audit Header */}
                         <div style={{ display: 'flex', flexDirection: isTablet ? 'column' : 'row', justifyContent: 'space-between', alignItems: isTablet ? 'flex-start' : 'center', gap: isTablet ? '20px' : '0', marginBottom: '25px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                                 <button onClick={() => setActiveView('MAIN')} style={{ backgroundColor: 'white', border: 'none', width: '45px', height: '45px', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
@@ -978,7 +891,6 @@ const AwardsScreen = ({ onBack }) => {
                                     <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '15px', fontWeight: '800' }}>Historical record of endorsements granted to subordinates</p>
                                 </div>
                             </div>
-                            {/* Top Filters */}
                             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: isTablet ? 'wrap' : 'nowrap', width: isTablet ? '100%' : 'auto' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'white', padding: '10px 16px', borderRadius: '14px', border: '1.5px solid #e2e8f0' }}>
                                     <span style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8' }}>FROM</span>
@@ -994,7 +906,6 @@ const AwardsScreen = ({ onBack }) => {
                             </div>
                         </div>
 
-                        {/* Team Points History Summary (Moved here from Main View) */}
                         <div style={{ 
                             backgroundColor: '#fafbff', padding: '20px', borderRadius: '24px', border: '1.5px solid #e2e8f0',
                             boxShadow: '0 4px 15px rgba(0,0,0,0.02)', marginBottom: '30px'
@@ -1009,7 +920,6 @@ const AwardsScreen = ({ onBack }) => {
                                     return team.map(m => {
                                         const mid = cleanIdLocal(m.employee_id || m.id);
 
-                                        // 1. Calculate Unified Rewards points (Manager + HR + Quiz) from teamHistories
                                         const mHistory = teamHistories[mid] || [];
                                         const rewardPeriodPoints = mHistory
                                             .filter(log => {
@@ -1045,7 +955,6 @@ const AwardsScreen = ({ onBack }) => {
                             </div>
                         </div>
 
-                        {/* Audit Table */}
                         <div style={{ backgroundColor: 'white', borderRadius: '40px', border: '1.2px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 10px 40px rgba(0,0,0,0.03)' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1.5fr', padding: '20px 30px', backgroundColor: '#fcfdfe', borderBottom: '1px solid #f1f5f9' }}>
                                 <span style={{ fontSize: '11px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase' }}>Employee Target</span>
@@ -1066,8 +975,6 @@ const AwardsScreen = ({ onBack }) => {
                                             return true;
                                         })
                                         .map((log, i) => {
-                                            // Resolve name from team list if missing from log
-                                            // Backends sometimes return recipient ID as 'employee_id', 'targetId', or 'userId'
                                             const recipientId = log.employee_id || log.targetId || log.userId || log.id;
                                             const targetMember = team.find(m => (m.employee_id || m.id || m.userId) == recipientId);
                                             const displayName = log.employee_name || targetMember?.employee_name || targetMember?.name || 'Resource';
