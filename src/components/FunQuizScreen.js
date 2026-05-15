@@ -305,31 +305,47 @@ const FunQuizScreen = ({ onBack }) => {
           <Trophy size={18} color="#0d676c" />
           <h3 style={{ fontSize: '15px', fontWeight: '900', color: '#0B1E3F', margin: 0 }}>Hall of Fame</h3>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ fontSize: '10px', fontWeight: '800', color: '#64748b' }}>Total Participants: {leaderboard.length}</div>
-          <div style={{ fontSize: '9px', fontWeight: '800', background: '#dcfce7', color: '#15803d', padding: '4px 8px', borderRadius: '20px', textTransform: 'uppercase' }}>ALL TIME</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ fontSize: '9px', fontWeight: '900', background: '#0d676c', color: 'white', padding: '4px 10px', borderRadius: '20px', textTransform: 'uppercase' }}>{rankingType.toUpperCase()}</div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '5px', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', gap: '5px', marginBottom: '15px' }}>
         <button 
           onClick={() => setRankingType('quiz')}
-          style={{ flex: 1, padding: '8px', borderRadius: '10px', fontSize: '10px', fontWeight: '900', border: 'none', backgroundColor: rankingType === 'quiz' ? '#0d676c' : '#f1f5f9', color: rankingType === 'quiz' ? 'white' : '#64748b', cursor: 'pointer' }}
+          style={{ flex: 1, padding: '10px', borderRadius: '12px', fontSize: '10px', fontWeight: '900', border: '1.5px solid', borderColor: rankingType === 'quiz' ? '#0d676c' : '#f1f5f9', backgroundColor: rankingType === 'quiz' ? '#0d676c' : 'white', color: rankingType === 'quiz' ? 'white' : '#64748b', cursor: 'pointer', transition: 'all 0.2s' }}
         >
           QUIZ ONLY
         </button>
         <button 
           onClick={() => setRankingType('global')}
-          style={{ flex: 1, padding: '8px', borderRadius: '10px', fontSize: '10px', fontWeight: '900', border: 'none', backgroundColor: rankingType === 'global' ? '#3B5998' : '#f1f5f9', color: rankingType === 'global' ? 'white' : '#64748b', cursor: 'pointer' }}
+          style={{ flex: 1, padding: '10px', borderRadius: '12px', fontSize: '10px', fontWeight: '900', border: '1.5px solid', borderColor: rankingType === 'global' ? '#3B5998' : '#f1f5f9', backgroundColor: rankingType === 'global' ? '#3B5998' : 'white', color: rankingType === 'global' ? 'white' : '#64748b', cursor: 'pointer', transition: 'all 0.2s' }}
         >
-          GLOBAL
+          GLOBAL (COMBINED)
         </button>
+      </div>
+
+      {/* Leaderboard Table Header */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: '2fr 1fr 1fr 1fr', 
+        padding: '12px 10px', 
+        borderBottom: '2px solid #f1f5f9',
+        fontSize: '10px',
+        fontWeight: '900',
+        color: '#94a3b8',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+      }}>
+        <span>Name</span>
+        <span style={{ textAlign: 'center' }}>Reward</span>
+        <span style={{ textAlign: 'center' }}>Quiz</span>
+        <span style={{ textAlign: 'right' }}>TOTAL</span>
       </div>
 
       <div style={{ 
         display: 'flex', 
         flexDirection: 'column', 
-        gap: '12px', 
         flex: 1, 
         maxHeight: showFullList ? '450px' : 'auto',
         overflowY: showFullList ? 'auto' : 'visible',
@@ -337,29 +353,59 @@ const FunQuizScreen = ({ onBack }) => {
       }}>
         {(() => {
           const currentList = rankingType === 'quiz' ? leaderboard : globalLeaderboard;
-          return (showFullList ? currentList : currentList.slice(0, 5)).map((p, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '10px', borderBottom: (i === (showFullList ? currentList.length - 1 : 4)) ? 'none' : '1px solid #f1f5f9' }}>
-              <div style={{ width: '32px', height: '32px', borderRadius: '10px', backgroundColor: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px', fontWeight: '900' }}>
-                {p.initial}
+          const displayList = showFullList ? currentList : currentList.slice(0, 8);
+          
+          if (displayList.length === 0) return <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: '12px' }}>No rankings available yet</div>;
+
+          return displayList.map((p, i) => {
+            const isMe = String(p.id || p.employee_id || p.userId) === String(user?.employee_id || user?.userId || user?.id);
+            return (
+              <div key={i} style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '2fr 1fr 1fr 1fr', 
+                alignItems: 'center', 
+                padding: '14px 10px', 
+                borderBottom: '1px solid #f8fafc',
+                backgroundColor: isMe ? '#f0f9fa' : 'transparent',
+                borderRadius: isMe ? '12px' : '0'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ 
+                    width: '28px', height: '28px', borderRadius: '8px', 
+                    backgroundColor: p.color, display: 'flex', alignItems: 'center', 
+                    justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: '900' 
+                  }}>
+                    {p.initial}
+                  </div>
+                  <div style={{ fontSize: '11px', fontWeight: '800', color: '#0B1E3F', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                </div>
+                
+                <div style={{ textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#64748b' }}>
+                  {p.reward_points || p.manual_points || (p.score - (p.quiz_points || p.total_quiz_points || 0)) || 0}
+                </div>
+                
+                <div style={{ textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#64748b' }}>
+                  {p.quiz_points || p.total_quiz_points || 0}
+                </div>
+                
+                <div style={{ textAlign: 'right', fontSize: '13px', fontWeight: '1000', color: '#0B1E3F' }}>
+                  {p.score}
+                </div>
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '12px', fontWeight: '900', color: '#0B1E3F' }}>{p.name}</div>
-                <div style={{ fontSize: '10px', fontWeight: '700', color: '#94a3b8' }}>{rankingType === 'quiz' ? 'Total Quiz Points' : 'Combined Global Points'}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '14px', fontWeight: '1000', color: rankingType === 'quiz' ? '#0d676c' : '#3B5998' }}>{p.score}</div>
-                <div style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8' }}>Points {p.count ? `• ${p.count} Quizzes` : ''}</div>
-              </div>
-            </div>
-          ));
+            );
+          });
         })()}
       </div>
 
       <button 
         onClick={() => setShowFullList(!showFullList)}
-        style={{ marginTop: '15px', width: '100%', border: '1.5px solid #e2e8f0', backgroundColor: 'transparent', padding: '10px', borderRadius: '12px', fontSize: '11px', fontWeight: '800', color: '#64748b', cursor: 'pointer' }}
+        style={{ 
+          marginTop: '15px', width: '100%', padding: '10px', borderRadius: '12px', 
+          backgroundColor: '#f8fafc', border: '1px solid #eef2f3', color: '#3B5998', 
+          fontSize: '11px', fontWeight: '1000', cursor: '#pointer' 
+        }}
       >
-        {showFullList ? 'Show Less' : 'View Full List'}
+        {showFullList ? 'SHOW TOP 8' : 'VIEW FULL HALL OF FAME'}
       </button>
     </div>
   );

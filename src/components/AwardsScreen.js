@@ -18,6 +18,7 @@ const AwardsScreen = ({ onBack }) => {
     const [designationMap, setDesignationMap] = useState({});
     const [selectedMemberRewards, setSelectedMemberRewards] = useState({ history: [], totalPoints: 0, loading: false });
     const [winWidth, setWinWidth] = useState(window.innerWidth);
+    const [rankingType, setRankingType] = useState('global');
 
     const [customAwardTitle, setCustomAwardTitle] = useState('');
     const [customAwardPoints, setCustomAwardPoints] = useState('');
@@ -77,7 +78,7 @@ const AwardsScreen = ({ onBack }) => {
             fetchTeam();
             fetchGrantedHistory();
         }
-    }, [user]);
+    }, [user, rankingType]);
 
     useEffect(() => {
         if (activeView === 'AUDIT' && user) {
@@ -180,8 +181,9 @@ const AwardsScreen = ({ onBack }) => {
                 const data = await res.json();
                 let allRewards = data.awards || data.history || (Array.isArray(data) ? data : (data.data || data.records || []));
                 
+                const targetLbUrl = rankingType === 'quiz' ? API_ENDPOINTS.QUIZ_USER_POINTS : API_ENDPOINTS.QUIZ_LEADERBOARD;
                 const [lbRes, quizPointsRes] = await Promise.all([
-                    fetch(API_ENDPOINTS.QUIZ_LEADERBOARD, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
+                    fetch(targetLbUrl, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
                     fetch(API_ENDPOINTS.QUIZ_USER_POINTS, { headers: { 'Authorization': `Bearer ${token?.trim()}` } })
                 ]);
 
@@ -1000,6 +1002,66 @@ const AwardsScreen = ({ onBack }) => {
                                         <div style={{ fontSize: '16px', color: '#94a3b8', fontWeight: '800' }}>No recognition records found.</div>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+
+                        {/* Hall of Fame Leaderboard (New Section) */}
+                        <div style={{ marginTop: '50px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '25px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                    <div style={{ padding: '12px', backgroundColor: '#fff', borderRadius: '15px', border: '1.5px solid #0B1E3F' }}>
+                                        <Trophy size={24} color="#0B1E3F" />
+                                    </div>
+                                    <div>
+                                        <h3 style={{ fontSize: '20px', fontWeight: '1000', color: '#0B1E3F', margin: 0 }}>Hall of Fame</h3>
+                                        <p style={{ fontSize: '12px', color: '#64748b', fontWeight: '800', margin: 0 }}>Top performers across the organization</p>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '10px', backgroundColor: '#f1f5f9', padding: '5px', borderRadius: '15px' }}>
+                                    <button 
+                                        onClick={() => setRankingType && setRankingType('quiz')}
+                                        style={{ padding: '8px 20px', borderRadius: '12px', fontSize: '11px', fontWeight: '900', border: 'none', backgroundColor: (typeof rankingType !== 'undefined' && rankingType === 'quiz') ? 'white' : 'transparent', color: '#0B1E3F', cursor: 'pointer', boxShadow: (typeof rankingType !== 'undefined' && rankingType === 'quiz') ? '0 4px 10px rgba(0,0,0,0.05)' : 'none' }}
+                                    >
+                                        QUIZ ONLY
+                                    </button>
+                                    <button 
+                                        onClick={() => setRankingType && setRankingType('global')}
+                                        style={{ padding: '8px 20px', borderRadius: '12px', fontSize: '11px', fontWeight: '900', border: 'none', backgroundColor: (typeof rankingType !== 'undefined' && rankingType === 'global') ? 'white' : 'transparent', color: '#0B1E3F', cursor: 'pointer', boxShadow: (typeof rankingType !== 'undefined' && rankingType === 'global') ? '0 4px 10px rgba(0,0,0,0.05)' : 'none' }}
+                                    >
+                                        GLOBAL
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style={{ backgroundColor: 'white', borderRadius: '30px', border: '1.5px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 10px 40px rgba(0,0,0,0.03)' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '20px 30px', backgroundColor: '#fcfdfe', borderBottom: '2px solid #f1f5f9' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase' }}>Name</span>
+                                    <span style={{ fontSize: '11px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase', textAlign: 'center' }}>Reward</span>
+                                    <span style={{ fontSize: '11px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase', textAlign: 'center' }}>Quiz</span>
+                                    <span style={{ fontSize: '11px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase', textAlign: 'right' }}>Total</span>
+                                </div>
+                                <div>
+                                    {(quizLeaderboard || []).slice(0, 10).map((p, i) => {
+                                        const isMe = cleanIdLocal(p.employee_id || p.id || p.userId) === cleanIdLocal(user?.employee_id || user?.userId || user?.id);
+                                        return (
+                                            <div key={i} style={{ 
+                                                display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', padding: '18px 30px', 
+                                                borderBottom: i === 9 ? 'none' : '1px solid #f8fafc', alignItems: 'center',
+                                                backgroundColor: isMe ? '#f0f9fa' : 'transparent'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                                    <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#3B5998', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '1000', fontSize: '13px', border: '1.5px solid #dbeafe' }}>
+                                                        {(p.name || 'U').charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <span style={{ fontSize: '14px', fontWeight: '900', color: '#0B1E3F' }}>{p.name}</span>
+                                                </div>
+                                                <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', textAlign: 'center' }}>{p.reward_points || (Number(p.total_points || p.points || 0) - Number(p.total_quiz_points || p.quiz_points || 0)) || 0}</span>
+                                                <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', textAlign: 'center' }}>{p.total_quiz_points || p.quiz_points || 0}</span>
+                                                <span style={{ fontSize: '15px', fontWeight: '1000', color: '#0B1E3F', textAlign: 'right' }}>{p.total_points || p.points || 0}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
                     </motion.div>
