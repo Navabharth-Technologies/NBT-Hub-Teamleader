@@ -218,9 +218,10 @@ const AwardsScreen = ({ onBack }) => {
                     fetch(API_ENDPOINTS.QUIZ_USER_POINTS, { headers: { 'Authorization': `Bearer ${token?.trim()}` } })
                 ]);
 
+                let lbList = [];
                 if (lbRes.ok) {
                     const lbData = await lbRes.json();
-                    const lbList = Array.isArray(lbData) ? lbData : (lbData.data || lbData.records || []);
+                    lbList = Array.isArray(lbData) ? lbData : (lbData.data || lbData.records || []);
                     setQuizLeaderboard(lbList);
                 }
 
