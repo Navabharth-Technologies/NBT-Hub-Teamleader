@@ -190,7 +190,12 @@ const AwardsScreen = ({ onBack }) => {
                 let lbList = [];
                 if (lbRes.ok) {
                     const lbData = await lbRes.json();
-                    lbList = Array.isArray(lbData) ? lbData : (lbData.data || lbData.records || []);
+                    lbList = (Array.isArray(lbData) ? lbData : (lbData.data || lbData.records || [])).map(u => ({
+                        ...u,
+                        total_points: Number(u.total_points || u.total_rep || u.points || 0),
+                        reward_points: Number(u.rewardPoints || 0),
+                        total_quiz_points: Number(u.quizPoints || 0)
+                    }));
                     setQuizLeaderboard(lbList);
                 }
 

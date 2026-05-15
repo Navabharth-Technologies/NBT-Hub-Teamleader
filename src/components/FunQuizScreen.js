@@ -110,7 +110,9 @@ const FunQuizScreen = ({ onBack }) => {
         const gList = Array.isArray(gData) ? gData : (gData.data || []);
         setGlobalLeaderboard(gList.map((u, i) => ({
           name: u.name || `Employee ${u.employee_id || 'Resource'}`,
-          score: Number(u.total_points || u.points || 0),
+          score: Number(u.total_points || u.total_rep || u.points || 0),
+          reward_points: Number(u.rewardPoints || 0),
+          quiz_points: Number(u.quizPoints || 0),
           rank: i + 1,
           color: ['#FBBC05', '#EA4335', '#34A853', '#4285F4', '#FBBC05'][i % 5],
           initial: (u.name || 'U').charAt(0).toUpperCase()
