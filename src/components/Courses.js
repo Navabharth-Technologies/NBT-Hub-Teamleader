@@ -519,20 +519,21 @@ export default function CourseScreen() {
                                         {user?.name || 'VALUED EMPLOYEE'}
                                     </div>
 
-                                    {/* 2. Course Title (Arrow 2) */}
+                                    {/* 2. Course Title (Centered under 'Successfully Completed the') */}
                                     <div style={{
                                         position: 'absolute',
-                                        top: '64.2%',
-                                        left: '60.5%',
-                                        transform: 'translateY(-50%)',
-                                        width: '25%',
-                                        textAlign: 'left',
-                                        fontSize: '15px',
-                                        fontWeight: '900',
+                                        top: '64.5%',
+                                        left: '50%',
+                                        transform: 'translate(-50%, -50%)',
+                                        width: '80%',
+                                        textAlign: 'center',
+                                        fontSize: '18px',
+                                        fontWeight: '1000',
                                         color: '#1e40af',
-                                        fontFamily: "'Inter', sans-serif"
+                                        fontFamily: "'Inter', sans-serif",
+                                        letterSpacing: '0.5px'
                                     }}>
-                                        {(selectedCourse?.title || 'COURSE').toUpperCase()}
+                                        {(selectedCourse?.title || 'PROFESSIONAL COURSE').toUpperCase()}
                                     </div>
 
                                     {/* 3. Date (Arrow 3) */}
