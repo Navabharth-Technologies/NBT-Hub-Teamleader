@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Award, Star, Medal, ArrowLeft, Trophy, Calendar, User, Search, CheckCircle, AlertCircle, Zap, ChevronDown, Clock } from 'lucide-react';
 import { Award, Star, ArrowLeft, Trophy, Calendar, CheckCircle, AlertCircle, Zap, ChevronDown } from 'lucide-react';
 import { API_ENDPOINTS, BASE_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
