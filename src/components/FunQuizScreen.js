@@ -137,28 +137,14 @@ const FunQuizScreen = ({ onBack }) => {
 
       setLeaderboard(list);
 
-      // 3. Dedicated fetch for Current User's absolute True Overall Total from consolidated rewards table
-      const rewardsRes = await fetch(API_ENDPOINTS.REWARDS_MY, { 
-        headers: { 'Authorization': `Bearer ${token?.trim()}` } 
-      });
-      
-      let rewardsTotal = 0;
-      if (rewardsRes.ok) {
-        const rData = await rewardsRes.json();
-        // Handle various response structures (awards array, data property, or root array)
-        const allRewards = rData.awards || rData.history || (Array.isArray(rData) ? rData : (rData.data || rData.records || []));
-        rewardsTotal = allRewards.reduce((sum, r) => sum + (Number(r.points) || Number(r.rep) || Number(r.score) || 0), 0);
+      // 3. Calculate Current User's absolute Overall Quiz Total directly from the quiz scores
+      let quizOverallTotal = 0;
+      if (Array.isArray(scoreList)) {
+        const myEntries = scoreList.filter(s => String(s.employee_id || s.user_id || s.id) === String(uid));
+        quizOverallTotal = myEntries.reduce((sum, s) => sum + Number(s.total_score || s.points || s.quiz_score || s.score || 0), 0);
       }
 
-      // 4. Fallback Logic: If rewards table is empty but leaderboard has data, use the leaderboard entry for this user
-      if (rewardsTotal === 0 && Array.isArray(scoreList)) {
-          const myEntry = scoreList.find(s => String(s.employee_id || s.user_id || s.id) === String(uid));
-          if (myEntry) {
-              rewardsTotal = Number(myEntry.total_score || myEntry.points || myEntry.quiz_score || myEntry.score || 0);
-          }
-      }
-
-      setUserLifetimeScore(rewardsTotal);
+      setUserLifetimeScore(quizOverallTotal);
     } catch (err) {
       console.error("Leaderboard Sync failed:", err);
     } finally {
@@ -424,21 +410,40 @@ const FunQuizScreen = ({ onBack }) => {
               <div style={{ position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: isMobile ? 'center' : 'flex-start' }}>
                 <h2 style={s.heroTitle}>Get Ready for<br />a Fun Quiz!</h2>
                 <p style={s.heroDesc}>Train your brain with smart, scientifically backed games that enhance various cognitive functions.</p>
+
                 <div style={{ 
                   marginTop: '15px', 
                   display: 'grid', 
-                  gridTemplateColumns: '1fr', 
+                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', 
                   gap: '10px', 
-                  width: isMobile ? '100%' : '250px' 
+                  width: isMobile ? '100%' : 'auto' 
                 }}>
-                  {/* Dedicated fetch for Current User's absolute True Overall Total */}
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.7)', padding: '10px 16px', borderRadius: '14px', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: '900', color: '#1e40af', textTransform: 'uppercase' }}>Daily Questions</div>
+                    <div style={{ fontSize: '16px', fontWeight: '1000', color: '#0B1E3F' }}>{questions.length}</div>
+                  </div>
+
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.7)', padding: '10px 16px', borderRadius: '14px', border: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: '900', color: '#b45309', textTransform: 'uppercase' }}>Points Remaining</div>
+                    <div style={{ fontSize: '16px', fontWeight: '1000', color: '#0B1E3F' }}>{questions.filter(q => !q.has_answered).reduce((sum, q) => sum + (q.points_reward || 0), 0)}</div>
+                  </div>
+
+                  {/* Session score calculation */}
                   {(() => {
+                    const sessionScoreForDisplay = questions.filter(q => q.previous_result === 'correct').reduce((sum, q) => sum + (q.points_reward || 0), 0);
                     const newSessionPoints = questions.filter(q => q.previous_result === 'correct' && !q.already_answered).reduce((sum, q) => sum + (q.points_reward || 0), 0);
                     return (
-                      <div style={{ backgroundColor: 'rgba(255,255,255,0.7)', padding: '12px 20px', borderRadius: '14px', border: '1.5px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: '900', color: '#1e40af', textTransform: 'uppercase' }}>Overall Score</div>
-                        <div style={{ fontSize: '18px', fontWeight: '1000', color: '#0B1E3F' }}>{userLifetimeScore + newSessionPoints}</div>
-                      </div>
+                      <>
+                        <div style={{ backgroundColor: 'rgba(255,255,255,0.7)', padding: '10px 16px', borderRadius: '14px', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <div style={{ fontSize: '12px', fontWeight: '900', color: '#1e40af', textTransform: 'uppercase' }}>Overall Score</div>
+                          <div style={{ fontSize: '16px', fontWeight: '1000', color: '#0B1E3F' }}>{userLifetimeScore + newSessionPoints}</div>
+                        </div>
+ 
+                        <div style={{ backgroundColor: 'rgba(255,255,255,0.7)', padding: '10px 16px', borderRadius: '14px', border: '1px solid #dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <div style={{ fontSize: '12px', fontWeight: '900', color: '#15803d', textTransform: 'uppercase' }}>Session Score</div>
+                          <div style={{ fontSize: '16px', fontWeight: '1000', color: '#0B1E3F' }}>{sessionScoreForDisplay}</div>
+                        </div>
+                      </>
                     );
                   })()}
                 </div>
