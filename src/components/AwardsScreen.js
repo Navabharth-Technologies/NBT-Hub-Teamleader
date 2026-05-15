@@ -182,9 +182,10 @@ const AwardsScreen = ({ onBack }) => {
                 let allRewards = data.awards || data.history || (Array.isArray(data) ? data : (data.data || data.records || []));
                 
                 const targetLbUrl = rankingType === 'quiz' ? API_ENDPOINTS.QUIZ_USER_POINTS : API_ENDPOINTS.QUIZ_LEADERBOARD;
-                const [lbRes, quizPointsRes] = await Promise.all([
+                const [lbRes, quizPointsRes, quizCompletionsRes] = await Promise.all([
                     fetch(targetLbUrl, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
-                    fetch(API_ENDPOINTS.QUIZ_USER_POINTS, { headers: { 'Authorization': `Bearer ${token?.trim()}` } })
+                    fetch(API_ENDPOINTS.QUIZ_USER_POINTS, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
+                    fetch(`${BASE_URL}/api/quizzes/completions/my`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } })
                 ]);
 
                 let lbList = [];
@@ -200,33 +201,58 @@ const AwardsScreen = ({ onBack }) => {
                 }
 
                 let quizOnlyList = [];
+                let quizHistory = [];
                 if (quizPointsRes.ok) {
                     const qData = await quizPointsRes.json();
                     quizOnlyList = Array.isArray(qData) ? qData : (qData.data || []);
                 }
-
-                const hasQuizInHistory = allRewards.some(r => {
-                    const cat = String(r.category || '').toUpperCase();
-                    const name = String(r.title || r.award_name || '').toUpperCase();
-                    return cat === 'QUIZ' || cat === 'FUN QUIZ GAME' || name.includes('QUIZ');
-                });
-
-                if (!hasQuizInHistory) {
-                    const myQuizEntry = quizOnlyList.find(s => cleanIdLocal(s.employee_id || s.user_id || s.id) === uid);
-                    if (myQuizEntry && Number(myQuizEntry.total_quiz_points || myQuizEntry.points || 0) > 0) {
-                        const synthesizedQuiz = {
-                            id: 'quiz-fallback',
-                            title: 'Points Earned by Quiz',
-                            points: Number(myQuizEntry.total_quiz_points || myQuizEntry.points || 0),
-                            rep: Number(myQuizEntry.total_quiz_points || myQuizEntry.points || 0),
-                            category: 'QUIZ',
-                            date: new Date().toISOString(),
-                            description: `Accumulated from ${myQuizEntry.quizzes_completed || 'multiple'} sessions`
-                        };
-                        allRewards = [...allRewards, synthesizedQuiz];
-                    }
+                if (quizCompletionsRes.ok) {
+                    quizHistory = await quizCompletionsRes.json();
                 }
 
+                // Add quiz completions to rewards if they aren't already represented in HR history
+                quizHistory.forEach(comp => {
+                    const compDate = new Date(comp.completion_date || comp.created_at).toLocaleDateString();
+                    const alreadyExists = allRewards.some(r => {
+                        const rDate = new Date(r.created_at || r.date).toLocaleDateString();
+                        return (r.reward_name === 'Points Earned By Quiz' || r.title === 'Points Earned By Quiz') && rDate === compDate;
+                    });
+
+                    if (!alreadyExists && comp.total_points > 0) {
+                        allRewards.push({
+                            id: `quiz-${comp.id}`,
+                            title: 'Brain Teaser Achievement',
+                            points: comp.total_points,
+                            rep: comp.total_points,
+                            category: 'QUIZ',
+                            date: comp.completion_date || comp.created_at,
+                            note: `Quiz session with ${comp.correct_count} correct answers`
+                        });
+                    }
+                });
+
+                allRewards.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
+
+                // Synthesis of Legacy/Total Quiz entries
+                const totalPointsInHistory = quizHistory.reduce((sum, c) => sum + Number(c.total_points || 0), 0);
+                const myOverallQuiz = quizOnlyList.find(s => cleanIdLocal(s.employee_id || s.user_id || s.id) === uid);
+                const overallPoints = Number(myOverallQuiz?.total_quiz_points || myOverallQuiz?.points || 0);
+                const legacyPoints = overallPoints - totalPointsInHistory;
+
+                if (legacyPoints > 0) {
+                    allRewards.push({
+                        id: 'quiz-legacy',
+                        title: 'Legacy Quiz Achievement',
+                        points: legacyPoints,
+                        rep: legacyPoints,
+                        category: 'QUIZ',
+                        date: new Date(2025, 0, 1).toISOString(), // Represent as historical
+                        note: 'Historical points earned before session tracking'
+                    });
+                }
+
+                allRewards.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || b.date));
+                setRewards(allRewards);
                 let degMap = {};
                 let managerId = '';
                 try {
@@ -873,6 +899,7 @@ const AwardsScreen = ({ onBack }) => {
                                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, paddingRight: isQuiz ? '15px' : '0' }}>
                                                                     <div style={{ fontSize: '13px', fontWeight: '900', color: '#1e293b' }}>{displayTitle}</div>
+                                                                    {aw.note && <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '600', fontStyle: 'italic' }}>{aw.note}</div>}
                                                                 </div>
                                                                 <div style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8', flexShrink: 0 }}>{aw.created_at || aw.date ? new Date(aw.created_at || aw.date).toLocaleDateString() : 'Recent'}</div>
                                                             </div>
