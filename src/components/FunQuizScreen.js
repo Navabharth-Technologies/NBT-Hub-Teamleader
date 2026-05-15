@@ -79,88 +79,36 @@ const FunQuizScreen = ({ onBack }) => {
       const token = localStorage.getItem('token');
       const uid = user?.employee_id || user?.userId || user?.id;
 
-      // 1. Fetch Users from both Rewards Leaderboard AND Subordinates for maximum coverage
-      const [reRes, subRes, scoreRes] = await Promise.all([
-        fetch(API_ENDPOINTS.REWARDS_LEADERBOARD, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
-        fetch(API_ENDPOINTS.SUBORDINATES(uid), { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
-        fetch(`${BASE_URL}/api/fun-quizzes/leaderboard`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } })
-      ]);
-
-      const reData = reRes.ok ? await reRes.json() : [];
-      const subData = subRes.ok ? await subRes.json() : [];
-      const scoreData = scoreRes.ok ? await scoreRes.json() : [];
-
-      const userList = [
-        ...(Array.isArray(reData) ? reData : (reData.data || [])).map(u => ({ id: u.employee_id || u.id, name: u.employee_name || u.name })),
-        ...(Array.isArray(subData) ? subData : (subData.data || [])).map(u => ({ id: u.employee_id || u.id, name: u.employee_name || u.name }))
-      ];
-
-      const scoreList = Array.isArray(scoreData) ? scoreData : (scoreData.data || []);
-
-      // 2. Map and Deduplicate precise quiz scores to exact employee name strings
-      const deduplicatedMap = new Map();
-      const idToNameMap = new Map();
-
-      scoreList.forEach(s => {
-        const targetId = s.employee_id || s.user_id || s.id;
-        const userInfo = userList.find(u => String(u.id) === String(targetId));
-
-        const name = userInfo?.name || s.employee_name || s.name || `Employee ${targetId || 'Resource'}`;
-        const score = Number(s.total_score || s.points || s.quiz_score || s.score || 0);
-        // If s contains count of sessions/attempts, use it; otherwise increment by 1 per record
-        const count = Number(s.total_quizzes || s.quiz_count || s.count || 1);
-
-        idToNameMap.set(String(targetId), name);
-
-        if (deduplicatedMap.has(name)) {
-          const prev = deduplicatedMap.get(name);
-          deduplicatedMap.set(name, { 
-            score: prev.score + score, 
-            count: prev.count + count 
-          });
-        } else {
-          deduplicatedMap.set(name, { score, count });
-        }
+      // 1. Fetch the unified Quiz Leaderboard/Points data from the new endpoint
+      const res = await fetch(API_ENDPOINTS.QUIZ_USER_POINTS, { 
+        headers: { 'Authorization': `Bearer ${token?.trim()}` } 
       });
 
-      const merged = Array.from(deduplicatedMap, ([name, data]) => ({ name, score: data.score, count: data.count }));
-      const sorted = merged.sort((a, b) => b.score - a.score);
+      if (!res.ok) throw new Error("Failed to fetch quiz points");
+      const data = await res.json();
+      const pointsList = Array.isArray(data) ? data : (data.data || []);
 
-      const list = sorted.map((u, i) => ({
-        name: u.name,
-        score: u.score,
-        count: u.count,
+      // 2. Map directly to leaderboard format (data is already sorted by backend)
+      const list = pointsList.map((u, i) => ({
+        name: u.name || `Employee ${u.employee_id || 'Resource'}`,
+        score: Number(u.total_quiz_points || u.points || 0),
+        count: Number(u.quizzes_completed || 0),
         rank: i + 1,
         color: ['#FBBC05', '#EA4335', '#34A853', '#4285F4', '#FBBC05'][i % 5],
-        initial: u.name ? u.name.charAt(0).toUpperCase() : 'U'
+        initial: (u.name || 'U').charAt(0).toUpperCase()
       }));
 
       setLeaderboard(list);
 
-      // 3. Dedicated fetch for Current User's absolute True Overall Total from dedicated quiz points endpoint
-      let quizOverallTotal = 0;
-      try {
-        const pointsRes = await fetch(API_ENDPOINTS.QUIZ_USER_POINTS, { 
-          headers: { 'Authorization': `Bearer ${token?.trim()}` } 
-        });
-        if (pointsRes.ok) {
-          const pData = await pointsRes.json();
-          // Expecting { total_points: X } or { points: X } or { score: X } or { user_points: X }
-          quizOverallTotal = Number(pData.user_points || pData.total_points || pData.points || pData.score || pData.total_score || 0);
-        }
-      } catch (e) {
-        console.warn("Dedicated points fetch failed, falling back to leaderboard sum:", e);
-        // Fallback to calculation from leaderboard scoreList if direct fetch fails
-        if (Array.isArray(scoreList)) {
-          const myEntries = scoreList.filter(s => String(s.employee_id || s.user_id || s.id) === String(uid));
-          quizOverallTotal = myEntries.reduce((sum, s) => sum + Number(s.total_score || s.points || s.quiz_score || s.score || 0), 0);
-        }
-      }
+      // 3. Extract Current User's absolute Overall Quiz Total
+      const myData = pointsList.find(s => String(s.employee_id || s.user_id || s.id) === String(uid));
+      const quizOverallTotal = myData ? Number(myData.total_quiz_points || myData.points || 0) : 0;
 
       setUserLifetimeScore(quizOverallTotal);
     } catch (err) {
-      console.error("Leaderboard Sync failed:", err);
+      console.error("Quiz Sync failed:", err);
     } finally {
+      setIsQuestionsLoading(false);
       setIsLoading(false);
     }
   };
