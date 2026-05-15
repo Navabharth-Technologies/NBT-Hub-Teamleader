@@ -76,19 +76,19 @@ export default function CourseScreen() {
             const uid = user?.employee_id || user?.id;
             const res = await fetch(API_ENDPOINTS.COURSE_PROGRESS, {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'Authorization': `Bearer ${token?.trim()}` 
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token?.trim()}`
                 },
-                body: JSON.stringify({ 
-                    courseId, 
+                body: JSON.stringify({
+                    courseId,
                     completed: true,
                     userId: uid
                 })
             });
 
             if (res.ok) {
-                setCourses(prev => prev.map(c => 
+                setCourses(prev => prev.map(c =>
                     c.id === courseId ? { ...c, completed: 1 } : c
                 ));
                 setCourseProgressMap(prev => ({
@@ -122,9 +122,9 @@ export default function CourseScreen() {
 
             await fetch(API_ENDPOINTS.COURSE_PROGRESS, {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'Authorization': `Bearer ${token?.trim()}` 
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token?.trim()}`
                 },
                 body: JSON.stringify({
                     courseId,
@@ -148,10 +148,10 @@ export default function CourseScreen() {
     useEffect(() => {
         const handleResize = () => setWinWidth(window.innerWidth);
         window.addEventListener('resize', handleResize);
-        
+
         fetchCourses();
         fetchProgress(); // Fetch persistent progress from backend
-        
+
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
@@ -168,10 +168,10 @@ export default function CourseScreen() {
             if (res.ok) {
                 const result = await res.json();
                 const map = {};
-                
+
                 // Handle both { success: true, data: [...] } and direct array/object formats
                 const data = result.data || result;
-                
+
                 if (Array.isArray(data)) {
                     data.forEach(item => {
                         const cid = item.courseId || item.course_id;
@@ -182,7 +182,7 @@ export default function CourseScreen() {
                         map[key] = data[key];
                     });
                 }
-                
+
                 console.log("Synchronized Progress Map:", map);
                 setCourseProgressMap(map);
             }
@@ -487,8 +487,8 @@ export default function CourseScreen() {
                                     transition={{ duration: 0.6 }}
                                     style={{
                                         ...s.certificate,
-                                        width: '842px', 
-                                        height: '595px', 
+                                        width: '842px',
+                                        height: '595px',
                                         maxWidth: 'none',
                                         backgroundColor: '#fff',
                                         padding: '0',
@@ -518,11 +518,11 @@ export default function CourseScreen() {
                                     }}>
                                         {user?.name || 'VALUED EMPLOYEE'}
                                     </div>
- 
+
                                     {/* 2. Course Title (Centered horizontally and vertically in the provided space) */}
                                     <div style={{
                                         position: 'absolute',
-                                        top: '63.5%',
+                                        top: '61.5%',
                                         left: '50%',
                                         transform: 'translate(-50%, -50%)',
                                         width: '85%',
@@ -536,7 +536,7 @@ export default function CourseScreen() {
                                     }}>
                                         {(selectedCourse?.title || 'PROFESSIONAL COURSE').toUpperCase()}
                                     </div>
- 
+
                                     {/* 3. Date (Positioned after 'DATE:') */}
                                     <div style={{
                                         position: 'absolute',
@@ -609,7 +609,7 @@ export default function CourseScreen() {
                         }}
                     >
                         {(courseProgressMap[selectedCourse.id]?.progress >= 100 && isPdfDone) ? (
-                            <button 
+                            <button
                                 style={{ padding: '12px 24px', borderRadius: '14px', border: 'none', fontWeight: '900', fontSize: '11px', backgroundColor: '#f59e0b', color: 'white', cursor: 'pointer', width: winWidth < 768 ? '100%' : 'auto' }}
                                 onClick={async () => {
                                     if (!isTestDone) {
@@ -758,9 +758,9 @@ export default function CourseScreen() {
                 <div style={s.grid}>
                     {courses.map(course => {
                         const progress = courseProgressMap[course.id]?.progress || 0;
-                        const isActuallyComplete = courseProgressMap[course.id]?.completed === 1 || 
-                                                 courseProgressMap[course.id]?.completed === true;
-                        
+                        const isActuallyComplete = courseProgressMap[course.id]?.completed === 1 ||
+                            courseProgressMap[course.id]?.completed === true;
+
                         const imageUrl = formatUrl(course.image || course.image_url || course.thumbnail || course.course_image || course.image_path || course.pic);
                         const videoLink = formatUrl(course.video || course.video_url || course.video_link || course.link);
 
