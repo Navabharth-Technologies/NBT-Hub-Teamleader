@@ -900,7 +900,7 @@ const LeaveScreen = ({ onBack }) => {
       <AnimatePresence>
         {selectedRequest && (
           <motion.div
-            initial={{ opacity: 0, x: '100%' }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: '100%' }}
+            initial={false} animate={false} exit={false}
             style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#f8fafc', zIndex: 1510, padding: isMobile ? '80px 15px 20px' : '100px 40px 40px', overflowY: 'auto' }}
           >
             <div style={{ maxWidth: '800px', margin: '0 auto' }}>
