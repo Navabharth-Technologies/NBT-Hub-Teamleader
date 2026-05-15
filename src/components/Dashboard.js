@@ -6,7 +6,7 @@ import {
   FileText, Users, BarChart3, Gift, ChevronRight, ChevronLeft, AlertCircle, Trophy, Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { API_ENDPOINTS } from '../config';
+import { API_ENDPOINTS, BASE_URL } from '../config';
 
 const Dashboard = ({ setActiveTab }) => {
   const { user } = useAuth();
