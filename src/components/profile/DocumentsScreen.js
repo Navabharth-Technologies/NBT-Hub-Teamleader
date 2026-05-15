@@ -568,9 +568,13 @@ export default function DocumentsScreen({ onBack }) {
     } else if (key === 'pan_number' || key === 'ifsc_code' || key === 'voter_id') {
       // Alphanumeric only, forced uppercase
       cleanValue = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    } else if (key === 'blood_group') {
+      // Allow only letters and symbols +, -
+      cleanValue = value.replace(/[^a-zA-Z+-]/g, '').toUpperCase();
     }
 
     // 2. Length Caps
+    if (key === 'blood_group' && cleanValue.length > 3) return;
     if ((key === 'contact_no' || key === 'emergency_contact_no') && cleanValue.length > 10) return;
     if (key === 'aadhar_number' && cleanValue.length > 12) return;
     if (key === 'pan_number' && cleanValue.length > 10) return;
