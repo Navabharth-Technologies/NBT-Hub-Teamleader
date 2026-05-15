@@ -519,19 +519,20 @@ export default function CourseScreen() {
                                         {user?.name || 'VALUED EMPLOYEE'}
                                     </div>
  
-                                    {/* 2. Course Title (Centered under 'Successfully Completed the') */}
+                                    {/* 2. Course Title (Centered horizontally and vertically in the provided space) */}
                                     <div style={{
                                         position: 'absolute',
-                                        top: '63.8%',
+                                        top: '64.2%',
                                         left: '50%',
                                         transform: 'translate(-50%, -50%)',
-                                        width: '80%',
+                                        width: '85%',
                                         textAlign: 'center',
-                                        fontSize: '20px',
+                                        fontSize: '24px',
                                         fontWeight: '1000',
                                         color: '#1e40af',
                                         fontFamily: "'Inter', sans-serif",
-                                        letterSpacing: '0.5px'
+                                        letterSpacing: '0.8px',
+                                        lineHeight: '1.2'
                                     }}>
                                         {(selectedCourse?.title || 'PROFESSIONAL COURSE').toUpperCase()}
                                     </div>
