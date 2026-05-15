@@ -130,7 +130,9 @@ const FunQuizScreen = ({ onBack }) => {
 
     // LOCAL ASSESSMENT (Checking correct answer locally as per user instruction)
     const optObj = currentQ.options.find(o => o.letter === selectedOption);
-    const isCorrect = String(optObj?.text || '').trim().toLowerCase() === String(currentQ.correct_answer || '').trim().toLowerCase();
+    const cleanCorrect = String(currentQ.correct_answer || '').trim().toLowerCase();
+    const cleanOpt = String(optObj?.text || '').trim().toLowerCase();
+    const isCorrect = cleanCorrect.includes(cleanOpt) || cleanOpt.includes(cleanCorrect);
 
     setQuestions(prev => prev.map((q, i) => i === currentIdx ? {
       ...q,
@@ -235,7 +237,10 @@ const FunQuizScreen = ({ onBack }) => {
     option: (optObj, isAnswered) => {
       const isSelectedLocally = selectedOption === optObj.letter;
       const isUserPicked = currentQ?.user_selected_letter === optObj.letter;
-      const isCorrectText = String(currentQ?.correct_answer || '').trim().toLowerCase() === String(optObj.text || '').trim().toLowerCase();
+      const cleanCorrect = String(currentQ?.correct_answer || '').trim().toLowerCase();
+      const cleanOpt = String(optObj.text || '').trim().toLowerCase();
+      // Use partial match to handle "Answer Option X" cases
+      const isCorrectText = cleanCorrect.includes(cleanOpt) || cleanOpt.includes(cleanCorrect);
 
       let borderColor = '#eef2f3';
       let bgColor = 'white';
@@ -581,10 +586,10 @@ const FunQuizScreen = ({ onBack }) => {
                           </div>
                           {optObj.text}
 
-                          {currentQ.has_answered && String(currentQ.correct_answer || '').trim().toLowerCase() === String(optObj.text || '').trim().toLowerCase() && (
+                          {currentQ.has_answered && (String(currentQ.correct_answer || '').trim().toLowerCase().includes(String(optObj.text || '').trim().toLowerCase()) || String(optObj.text || '').trim().toLowerCase().includes(String(currentQ.correct_answer || '').trim().toLowerCase())) && (
                             <div style={{ marginLeft: 'auto', backgroundColor: '#22c55e', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '900' }}>CORRECT</div>
                           )}
-                          {currentQ.has_answered && currentQ.user_selected_letter === optObj.letter && String(currentQ.correct_answer || '').trim().toLowerCase() !== String(optObj.text || '').trim().toLowerCase() && (
+                          {currentQ.has_answered && currentQ.user_selected_letter === optObj.letter && !(String(currentQ.correct_answer || '').trim().toLowerCase().includes(String(optObj.text || '').trim().toLowerCase()) || String(optObj.text || '').trim().toLowerCase().includes(String(currentQ.correct_answer || '').trim().toLowerCase())) && (
                             <div style={{ marginLeft: 'auto', backgroundColor: '#ef4444', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '900' }}>WRONG</div>
                           )}
                         </div>
