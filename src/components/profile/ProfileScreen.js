@@ -90,6 +90,16 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     return parts.join(' ');
   };
 
+  const formatDOB = (dateStr) => {
+    if (!dateStr || dateStr === 'N/A' || dateStr === 'Add Date of Birth') return dateStr;
+    const d = parseSafeDate(dateStr);
+    if (!d) return dateStr;
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}/${month}/${day}`;
+  };
+
   const resolveImagePath = useCallback((path) => {
     if (!path || typeof path !== 'string') return null;
     if (path.startsWith('http') || path.startsWith('data:')) return path;
@@ -644,7 +654,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px', fontWeight: '700' }}>
                   <Calendar size={14} />
-                  <span>{dob}</span>
+                  <span>{formatDOB(dob)}</span>
                 </div>
 
                 {!isMobile && !isTablet && <div style={{ width: '1.5px', height: '14px', backgroundColor: '#e2e8f0' }} />}

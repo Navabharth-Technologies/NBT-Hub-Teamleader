@@ -30,7 +30,7 @@ const SECTIONS = [
     fields: [
       { key: 'emp_name', label: 'Employee Name', placeholder: 'Full Name', type: 'text' },
       { key: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female', 'Other'] },
-      { key: 'dob', label: 'Date of Birth', type: 'text', placeholder: 'YYYY-MM-DD' },
+      { key: 'dob', label: 'Date of Birth', type: 'text', placeholder: 'YYYY/MM/DD' },
       { key: 'age', label: 'Age', type: 'text', placeholder: 'Years' },
       { key: 'religion', label: 'Religion', type: 'text' },
       { key: 'blood_group', label: 'Blood Group', type: 'text' },
@@ -584,7 +584,7 @@ export default function DocumentsScreen({ onBack }) {
 
     let updates = { [key]: cleanValue };
 
-    // Auto-calculate age for DOB format YYYY-MM-DD
+    // Auto-calculate age for DOB format YYYY/MM/DD
     if (key === 'dob' && cleanValue && cleanValue.length === 10) {
       const birthDate = new Date(cleanValue);
       if (!isNaN(birthDate.getTime())) {
