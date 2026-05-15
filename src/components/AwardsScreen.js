@@ -212,27 +212,25 @@ const AwardsScreen = ({ onBack }) => {
                 // Robust extraction matching FunQuizScreen
                 let allRewards = data.awards || data.history || (Array.isArray(data) ? data : (data.data || data.records || []));
                 
-                // 2. Fetch Quiz Leaderboard for fallback and ranking
-                const [lbRes, quizLbRes] = await Promise.all([
-                    fetch(API_ENDPOINTS.REWARDS_LEADERBOARD, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
-                    fetch(`${BASE_URL}/api/fun-quizzes/leaderboard`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } })
+                // 2. Fetch Unified Global Leaderboard (Combined Manual + Quiz) AND Quiz-Only Points for fallback
+                const [lbRes, quizPointsRes] = await Promise.all([
+                    fetch(API_ENDPOINTS.QUIZ_LEADERBOARD, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
+                    fetch(API_ENDPOINTS.QUIZ_USER_POINTS, { headers: { 'Authorization': `Bearer ${token?.trim()}` } })
                 ]);
-
-                let lbList = [];
-                let quizLbList = [];
 
                 if (lbRes.ok) {
                     const lbData = await lbRes.json();
-                    lbList = Array.isArray(lbData) ? lbData : (lbData.data || lbData.records || []);
+                    const lbList = Array.isArray(lbData) ? lbData : (lbData.data || lbData.records || []);
                     setQuizLeaderboard(lbList);
                 }
 
-                if (quizLbRes.ok) {
-                    const qData = await quizLbRes.json();
-                    quizLbList = Array.isArray(qData) ? qData : (qData.data || []);
+                let quizOnlyList = [];
+                if (quizPointsRes.ok) {
+                    const qData = await quizPointsRes.json();
+                    quizOnlyList = Array.isArray(qData) ? qData : (qData.data || []);
                 }
 
-                // 3. Fallback: If no quiz rewards in the main table, synthesize one from the quiz leaderboard
+                // 3. Fallback: If no quiz rewards in the main table, synthesize one from the quiz-only points list
                 const hasQuizInHistory = allRewards.some(r => {
                     const cat = String(r.category || '').toUpperCase();
                     const name = String(r.title || r.award_name || '').toUpperCase();
@@ -240,16 +238,16 @@ const AwardsScreen = ({ onBack }) => {
                 });
 
                 if (!hasQuizInHistory) {
-                    const myQuizEntry = quizLbList.find(s => cleanIdLocal(s.employee_id || s.user_id || s.id) === uid);
-                    if (myQuizEntry && Number(myQuizEntry.total_score || myQuizEntry.points || 0) > 0) {
+                    const myQuizEntry = quizOnlyList.find(s => cleanIdLocal(s.employee_id || s.user_id || s.id) === uid);
+                    if (myQuizEntry && Number(myQuizEntry.total_quiz_points || myQuizEntry.points || 0) > 0) {
                         const synthesizedQuiz = {
                             id: 'quiz-fallback',
                             title: 'Points Earned by Quiz',
-                            points: Number(myQuizEntry.total_score || myQuizEntry.points || 0),
-                            rep: Number(myQuizEntry.total_score || myQuizEntry.points || 0),
+                            points: Number(myQuizEntry.total_quiz_points || myQuizEntry.points || 0),
+                            rep: Number(myQuizEntry.total_quiz_points || myQuizEntry.points || 0),
                             category: 'QUIZ',
                             date: new Date().toISOString(),
-                            description: `Accumulated from ${myQuizEntry.total_quizzes || myQuizEntry.quiz_count || 'multiple'} sessions`
+                            description: `Accumulated from ${myQuizEntry.quizzes_completed || 'multiple'} sessions`
                         };
                         allRewards = [...allRewards, synthesizedQuiz];
                         setQuizPoints(synthesizedQuiz.points);

@@ -14,6 +14,8 @@ const FunQuizScreen = ({ onBack }) => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isQuestionsLoading, setIsQuestionsLoading] = useState(true);
+  const [rankingType, setRankingType] = useState('quiz'); // 'quiz' or 'global'
+  const [globalLeaderboard, setGlobalLeaderboard] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -79,32 +81,41 @@ const FunQuizScreen = ({ onBack }) => {
       const token = localStorage.getItem('token');
       const uid = user?.employee_id || user?.userId || user?.id;
 
-      // 1. Fetch the unified Quiz Leaderboard/Points data from the new endpoint
-      const res = await fetch(API_ENDPOINTS.QUIZ_USER_POINTS, { 
+      // 1. Fetch the Quiz-Only data
+      const qRes = await fetch(API_ENDPOINTS.QUIZ_USER_POINTS, { 
         headers: { 'Authorization': `Bearer ${token?.trim()}` } 
       });
+      if (qRes.ok) {
+        const qData = await qRes.json();
+        const pointsList = Array.isArray(qData) ? qData : (qData.data || []);
+        const list = pointsList.map((u, i) => ({
+          name: u.name || `Employee ${u.employee_id || 'Resource'}`,
+          score: Number(u.total_quiz_points || u.points || 0),
+          count: Number(u.quizzes_completed || 0),
+          rank: i + 1,
+          color: ['#FBBC05', '#EA4335', '#34A853', '#4285F4', '#FBBC05'][i % 5],
+          initial: (u.name || 'U').charAt(0).toUpperCase()
+        }));
+        setLeaderboard(list);
+        const myData = pointsList.find(s => String(s.employee_id || s.user_id || s.id) === String(uid));
+        setUserLifetimeScore(myData ? Number(myData.total_quiz_points || myData.points || 0) : 0);
+      }
 
-      if (!res.ok) throw new Error("Failed to fetch quiz points");
-      const data = await res.json();
-      const pointsList = Array.isArray(data) ? data : (data.data || []);
-
-      // 2. Map directly to leaderboard format (data is already sorted by backend)
-      const list = pointsList.map((u, i) => ({
-        name: u.name || `Employee ${u.employee_id || 'Resource'}`,
-        score: Number(u.total_quiz_points || u.points || 0),
-        count: Number(u.quizzes_completed || 0),
-        rank: i + 1,
-        color: ['#FBBC05', '#EA4335', '#34A853', '#4285F4', '#FBBC05'][i % 5],
-        initial: (u.name || 'U').charAt(0).toUpperCase()
-      }));
-
-      setLeaderboard(list);
-
-      // 3. Extract Current User's absolute Overall Quiz Total
-      const myData = pointsList.find(s => String(s.employee_id || s.user_id || s.id) === String(uid));
-      const quizOverallTotal = myData ? Number(myData.total_quiz_points || myData.points || 0) : 0;
-
-      setUserLifetimeScore(quizOverallTotal);
+      // 2. Fetch the Unified Global Leaderboard
+      const gRes = await fetch(API_ENDPOINTS.QUIZ_LEADERBOARD, { 
+        headers: { 'Authorization': `Bearer ${token?.trim()}` } 
+      });
+      if (gRes.ok) {
+        const gData = await gRes.json();
+        const gList = Array.isArray(gData) ? gData : (gData.data || []);
+        setGlobalLeaderboard(gList.map((u, i) => ({
+          name: u.name || `Employee ${u.employee_id || 'Resource'}`,
+          score: Number(u.total_points || u.points || 0),
+          rank: i + 1,
+          color: ['#FBBC05', '#EA4335', '#34A853', '#4285F4', '#FBBC05'][i % 5],
+          initial: (u.name || 'U').charAt(0).toUpperCase()
+        })));
+      }
     } catch (err) {
       console.error("Quiz Sync failed:", err);
     } finally {
@@ -300,6 +311,21 @@ const FunQuizScreen = ({ onBack }) => {
         </div>
       </div>
 
+      <div style={{ display: 'flex', gap: '5px', marginBottom: '20px' }}>
+        <button 
+          onClick={() => setRankingType('quiz')}
+          style={{ flex: 1, padding: '8px', borderRadius: '10px', fontSize: '10px', fontWeight: '900', border: 'none', backgroundColor: rankingType === 'quiz' ? '#0d676c' : '#f1f5f9', color: rankingType === 'quiz' ? 'white' : '#64748b', cursor: 'pointer' }}
+        >
+          QUIZ ONLY
+        </button>
+        <button 
+          onClick={() => setRankingType('global')}
+          style={{ flex: 1, padding: '8px', borderRadius: '10px', fontSize: '10px', fontWeight: '900', border: 'none', backgroundColor: rankingType === 'global' ? '#3B5998' : '#f1f5f9', color: rankingType === 'global' ? 'white' : '#64748b', cursor: 'pointer' }}
+        >
+          GLOBAL
+        </button>
+      </div>
+
       <div style={{ 
         display: 'flex', 
         flexDirection: 'column', 
@@ -309,21 +335,24 @@ const FunQuizScreen = ({ onBack }) => {
         overflowY: showFullList ? 'auto' : 'visible',
         paddingRight: showFullList ? '10px' : '0'
       }}>
-        {(showFullList ? leaderboard : leaderboard.slice(0, 5)).map((p, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '10px', borderBottom: (i === (showFullList ? leaderboard.length - 1 : 4)) ? 'none' : '1px solid #f1f5f9' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '10px', backgroundColor: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px', fontWeight: '900' }}>
-              {p.initial}
+        {(() => {
+          const currentList = rankingType === 'quiz' ? leaderboard : globalLeaderboard;
+          return (showFullList ? currentList : currentList.slice(0, 5)).map((p, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '10px', borderBottom: (i === (showFullList ? currentList.length - 1 : 4)) ? 'none' : '1px solid #f1f5f9' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '10px', backgroundColor: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px', fontWeight: '900' }}>
+                {p.initial}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '12px', fontWeight: '900', color: '#0B1E3F' }}>{p.name}</div>
+                <div style={{ fontSize: '10px', fontWeight: '700', color: '#94a3b8' }}>{rankingType === 'quiz' ? 'Total Quiz Points' : 'Combined Global Points'}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '14px', fontWeight: '1000', color: rankingType === 'quiz' ? '#0d676c' : '#3B5998' }}>{p.score}</div>
+                <div style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8' }}>Points {p.count ? `• ${p.count} Quizzes` : ''}</div>
+              </div>
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '12px', fontWeight: '900', color: '#0B1E3F' }}>{p.name}</div>
-              <div style={{ fontSize: '10px', fontWeight: '700', color: '#94a3b8' }}>Total Accumulated Points</div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '14px', fontWeight: '1000', color: '#0d676c' }}>{p.score}</div>
-              <div style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8' }}>Points • {p.count} Quizzes</div>
-            </div>
-          </div>
-        ))}
+          ));
+        })()}
       </div>
 
       <button 
