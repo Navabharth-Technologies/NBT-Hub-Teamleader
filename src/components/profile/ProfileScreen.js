@@ -3,23 +3,23 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { BASE_URL, API_ENDPOINTS, cleanId } from '../../config';
 import {
-  Camera, CheckCircle2, AlertCircle,
+  CheckCircle2, AlertCircle,
   RefreshCw, Briefcase, Mail,
   ChevronRight, Calendar, Shield, LogOut,
   Users, FileText, Edit3, Fingerprint, Phone, Check, X,
-  Eye, EyeOff, CheckCircle, LogIn
+  Eye, EyeOff, CheckCircle, LogIn, Camera
 } from 'lucide-react';
 
 import TicketSection from './TicketSection';
 
 export default function ProfileScreen({ isNewJoinee, onNavigate }) {
-  const { user, logout, updateProfile } = useAuth();
+  const { user, logout, updateProfile, refreshUser } = useAuth();
   const [winWidth, setWinWidth] = useState(window.innerWidth);
   const isMobile = winWidth < 768;
   const isTablet = winWidth < 1024;
-  const [phone, setPhone] = useState(user?.phone_number || 'Add Phone Number');
+  const [phone, setPhone] = useState(user?.contact_no || user?.phone_number || 'Add Phone Number');
   const [aboutMe, setAboutMe] = useState(user?.about_me || 'Write a short introduction about yourself');
-  const [dob, setDob] = useState(user?.date_of_birth || 'Add Date of Birth');
+  const [dob, setDob] = useState(user?.date_of_birth || user?.dob || 'Add Date of Birth');
   const [teamName, setTeamName] = useState(user?.team || 'Team Name');
   const [joiningDate, setJoiningDate] = useState(user?.joining_date || user?.joiningDate || user?.['joining date'] || user?.doj || user?.date_of_joining || 'N/A');
   const [cleanEmployeeId, setCleanEmployeeId] = useState(cleanId(user?.employee_id || user?.id || 'N/A'));
@@ -90,14 +90,18 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     return parts.join(' ');
   };
 
-  const formatDOB = (dateStr) => {
-    if (!dateStr || dateStr === 'N/A' || dateStr === 'Add Date of Birth') return dateStr;
-    const d = parseSafeDate(dateStr);
-    if (!d) return dateStr;
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
+  const standardizeDate = (v) => {
+    if (!v || v === 'N/A' || v === 'Add Date of Birth') return v;
+    const d = parseSafeDate(v);
+    if (!d) return v;
     const day = String(d.getDate()).padStart(2, '0');
-    return `${year}/${month}/${day}`;
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const formatDOB = (dateStr) => {
+    return standardizeDate(dateStr);
   };
 
   const resolveImagePath = useCallback((path) => {
@@ -129,16 +133,11 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
   const [passData, setPassData] = useState({ old: '', new: '', confirm: '', otp: '' });
   const [logoutAllDevices, setLogoutAllDevices] = useState(false);
   const [isEditingAbout, setIsEditingAbout] = useState(false);
-  const [isEditingPhone, setIsEditingPhone] = useState(false);
-  const [isEditingDob, setIsEditingDob] = useState(false);
-  const [tempPhone, setTempPhone] = useState('');
-  const [tempDob, setTempDob] = useState('');
 
   useEffect(() => {
     if (user) {
-      if (user.phone_number) setPhone(user.phone_number);
-      if (user.about_me) setAboutMe(user.about_me);
-      if (user.date_of_birth) setDob(user.date_of_birth);
+      if (user.phone_number || user.contact_no) setPhone(user.phone_number || user.contact_no);
+      if (user.date_of_birth || user.dob) setDob(user.date_of_birth || user.dob);
       const img = user.profileImage || user.profile_image || user.profilePicture || user.profile_picture || user.avatar || user.profile_pic;
       if (img) {
         const src = resolveImagePath(img);
@@ -161,7 +160,8 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
       // 1. Fetch the primary profile - this now contains all RM info thanks to the backend update
       const resp = await fetch(API_ENDPOINTS.MY_EMPLOYEE_PROFILE, {
-        headers: { 'Authorization': `Bearer ${token?.trim()}` }
+        headers: { 'Authorization': `Bearer ${token?.trim()}` },
+        cache: 'no-store'
       });
 
       if (resp.ok) {
@@ -170,13 +170,16 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         const profile = data.data || data;
 
         // 2. Update local state with profile fields
-        if (profile.phone_number) setPhone(profile.phone_number);
-        if (profile.date_of_birth) setDob(profile.date_of_birth);
+        if (profile.phone_number || profile.contact_no) setPhone(profile.phone_number || profile.contact_no);
+        if (profile.date_of_birth || profile.dob) setDob(standardizeDate(profile.date_of_birth || profile.dob));
         if (profile.about_me) setAboutMe(profile.about_me);
         if (profile.designation) setDesignation(profile.designation);
-
+        
         const jd = profile.joining_date || profile.joiningDate || profile.doj;
-        if (jd) setJoiningDate(Array.isArray(jd) ? jd[0] : jd);
+        if (jd) {
+          const finalJd = Array.isArray(jd) ? jd[0] : jd;
+          setJoiningDate(standardizeDate(finalJd));
+        }
         if (profile.team) setTeamName(profile.team);
 
         const img = profile.profileImage || profile.profile_image || profile.profile_picture || profile.profile_pic || profile.avatar;
@@ -260,8 +263,12 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           const finalImg = imgPath.startsWith('http') || imgPath.startsWith('data:') ? imgPath : `${BASE_URL}${imgPath}`;
           setProfileImage(finalImg);
           setImgError(false); // reset error state for new image
-          updateProfile('profileImage', imgPath);
-          updateProfile('profile_pic', imgPath);
+          
+          // Use the global refresh utility instead of making redundant PUT requests
+          // since the backend /upload-image endpoint already updated the DB.
+          if (refreshUser) {
+            refreshUser();
+          }
         }
 
       } else {
@@ -366,51 +373,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     } catch { triggerToast('Network Error', 'error'); }
   };
 
-  const handleUpdateProfileField = async (field, value) => {
-    try {
-      const token = localStorage.getItem('token');
-      const body = {
-        email: user?.email,
-        userId: user?.id || user?.userId || user?.employee_id || user?.empId
-      };
-      if (field === 'phone') body.phone_number = value;
-      if (field === 'dob') body.date_of_birth = value;
-      if (field === 'about') body.about_me = value;
 
-      const res = await fetch(API_ENDPOINTS.UPDATE_PROFILE, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token?.trim()}`
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (res.ok) {
-        triggerToast(`${field.charAt(0).toUpperCase() + field.slice(1)} updated successfully!`);
-        if (field === 'phone') {
-          setPhone(value);
-          setIsEditingPhone(false);
-          updateProfile('phone_number', value);
-        }
-        if (field === 'dob') {
-          setDob(value);
-          setIsEditingDob(false);
-          updateProfile('date_of_birth', value);
-        }
-        if (field === 'about') {
-          setAboutMe(value);
-          setIsEditingAbout(false);
-          updateProfile('about_me', value);
-        }
-      } else {
-        triggerToast(`Failed to update ${field}.`, 'error');
-      }
-    } catch (err) {
-      console.error(`Update ${field} Error:`, err);
-      triggerToast('Network error during update.', 'error');
-    }
-  };
 
   const styles = {
     container: {
@@ -465,13 +428,14 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     avatarContainer: {
       position: 'relative',
       zIndex: 2,
+      marginTop: '30px'
     },
     avatar: {
       width: isMobile ? '100px' : (isTablet ? '120px' : '140px'),
       height: isMobile ? '100px' : (isTablet ? '120px' : '140px'),
       borderRadius: '25px',
       backgroundColor: '#f8fafc',
-      border: '4px solid white',
+      border: 'none',
       boxShadow: '0 8px 16px rgba(0,0,0,0.1)',
       display: 'flex',
       alignItems: 'center',
@@ -509,7 +473,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
       backgroundColor: 'white',
       padding: '20px',
       borderRadius: '20px',
-      border: '1px solid #f1f5f9',
+      border: '1.5px solid #0B1E3F',
       display: 'flex',
       alignItems: 'center',
       gap: '15px',
@@ -536,7 +500,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
       backgroundColor: 'white',
       padding: isMobile ? '20px' : '30px',
       borderRadius: '25px',
-      border: '1px solid #f1f5f9',
+      border: '1.5px solid #0B1E3F',
       boxShadow: '0 10px 25px rgba(0,0,0,0.05)'
     },
     sectionTitle: { fontSize: isMobile ? '14px' : '16px', fontWeight: '700', color: '#1e293b', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
@@ -612,13 +576,13 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                   </span>
                 )}
               </div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                style={{ display: 'none' }}
-                accept="image/*"
-                onChange={handleImageUpload}
-              />
+              <button 
+                style={styles.editAvatarBtn}
+                onClick={() => fileInputRef.current?.click()}
+                title="Change Profile Image"
+              >
+                <Camera size={18} />
+              </button>
               <input
                 type="file"
                 ref={fileInputRef}
@@ -645,7 +609,11 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
                 {winWidth >= 1024 && <div style={{ width: '1.5px', height: '14px', backgroundColor: '#e2e8f0' }} />}
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px', fontWeight: '700' }}>
+                <div 
+                  onClick={() => onNavigate?.('DOCUMENTS')}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+                  title="Click to edit contact details"
+                >
                   <Phone size={14} />
                   <span>{phone}</span>
                 </div>
@@ -654,7 +622,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px', fontWeight: '700' }}>
                   <Calendar size={14} />
-                  <span>{formatDOB(dob)}</span>
+                  <span>{standardizeDate(dob)}</span>
                 </div>
 
                 {!isMobile && !isTablet && <div style={{ width: '1.5px', height: '14px', backgroundColor: '#e2e8f0' }} />}
@@ -699,10 +667,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
             <div>
               <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Date of Joining</div>
               <div style={styles.infoValue}>
-                {(() => {
-                  const d = parseSafeDate(joiningDate);
-                  return d ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A';
-                })()}
+                {standardizeDate(joiningDate)}
               </div>
             </div>
           </div>
@@ -728,7 +693,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         <div style={styles.infoGrid}>
           <motion.div
             whileHover={{ y: -5 }}
-            style={{ ...styles.infoCard, cursor: 'pointer', borderColor: '#bfdbfe', backgroundColor: '#eff6ff' }}
+            style={{ ...styles.infoCard, cursor: 'pointer', borderColor: '#0B1E3F', backgroundColor: '#eff6ff' }}
             onClick={() => setShowPasswordModal(true)}
           >
             <div style={{ ...styles.iconCircle, backgroundColor: '#dbeafe' }}><Shield size={18} color="#1e40af" /></div>
@@ -741,7 +706,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
           <motion.div
             whileHover={{ y: -5 }}
-            style={{ ...styles.infoCard, cursor: 'pointer', borderColor: '#fed7aa', backgroundColor: '#fff7ed' }}
+            style={{ ...styles.infoCard, cursor: 'pointer', borderColor: '#0B1E3F', backgroundColor: '#fff7ed' }}
             onClick={() => setShowTicketModal(true)}
           >
             <div style={{ ...styles.iconCircle, backgroundColor: '#ffedd5' }}><AlertCircle size={18} color="#f97316" /></div>
@@ -754,7 +719,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
           <motion.div
             whileHover={{ y: -5 }}
-            style={{ ...styles.infoCard, borderColor: '#bbf7d0', backgroundColor: '#f0fdf4' }}
+            style={{ ...styles.infoCard, borderColor: '#0B1E3F', backgroundColor: '#f0fdf4' }}
           >
             <div style={{ ...styles.iconCircle, backgroundColor: '#dcfce7' }}><RefreshCw size={18} color="#15803d" /></div>
             <div style={{ flex: 1 }}>

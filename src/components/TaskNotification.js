@@ -20,7 +20,7 @@ const TaskNotification = ({ onNavigate }) => {
     if (currentUnreadCount > prevUnreadCount) {
       try {
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3');
-        audio.play().catch(e => console.log('Audio autoplay blocked:', e));
+        audio.play().catch(() => {}); // Silently handle autoplay blocks
       } catch (e) {}
       
       setIsVibrating(true);
@@ -52,7 +52,7 @@ const TaskNotification = ({ onNavigate }) => {
         hour = hour ? hour : 12;
         const formattedTime = `${String(hour).padStart(2, '0')}:${mm}:${ss || '00'} ${ampm}`;
         
-        return `${day}/${month}/${year} at ${formattedTime}`;
+        return `${year}/${month}/${day} at ${formattedTime}`;
       } catch (e) {
         console.warn('Manual date parse failed, falling back to JS Date');
       }
@@ -68,7 +68,9 @@ const TaskNotification = ({ onNavigate }) => {
     const m = minutes < 10 ? '0' + minutes : minutes;
     const timeStr = `${String(h).padStart(2, '0')}:${m} ${ampm}`;
     if (isToday) return `${timeStr} - Today`;
-    return `${timeStr} - ${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+    const mon = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${date.getFullYear()}/${mon}/${day} - ${timeStr}`;
   };
 
   const parseDate = (dateStr) => {
@@ -96,7 +98,8 @@ const TaskNotification = ({ onNavigate }) => {
 
   const fetchNotifications = async () => {
     const uid = user?.id || user?.empId || user?.userId || user?.employee_id;
-    if (!uid) return;
+    // Guard: Don't fetch if no UID or if it's a placeholder '1'
+    if (!uid || String(uid) === '1') return;
 
     try {
       const token = localStorage.getItem('token');
@@ -308,7 +311,7 @@ const TaskNotification = ({ onNavigate }) => {
                 id: rid,
                 type: 'LEAVE',
                 title: 'New Leave Request',
-                description: `${ename} has requested ${l.leave_type || 'Leave'} from ${l.start_date?.split('T')[0] || 'N/A'} to ${l.end_date?.split('T')[0] || 'N/A'} (${l.no_of_days || calculateDays(l.start_date, l.end_date)} days).`,
+                description: `${ename} has requested ${l.leave_type || 'Leave'} from ${l.start_date?.split('T')[0].replace(/-/g, '/') || 'N/A'} to ${l.end_date?.split('T')[0].replace(/-/g, '/') || 'N/A'} (${l.no_of_days || calculateDays(l.start_date, l.end_date)} days).`,
                 formattedTime: formatDate(createdDate, l.created_at || l.applied_on),
                 isNew: !isRead,
                 rawDate: createdDate,

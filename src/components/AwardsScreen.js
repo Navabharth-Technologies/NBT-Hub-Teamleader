@@ -51,7 +51,7 @@ const AwardsScreen = ({ onBack }) => {
         const y = date.getFullYear();
         const m = String(date.getMonth() + 1).padStart(2, '0');
         const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
+        return `${y}/${m}/${d}`;
     };
 
     const now = new Date();
@@ -782,7 +782,13 @@ const AwardsScreen = ({ onBack }) => {
                                                         <span style={{ color: '#d97706', marginLeft: '5px' }}>• +{log.points || log.rep} REP</span>
                                                     </div>
                                                     <div style={{ fontSize: '8px', fontWeight: '800', color: '#94a3b8', marginTop: '2px', textTransform: 'uppercase' }}>
-                                                        {log.type} Grant • {new Date(log.created_at || log.date).toLocaleDateString()}
+                                                        {log.type} Grant • {(() => {
+                                                            const d = new Date(log.created_at || log.date);
+                                                            const year = d.getFullYear();
+                                                            const month = String(d.getMonth() + 1).padStart(2, '0');
+                                                            const day = String(d.getDate()).padStart(2, '0');
+                                                            return `${year}/${month}/${day}`;
+                                                        })()}
                                                     </div>
                                                 </div>
                                             ));

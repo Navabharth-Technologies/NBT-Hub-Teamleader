@@ -187,7 +187,7 @@ const FunQuizScreen = ({ onBack }) => {
         attended_count: Number(totalQuestions) || 0,
         quizzes_attended: Number(totalQuestions) || 0,
         quiz_id: Number(questions[0]?.quiz_id || questions[0]?.id || 1),
-        completion_date: new Date().toISOString().split('T')[0],
+        completion_date: new Date().toISOString().split('T')[0].replace(/-/g, '/'),
         status: 'completed'
       };
 

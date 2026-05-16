@@ -7,6 +7,22 @@ import { getTheme } from '../constants/Theme';
 import { API_ENDPOINTS, BASE_URL, cleanId } from '../config';
 
 const LeaveScreen = ({ onBack }) => {
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '---';
+    // Use the same splitting logic as other components to handle ISO strings cleanly
+    const cleanDate = dateStr.split('T')[0];
+    const parts = cleanDate.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   const { user } = useAuth();
   const location = useLocation();
   const theme = getTheme(user?.role);
@@ -727,7 +743,7 @@ const LeaveScreen = ({ onBack }) => {
                     </p>
                     <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b', backgroundColor: '#fff', padding: '5px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        📅 {(req.start_date || '').split('T')[0]} to {(req.end_date || '').split('T')[0]}
+                        📅 {formatDate(req.start_date)} to {formatDate(req.end_date)}
                       </span>
                       {(req.isHalfDay || req.is_half_day) && (
                         <span style={{ fontSize: '11px', fontWeight: '900', color: '#0ea5e9', backgroundColor: '#f0f9ff', padding: '5px 15px', borderRadius: '25px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -780,7 +796,7 @@ const LeaveScreen = ({ onBack }) => {
                     </p>
                     <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b', backgroundColor: '#fff', padding: '5px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        📅 {(req.start_date || '').split('T')[0]} to {(req.end_date || '').split('T')[0]}
+                        📅 {formatDate(req.start_date)} to {formatDate(req.end_date)}
                       </span>
                       {(req.isHalfDay || req.is_half_day) && (
                         <span style={{ fontSize: '11px', fontWeight: '900', color: '#0ea5e9', backgroundColor: '#f0f9ff', padding: '5px 15px', borderRadius: '25px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -865,7 +881,7 @@ const LeaveScreen = ({ onBack }) => {
                     </p>
                     <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b', backgroundColor: '#fff', padding: '5px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        📅 {(req.start_date || '').split('T')[0]} to {(req.end_date || '').split('T')[0]}
+                        📅 {formatDate(req.start_date)} to {formatDate(req.end_date)}
                       </span>
                       {(req.isHalfDay || req.is_half_day || req.half_day_slot || req.halfDaySlot || Number(req.no_of_days) === 0.5) && (
                         <span style={{ fontSize: '11px', fontWeight: '900', color: '#0ea5e9', backgroundColor: '#f0f9ff', padding: '6px 16px', borderRadius: '25px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid rgba(14, 165, 233, 0.1)' }}>
@@ -964,7 +980,7 @@ const LeaveScreen = ({ onBack }) => {
                                     formattedTime = `${String(hours).padStart(2, '0')}:${mins} ${amp}`;
                                   }
                                   if (dateParts.length === 3) {
-                                    return `${dateParts[2]}/${dateParts[1]}/${dateParts[0]} ${formattedTime}`;
+                                    return `${formatDate(rawDate)} ${formattedTime}`;
                                   }
                                 }
                                 return dateStr;
@@ -983,7 +999,7 @@ const LeaveScreen = ({ onBack }) => {
                       <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #f1f5f9' }}>
                         <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '800', display: 'block', marginBottom: '5px' }}>LEAVE DURATION</span>
                         <div style={{ fontSize: '14px', color: '#0B1E3F', fontWeight: '1000', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                          <span>📅 {new Date(selectedRequest.start_date || selectedRequest.startDate).toLocaleDateString()} to {new Date(selectedRequest.end_date || selectedRequest.endDate).toLocaleDateString()}</span>
+                          <span>📅 {(selectedRequest.start_date || selectedRequest.startDate || '').split('T')[0].replace(/-/g, '/')} to {(selectedRequest.end_date || selectedRequest.endDate || '').split('T')[0].replace(/-/g, '/')}</span>
                           {(selectedRequest.isHalfDay || selectedRequest.is_half_day) && (
                             <span style={{ fontSize: '11px', fontWeight: '900', color: '#0ea5e9', backgroundColor: '#f0f9ff', padding: '4px 12px', borderRadius: '25px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                               ⏰ Half Day Session
