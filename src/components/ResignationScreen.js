@@ -368,7 +368,7 @@ export default function ResignationScreen({ onBack }) {
                     <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: '10px' }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F', marginBottom: '4px' }}>{r.reason}</div>
-                        <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700' }}>Submitted: {r.resignation_date || r.resignationDate} • LWD: {r.last_working_day || r.lastWorkingDay}</div>
+                        <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700' }}>Submitted: {(() => { const d = (r.resignation_date || r.resignationDate || '').split('T')[0].split('-'); return d.length === 3 ? `${d[2]}/${d[1]}/${d[0]}` : ''; })()} • LWD: {(() => { const d = (r.last_working_day || r.lastWorkingDay || '').split('T')[0].split('-'); return d.length === 3 ? `${d[2]}/${d[1]}/${d[0]}` : ''; })()}</div>
                       </div>
                       <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                         {(r.attachment_data || r.file_path || r.document_url) && (
@@ -416,7 +416,7 @@ export default function ResignationScreen({ onBack }) {
                         <div style={{ fontSize: isMobile ? '14px' : '15px', fontWeight: '900', color: '#0B1E3F', marginBottom: '2px' }}>{r.employee_name || r.userName || r.name}</div>
                         <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '800', marginBottom: '6px' }}>ID: {r.employee_id || r.emp_id || r.id}</div>
                         <div style={{ fontSize: '12px', color: '#dc2626', fontWeight: '800', marginBottom: '8px' }}>Reason: {r.reason}</div>
-                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Submitted: {r.resignation_date || r.resignationDate} • LWD: <strong>{r.last_working_day || r.lastWorkingDay}</strong></div>
+                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Submitted: {(() => { const d = (r.resignation_date || r.resignationDate || '').split('T')[0].split('-'); return d.length === 3 ? `${d[2]}/${d[1]}/${d[0]}` : ''; })()} • LWD: <strong>{(() => { const d = (r.last_working_day || r.lastWorkingDay || '').split('T')[0].split('-'); return d.length === 3 ? `${d[2]}/${d[1]}/${d[0]}` : ''; })()}</strong></div>
                       </div>
                       <div style={s.statusBadge(r.status)}>{r.status}</div>
                     </div>
@@ -462,11 +462,11 @@ export default function ResignationScreen({ onBack }) {
                   <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '15px', marginBottom: '35px' }}>
                     <div style={{ padding: '20px', backgroundColor: '#f8fafc', borderRadius: '20px', border: '1px solid #f1f5f9' }}>
                       <div style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '5px' }}>Submitted On</div>
-                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#0B1E3F' }}>{selectedResignation.resignation_date || selectedResignation.resignationDate}</div>
+                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#0B1E3F' }}>{(() => { const d = (selectedResignation.resignation_date || selectedResignation.resignationDate || '').split('T')[0].split('-'); return d.length === 3 ? `${d[2]}/${d[1]}/${d[0]}` : ''; })()}</div>
                     </div>
                     <div style={{ padding: '20px', backgroundColor: '#f8fafc', borderRadius: '20px', border: '1px solid #f1f5f9' }}>
                       <div style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '5px' }}>Last Working Day</div>
-                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#dc2626' }}>{selectedResignation.last_working_day || selectedResignation.lastWorkingDay}</div>
+                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#dc2626' }}>{(() => { const d = (selectedResignation.last_working_day || selectedResignation.lastWorkingDay || '').split('T')[0].split('-'); return d.length === 3 ? `${d[2]}/${d[1]}/${d[0]}` : ''; })()}</div>
                     </div>
                   </div>
 
