@@ -2,10 +2,10 @@ import React, { useState, useEffect, cloneElement, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, ChevronRight, Save, CreditCard, Building2, FileText, ChevronDown,
-  Shield, AlertCircle, CheckCircle2, User, Hash, Landmark, RefreshCw,
-  Briefcase, MapPin, Mail, Phone, GraduationCap, History, DollarSign,
-  FileCheck, Users, Calendar, Heart, Globe, Trash2, Pencil, Camera, Image as ImageIcon, Eye, Check, X
+  ChevronLeft, ChevronRight, Save, Building2, FileText, ChevronDown,
+  Shield, AlertCircle, CheckCircle2, User, Landmark, RefreshCw,
+  Briefcase, MapPin, GraduationCap, History,
+  FileCheck, Eye, Check, X, Pencil, Camera
 } from 'lucide-react';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -30,7 +30,7 @@ const SECTIONS = [
     fields: [
       { key: 'emp_name', label: 'Employee Name', placeholder: 'Full Name', type: 'text' },
       { key: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female', 'Other'] },
-      { key: 'dob', label: 'Date of Birth', type: 'text', placeholder: 'YYYY/MM/DD' },
+      { key: 'dob', label: 'Date of Birth', type: 'text', placeholder: 'DD/MM/YYYY' },
       { key: 'age', label: 'Age', type: 'text', placeholder: 'Years' },
       { key: 'religion', label: 'Religion', type: 'text' },
       { key: 'blood_group', label: 'Blood Group', type: 'text' },
@@ -58,7 +58,7 @@ const SECTIONS = [
       { key: 'process', label: 'Process', type: 'text' },
       { key: 'supervisor_l1', label: 'Supervisor L1 (Reporting Person)', type: 'text' },
       { key: 'supervisor_l2', label: 'Supervisor L2', type: 'text' },
-      { key: 'doj', label: 'Date of Joining', type: 'text', placeholder: 'YYYY-MM-DD' },
+      { key: 'doj', label: 'Date of Joining', type: 'text', placeholder: 'DD/MM/YYYY' },
       { key: 'ft_pt', label: 'FT/PT', type: 'select', options: ['Full Time', 'Part Time', 'Contract'] },
       { key: 'status', label: 'Status', type: 'select', options: ['Active', 'On Bench', 'Notice Period', 'Terminated'] },
       { key: 'place', label: 'Work Location', type: 'text' },
@@ -148,8 +148,8 @@ const SECTIONS = [
       { key: 'emp_id', label: 'Employee ID', type: 'text' },
       { key: 'emp_name', label: 'Employee Name', type: 'text' },
       { key: 'designation', label: 'Designation', type: 'text' },
-      { key: 'doj', label: 'Joining Date', type: 'text', placeholder: 'YYYY-MM-DD' },
-      { key: 'lwd', label: 'Last Working Day', type: 'text', placeholder: 'YYYY-MM-DD' },
+      { key: 'doj', label: 'Joining Date', type: 'text', placeholder: 'DD/MM/YYYY' },
+      { key: 'lwd', label: 'Last Working Day', type: 'text', placeholder: 'DD/MM/YYYY' },
       { key: 'asset_name', label: 'Laptop Details', type: 'textarea' },
       { key: 'has_mouse', label: 'Mouse', type: 'boolean' },
       { key: 'has_keyboard', label: 'Keyboard', type: 'boolean' },
@@ -172,7 +172,7 @@ const SECTIONS = [
       { key: 'previous_experience', label: 'Previous Experience (Years)', type: 'text' },
       { key: 'total_experience', label: 'Total Experience (Years)', type: 'text' },
       { key: 'experience_letter_photo', label: 'Experience Letter', type: 'file' },
-      { key: 'separation', label: 'Separation Date', type: 'text', placeholder: 'YYYY-MM-DD' },
+      { key: 'separation', label: 'Separation Date', type: 'text', placeholder: 'DD/MM/YYYY' },
       { key: 'lwd', label: 'Last Working Day (LWD)', type: 'text' },
       { key: 'attrition_bucket', label: 'Attrition Bucket', type: 'select', options: ['N/A', 'Resignation', 'Performance', 'Behavioral', 'Medical'] },
       { key: 'reason', label: 'Primary Reason', type: 'text' },
@@ -183,7 +183,7 @@ const SECTIONS = [
 ];
 
 export default function DocumentsScreen({ onBack }) {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { employeeId } = useParams();
 
   const [form, setForm] = useState({
@@ -203,7 +203,6 @@ export default function DocumentsScreen({ onBack }) {
     voter_id: '', voter_id_photo: '', passport_photo: '', passbook_photo: ''
   });
   const [errors, setErrors] = useState({});
-  const [touched, setTouched] = useState({});
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
   const [winWidth, setWinWidth] = useState(window.innerWidth);
@@ -270,9 +269,9 @@ export default function DocumentsScreen({ onBack }) {
           const lowerKey = key.toLowerCase().trim();
 
           // FIX: Improved Date Check (don't corrupt laptop details containing 'T')
-          const isISODate = typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(val);
-          if (isISODate) {
-            val = val.substring(0, 10);
+          if (typeof val === 'string' && /^\d{4}[-/]\d{2}[-/]\d{2}/.test(val)) {
+            const p = val.substring(0, 10).split(/[-/]/);
+            val = `${p[2]}/${p[1]}/${p[0]}`;
           }
 
           // Map core identification values
@@ -356,7 +355,8 @@ export default function DocumentsScreen({ onBack }) {
         : API_ENDPOINTS.MY_EMPLOYEE_PROFILE;
 
       const res = await fetch(endpoint, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` },
+        cache: 'no-store'
       });
       if (res.ok) {
         const result = await res.json();
@@ -373,6 +373,15 @@ export default function DocumentsScreen({ onBack }) {
             if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(val)) {
               val = val.substring(0, 10);
             }
+            // Standardize all dates to use slashes on load as per standard DD/MM/YYYY
+            if (typeof val === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('dob') || key.toLowerCase().includes('doj') || key.toLowerCase().includes('lwd') || key.toLowerCase().includes('separation'))) {
+              if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(val)) {
+                const parts = val.substring(0, 10).split(/[-/]/);
+                val = `${parts[2]}/${parts[1]}/${parts[0]}`;
+              } else {
+                val = val.replace(/-/g, '/');
+              }
+            }
             cleanData[key.toLowerCase().replace(/\s/g, '_')] = val === null ? '' : val;
           });
 
@@ -386,6 +395,12 @@ export default function DocumentsScreen({ onBack }) {
 
           const lwdVal = cleanData.lwd || cleanData.last_working_day || cleanData.last_working_date || cleanData.lwd_date;
           if (lwdVal) cleanData.lwd = lwdVal;
+
+          const contactVal = cleanData.contact_no || cleanData.phone_number || cleanData.phone;
+          if (contactVal) cleanData.contact_no = contactVal;
+
+          const dobVal = cleanData.dob || cleanData.date_of_birth || cleanData.dateofbirth;
+          if (dobVal) cleanData.dob = dobVal;
 
           // Aggressive Name Resolution
           const isOwnProfile = !employeeId || String(employeeId) === String(user?.employee_id) || String(employeeId) === String(user?.id);
@@ -415,10 +430,18 @@ export default function DocumentsScreen({ onBack }) {
                 const resigData = await resigResp.json();
                 const latest = Array.isArray(resigData) ? resigData[0] : resigData;
                 if (latest) {
+                  const formatDate = (v) => {
+                    if (!v) return null;
+                    if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(v)) {
+                      const p = v.substring(0, 10).split(/[-/]/);
+                      return `${p[2]}/${p[1]}/${p[0]}`;
+                    }
+                    return String(v).replace(/-/g, '/');
+                  };
                   setForm(prev => ({
                     ...prev,
-                    separation: latest.resignation_date || latest.resignationDate || prev.separation,
-                    lwd: latest.last_working_day || latest.lastWorkingDay || prev.lwd,
+                    separation: formatDate(latest.resignation_date || latest.resignationDate) || prev.separation,
+                    lwd: formatDate(latest.last_working_day || latest.lastWorkingDay) || prev.lwd,
                     reason: latest.reason || prev.reason,
                     detailed_reason: latest.letter_content || latest.detailedReason || latest.detailed_reason || prev.detailed_reason,
                     attrition_bucket: (latest.status === 'PENDING' || latest.status === 'Approved') ? 'Resignation' : prev.attrition_bucket
@@ -571,6 +594,9 @@ export default function DocumentsScreen({ onBack }) {
     } else if (key === 'blood_group') {
       // Allow only letters and symbols +, -
       cleanValue = value.replace(/[^a-zA-Z+-]/g, '').toUpperCase();
+    } else if (['dob', 'doj', 'separation', 'lwd'].includes(key)) {
+      // Allow only digits and slashes for date fields
+      cleanValue = value.replace(/[^0-9/]/g, '');
     }
 
     // 2. Length Caps
@@ -582,19 +608,33 @@ export default function DocumentsScreen({ onBack }) {
     if (key === 'age' && cleanValue.length > 3) return;
     if (key === 'edu_completion_year' && cleanValue.length > 4) return;
 
+    // 3. Date Formatting (DD/MM/YYYY) - Auto-insert slashes
+    if ((key === 'dob' || key === 'doj' || key === 'separation' || key === 'lwd') && cleanValue.length > (form[key]?.length || 0)) {
+      // If typing and not deleting
+      if (cleanValue.length === 2 || cleanValue.length === 5) {
+        cleanValue += '/';
+      }
+    }
+    // Limit date length
+    if ((key === 'dob' || key === 'doj' || key === 'separation' || key === 'lwd') && cleanValue.length > 10) return;
+
     let updates = { [key]: cleanValue };
 
-    // Auto-calculate age for DOB format YYYY/MM/DD
+    // Auto-calculate age for DOB format DD/MM/YYYY
     if (key === 'dob' && cleanValue && cleanValue.length === 10) {
-      const birthDate = new Date(cleanValue);
-      if (!isNaN(birthDate.getTime())) {
-        const today = new Date();
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-          age--;
+      const parts = cleanValue.split('/');
+      if (parts.length === 3) {
+        // parts[0]=DD, parts[1]=MM, parts[2]=YYYY
+        const birthDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        if (!isNaN(birthDate.getTime())) {
+          const today = new Date();
+          let age = today.getFullYear() - birthDate.getFullYear();
+          const m = today.getMonth() - birthDate.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+          }
+          if (age >= 0) updates.age = String(age);
         }
-        if (age >= 0) updates.age = String(age);
       }
     }
 
@@ -692,6 +732,19 @@ export default function DocumentsScreen({ onBack }) {
         sanitizedForm[key] = val;
       });
 
+      // Preserve original DD/MM/YYYY values before SQL conversion (needed for users table sync)
+      const originalDob = sanitizedForm.dob;
+
+      // Convert DD/MM/YYYY to YYYY-MM-DD for backend SQL Date compatibility
+      const dateFields = ['dob', 'doj', 'separation', 'lwd'];
+      dateFields.forEach(field => {
+        const dateVal = sanitizedForm[field];
+        if (dateVal && typeof dateVal === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(dateVal)) {
+          const [d, m, y] = dateVal.split('/');
+          sanitizedForm[field] = `${y}-${m}-${d}`;
+        }
+      });
+
       const res = await fetch(API_ENDPOINTS.UPDATE_EMPLOYEE_PROFILE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -699,9 +752,81 @@ export default function DocumentsScreen({ onBack }) {
       });
 
       if (res.ok) {
-        setToast({ type: 'success', msg: 'Profile updated successfully!' });
+        // SYNC TO USERS TABLE IF CORE INFO CHANGED
+        if (sanitizedForm.emp_name || originalDob || sanitizedForm.contact_no) {
+          try {
+            // Use a very robust email resolution for the users table sync
+            const targetEmail = form.official_email_id || form.email || form.personal_email_id || user?.email || user?.official_email_id || localStorage.getItem('user_email');
+            
+            const syncBody = {
+              email: targetEmail,
+              userId: uid,
+              user_id: uid,
+              emp_id: uid
+            };
+            
+            if (sanitizedForm.emp_name) {
+                syncBody.name = sanitizedForm.emp_name;
+                syncBody.emp_name = sanitizedForm.emp_name;
+            }
+            
+            // CONVERT TO DD/MM/YYYY (UI format) for the users table
+            if (originalDob) {
+              let dobForUsers = originalDob; 
+              
+              if (/^\d{4}-\d{2}-\d{2}$/.test(originalDob)) {
+                const [y, m, d] = originalDob.split('-');
+                dobForUsers = `${d}/${m}/${y}`;
+              } else {
+                dobForUsers = String(originalDob).replace(/-/g, '/');
+              }
+              
+              // SEND EVERY POSSIBLE KEY
+              syncBody.date_of_birth = dobForUsers;
+              syncBody.dateOfBirth = dobForUsers;
+              syncBody.dob = dobForUsers;
+              
+              console.log(`[SYNC DEBUG] Target Email: ${targetEmail}`);
+              console.log(`[SYNC DEBUG] Target DOB: ${dobForUsers}`);
+            }
+
+            if (sanitizedForm.contact_no) {
+              syncBody.phone_number = sanitizedForm.contact_no;
+              syncBody.phoneNumber = sanitizedForm.contact_no;
+              syncBody.contact_no = sanitizedForm.contact_no;
+              syncBody.phone = sanitizedForm.contact_no;
+            }
+
+            const syncHeaders = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token?.trim()}`
+            };
+
+            // TRY BOTH PUT AND POST TO BE ABSOLUTELY SURE
+            console.log('[SYNC DEBUG] Sending PUT request...');
+            const putRes = await fetch(`${API_ENDPOINTS.UPDATE_PROFILE}?email=${encodeURIComponent(targetEmail)}`, {
+              method: 'PUT',
+              headers: syncHeaders,
+              body: JSON.stringify(syncBody)
+            });
+            console.log('[SYNC DEBUG] PUT Status:', putRes.status);
+
+            console.log('[SYNC DEBUG] Sending POST request...');
+            const postRes = await fetch(API_ENDPOINTS.UPDATE_PROFILE, {
+              method: 'POST',
+              headers: syncHeaders,
+              body: JSON.stringify(syncBody)
+            });
+            console.log('[SYNC DEBUG] POST Status:', postRes.status);
+          } catch (syncErr) {
+            console.error("Users Table Sync Error:", syncErr);
+          }
+        }
+
+        setToast({ type: 'success', msg: 'Profile updated successfully across all records!' });
         setIsEditing(false);
         await loadDocs();
+        if (refreshUser) await refreshUser();
       } else {
         const err = await res.json();
         setToast({ type: 'error', msg: err.error || 'Failed to save changes.' });
@@ -1031,7 +1156,7 @@ export default function DocumentsScreen({ onBack }) {
             style={{
               backgroundColor: 'white',
               padding: isMobile ? '20px' : '40px 40px 80px 40px',
-              border: 'none',
+              border: '1.5px solid #0B1E3F',
               borderRadius: isMobile ? '22px' : '28px',
               boxSizing: 'border-box',
               width: '100%',
@@ -1286,7 +1411,13 @@ export default function DocumentsScreen({ onBack }) {
                       <div style={{ position: 'relative', width: '100%' }}>
                         <input
                           type="text"
-                          value={(form[field.key] && typeof form[field.key] === 'string' && form[field.key].includes('T') && form[field.key].length > 15) ? form[field.key].split('T')[0] : (form[field.key] || '')}
+                          value={(() => {
+                            let val = (form[field.key] && typeof form[field.key] === 'string' && form[field.key].includes('T') && form[field.key].length > 15) ? form[field.key].split('T')[0] : (form[field.key] || '');
+                            if (field.key === 'dob' && typeof val === 'string') {
+                              return val.replace(/-/g, '/');
+                            }
+                            return val;
+                          })()}
                           readOnly={isDisabled || field.key === 'age'}
                           onChange={e => handleChange(field.key, e.target.value)}
                           placeholder={isEditing ? (field.placeholder || `Enter ${field.label}`) : 'Not Provided'}

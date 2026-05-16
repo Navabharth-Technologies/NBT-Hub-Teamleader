@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, MessageSquare, Send, X, ClipboardList, Lightbulb, Bell } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
-import { BASE_URL, API_ENDPOINTS, cleanId } from '../config';
+import { Calendar, Send, X, ClipboardList, Lightbulb, RefreshCw } from 'lucide-react';
+import { API_ENDPOINTS, cleanId } from '../config';
 
 const SaturdayRequirementsPopover = () => {
     const [show, setShow] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [feedback, setFeedback] = useState({ requirements: '', suggestions: '' });
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const userData = JSON.parse(localStorage.getItem('user') || '{}');
     const uid = cleanId(userData.employee_id || userData.userId || userData.id || 'unknown');
@@ -16,14 +16,15 @@ const SaturdayRequirementsPopover = () => {
     const isSaturday = new Date().getDay() === 6; // 0=Sun, 6=Sat
     const today = new Date().toDateString();
 
-    const submittedKey = `saturdayReflectionSubmittedDate_${uid}`;
+    const submittedKey = `saturdayReflectionSubmitted_${uid}`;
     const dismissedKey = `saturdayReflectionDismissedDate_${uid}`;
 
-    const hasSubmittedEver = !!localStorage.getItem(submittedKey);
+    // Permanent flag — once submitted, never show again for this user
+    const hasEverSubmitted = localStorage.getItem(submittedKey) === 'true';
     const hasDismissedToday = localStorage.getItem(dismissedKey) === today;
 
     useEffect(() => {
-        if (!isSaturday || hasSubmittedEver) {
+        if (!isSaturday || hasEverSubmitted || submitted) {
             setShow(false);
             setIsMinimized(false);
             return;
@@ -35,7 +36,7 @@ const SaturdayRequirementsPopover = () => {
         } else {
             setIsMinimized(true);
         }
-    }, [isSaturday, hasSubmittedEver, hasDismissedToday]);
+    }, [isSaturday, hasEverSubmitted, hasDismissedToday, submitted]);
 
     const handleDismiss = () => {
         setShow(false);
@@ -51,8 +52,10 @@ const SaturdayRequirementsPopover = () => {
     };
 
     const handleSubmit = async () => {
+        if (isSubmitting || submitted || hasEverSubmitted) return;
         if (!feedback.requirements.trim() && !feedback.suggestions.trim()) return;
 
+        setIsSubmitting(true);
         try {
             const token = localStorage.getItem('token');
 
@@ -72,8 +75,9 @@ const SaturdayRequirementsPopover = () => {
             });
 
             if (response.ok) {
+                // Permanently mark as submitted for this user — never show again
+                localStorage.setItem(submittedKey, 'true');
                 setSubmitted(true);
-                localStorage.setItem(submittedKey, new Date().toDateString());
                 setTimeout(() => {
                     setShow(false);
                     setIsMinimized(false);
@@ -81,12 +85,14 @@ const SaturdayRequirementsPopover = () => {
             }
         } catch (err) {
             console.error("Failed to submit suggestions:", err);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     if (!isSaturday) return null;
-    // Hide entirely if already submitted ever, UNLESS they just submitted (to show the success message)
-    if (hasSubmittedEver && !submitted) return null;
+    // If user has ever submitted before (permanent flag), hide completely
+    if (hasEverSubmitted && !submitted) return null;
 
     return (
         <>
@@ -115,6 +121,7 @@ const SaturdayRequirementsPopover = () => {
                                 width: '100%',
                                 maxWidth: '500px',
                                 borderRadius: '32px',
+                                border: '1.5px solid #0B1E3F',
                                 boxShadow: '0 40px 100px rgba(0, 0, 0, 0.4)',
                                 overflow: 'hidden',
                                 position: 'relative'
@@ -182,18 +189,17 @@ const SaturdayRequirementsPopover = () => {
                                             />
                                         </div>
 
-                                        <button
+                                         <button
                                             onClick={handleSubmit}
-                                            disabled={!feedback.requirements.trim() && !feedback.suggestions.trim()}
                                             style={{
-                                                backgroundColor: (!feedback.requirements.trim() && !feedback.suggestions.trim()) ? '#cbd5e1' : '#3B5998',
+                                                backgroundColor: (isSubmitting || (!feedback.requirements.trim() && !feedback.suggestions.trim())) ? '#cbd5e1' : '#3B5998',
                                                 color: 'white',
                                                 border: 'none',
                                                 padding: '16px',
                                                 borderRadius: '16px',
                                                 fontWeight: '900',
                                                 fontSize: '15px',
-                                                cursor: 'pointer',
+                                                cursor: isSubmitting ? 'not-allowed' : 'pointer',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
@@ -202,8 +208,8 @@ const SaturdayRequirementsPopover = () => {
                                                 transition: 'all 0.2s'
                                             }}
                                         >
-                                            <Send size={18} />
-                                            Submit Feedback
+                                            {isSubmitting ? <RefreshCw className="animate-spin" size={18} /> : <Send size={18} />}
+                                            {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
                                         </button>
                                     </div>
                                 )}
@@ -250,6 +256,7 @@ const SaturdayRequirementsPopover = () => {
                             alignItems: 'center',
                             justifyContent: 'center',
                             cursor: 'grab',
+                            border: '1.5px solid #0B1E3F',
                             boxShadow: '0 10px 25px rgba(59, 89, 152, 0.4)',
                             zIndex: 9998,
                         }}

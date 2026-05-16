@@ -6,7 +6,7 @@ import {
   FileText, Users, BarChart3, Gift, ChevronRight, ChevronLeft, AlertCircle, Trophy, Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { API_ENDPOINTS, BASE_URL } from '../config';
+import { API_ENDPOINTS, BASE_URL, cleanId } from '../config';
 
 const Dashboard = ({ setActiveTab }) => {
   const { user } = useAuth();
@@ -92,7 +92,7 @@ const Dashboard = ({ setActiveTab }) => {
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
     const uid = user.id || user.userId || user.empId || user.employee_id;
-    if (!uid) return;
+    if (!uid || String(uid) === '1') return;
     setLoading(true);
 
     try {
@@ -458,7 +458,7 @@ const Dashboard = ({ setActiveTab }) => {
   const s = {
     container: { backgroundColor: '#fcfdfe', minHeight: '100vh', padding: '0', fontFamily: "'Inter', sans-serif", overflowX: 'hidden' },
     main: { margin: '0', display: 'flex', flexDirection: 'column', gap: '40px', padding: isMobile ? '10px 16px 16px' : '15px 40px 40px', boxSizing: 'border-box' },
-    bigCard: { backgroundColor: 'white', borderRadius: isMobile ? '24px' : '40px', padding: isMobile ? '20px' : '35px', boxShadow: '0 10px 40px rgba(0,0,0,0.02)', border: '1.5px solid #94a3b8', width: isMobile ? '95%' : '100%', boxSizing: 'border-box' },
+    bigCard: { backgroundColor: 'white', borderRadius: isMobile ? '24px' : '40px', padding: isMobile ? '20px' : '35px', boxShadow: '0 10px 40px rgba(0,0,0,0.02)', border: '1.5px solid #0B1E3F', width: isMobile ? '95%' : '100%', boxSizing: 'border-box' },
     focusHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' },
     focusTitle: { display: 'flex', alignItems: 'center', gap: '12px', fontSize: isMobile ? '16px' : '20px', fontWeight: '900', color: '#0B1E3F' },
     liveUpdates: { fontSize: isMobile ? '9px' : '10px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase' },
@@ -645,7 +645,7 @@ const Dashboard = ({ setActiveTab }) => {
                       }
 
                       return (
-                        <motion.div key={idx} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} style={{ backgroundColor: '#f8fafc', borderRadius: '28px', padding: isMobile ? '28px 32px' : '28px', border: '1.5px solid #f1f5f9', width: '100%', boxSizing: 'border-box' }}>
+                        <motion.div key={idx} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} style={{ backgroundColor: '#f8fafc', borderRadius: '28px', padding: isMobile ? '28px 32px' : '28px', border: '1.5px solid #0B1E3F', width: '100%', boxSizing: 'border-box' }}>
                           <div style={s.intelTop}>
                             <div style={s.projectInfo}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '25px', flexWrap: 'wrap', marginBottom: '8px' }}>
@@ -776,7 +776,7 @@ const Dashboard = ({ setActiveTab }) => {
                   </AnimatePresence>
                 </>
               ) : (
-                <div style={{ backgroundColor: '#f8fafc', borderRadius: '28px', padding: '40px', textAlign: 'center', border: '1.5px solid #f1f5f9', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ backgroundColor: '#f8fafc', borderRadius: '28px', padding: '40px', textAlign: 'center', border: '1.5px solid #0B1E3F', width: '100%', boxSizing: 'border-box' }}>
                   <div style={{ fontSize: '16px', fontWeight: '800', color: '#64748b' }}>No active assignments found.</div>
                 </div>
               )}
@@ -807,9 +807,9 @@ const Dashboard = ({ setActiveTab }) => {
 
             {/* Internal Grid for Yesterday/Today */}
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '24px' }}>
-              <div
+                <div
                 onClick={() => navigate('/focus-logs')}
-                style={{ padding: '24px', backgroundColor: '#f0fdf4', borderRadius: '24px', border: '1.2px solid #dcfce7', cursor: 'pointer' }}
+                style={{ padding: '24px', backgroundColor: '#f0fdf4', borderRadius: '24px', border: '1.5px solid #0B1E3F', cursor: 'pointer' }}
               >
                 <div style={s.focusHeader}><div style={s.focusTitle}><CheckCircle2 size={24} /> Yesterday</div></div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -820,7 +820,7 @@ const Dashboard = ({ setActiveTab }) => {
                 <div style={{ ...s.statusBadge, marginTop: '15px' }}>{yesterdayStatus}</div>
               </div>
 
-              <div style={{ padding: '24px', backgroundColor: 'white', border: '1.2px solid #f1f5f9', borderRadius: '24px' }}>
+              <div style={{ padding: '24px', backgroundColor: 'white', border: '1.5px solid #0B1E3F', borderRadius: '24px' }}>
                 <div style={s.focusHeader}>
                   <div style={{ ...s.focusTitle, display: 'flex', alignItems: 'center', gap: '12px' }}><TrendingUp size={24} /> Today</div>
                   <button style={s.editBtn} onClick={(e) => { e.stopPropagation(); isEditingToday ? handleSave() : setIsEditingToday(true); }}>{isEditingToday ? "Save" : "Edit"}</button>
@@ -960,7 +960,7 @@ const Dashboard = ({ setActiveTab }) => {
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.1 }}
-                        style={{ padding: '20px', backgroundColor: '#fcfdfe', borderRadius: '25px', border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}
+                        style={{ padding: '20px', backgroundColor: '#fcfdfe', borderRadius: '25px', border: '1.5px solid #0B1E3F', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1044,7 +1044,7 @@ const Dashboard = ({ setActiveTab }) => {
                   const daysUntil = Math.ceil((thisYearBday - today) / (1000 * 60 * 60 * 24));
                   const isToday = daysUntil === 0;
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '18px', backgroundColor: isToday ? '#fdf2f8' : '#f8fafc', border: `1px solid ${isToday ? '#f9a8d4' : '#f1f5f9'}` }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '18px', backgroundColor: isToday ? '#fdf2f8' : '#f8fafc', border: `1.5px solid ${isToday ? '#ec4899' : '#0B1E3F'}` }}>
                       <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: isToday ? '#ec4899' : '#e2e8f0', color: isToday ? 'white' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '900', flexShrink: 0 }}>
                         {(b.employee_name || b.name || '?').charAt(0).toUpperCase()}
                       </div>
@@ -1088,7 +1088,7 @@ const Dashboard = ({ setActiveTab }) => {
                   const today = new Date();
                   const isPast = hDate < today;
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '18px', backgroundColor: isPast ? '#f8fafc' : '#eff6ff', border: `1px solid ${isPast ? '#f1f5f9' : '#dbeafe'}`, opacity: isPast ? 0.6 : 1 }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '18px', backgroundColor: isPast ? '#f8fafc' : '#eff6ff', border: `1.5px solid ${isPast ? '#cbd5e1' : '#0B1E3F'}`, opacity: isPast ? 0.6 : 1 }}>
                       <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: isPast ? '#e2e8f0' : '#3B5998', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <div style={{ fontSize: '9px', fontWeight: '900', textTransform: 'uppercase' }}>{hDate.toLocaleDateString('en-US', { month: 'short' })}</div>
                         <div style={{ fontSize: '14px', fontWeight: '900', lineHeight: 1 }}>{hDate.getDate()}</div>
@@ -1122,13 +1122,42 @@ const Dashboard = ({ setActiveTab }) => {
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {suggestions.slice(0, 3).map((sug, i) => (
-                  <div key={i} style={{ padding: '14px 18px', borderRadius: '18px', backgroundColor: '#fffbeb', border: '1px solid #fef3c7' }}>
-                    <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F', marginBottom: '4px' }}>{sug.employee_name || 'Anonymous'}</div>
-                    {sug.requirement && <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}><strong>Req:</strong> {sug.requirement}</div>}
-                    {sug.suggestion && <div style={{ fontSize: '12px', color: '#475569' }}><strong>Suggestion:</strong> {sug.suggestion}</div>}
-                  </div>
-                ))}
+                {(() => {
+                  const unique = [];
+                  const seen = new Set();
+                  const sorted = [...suggestions].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                  
+                  sorted.forEach(sug => {
+                    const d = parseSafeDate(sug.created_at);
+                    const dateKey = d ? d.toISOString().split('T')[0] : 'no-date';
+                    const userKey = cleanId(sug.employee_id || sug.employee_name || 'anon');
+                    const key = `${userKey}_${dateKey}`;
+                    
+                    if (!seen.has(key)) {
+                      unique.push(sug);
+                      seen.add(key);
+                    }
+                  });
+
+                  return unique.slice(0, 3).map((sug, i) => (
+                    <div key={i} style={{ padding: '14px 18px', borderRadius: '18px', backgroundColor: '#fffbeb', border: '1.5px solid #0B1E3F', position: 'relative' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{sug.employee_name || 'Anonymous'}</div>
+                        {sug.created_at && (
+                          <div style={{ fontSize: '9px', fontWeight: '800', color: '#f59e0b', textTransform: 'uppercase', backgroundColor: '#fef3c7', padding: '2px 8px', borderRadius: '6px' }}>
+                            {(() => {
+                              const d = parseSafeDate(sug.created_at);
+                              if (!d) return '';
+                              return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                      {sug.requirement && <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}><strong>Req:</strong> {sug.requirement}</div>}
+                      {sug.suggestion && <div style={{ fontSize: '12px', color: '#475569' }}><strong>Suggestion:</strong> {sug.suggestion}</div>}
+                    </div>
+                  ));
+                })()}
               </div>
             </div>
           )}

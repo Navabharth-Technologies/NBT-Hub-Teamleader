@@ -45,7 +45,7 @@ const ServiceCertificateScreen = ({ onBack }) => {
       hour = hour ? hour : 12;
       const formattedTime = `${String(hour).padStart(2, '0')}:${mm}:${ss ? ss.substring(0, 2) : '00'} ${ampm}`;
       
-      return `${day}/${month}/${year} at ${formattedTime}`;
+      return `${year}/${month}/${day} at ${formattedTime}`;
     } catch (e) {
       return ts;
     }
@@ -528,7 +528,7 @@ const ServiceCertificateScreen = ({ onBack }) => {
                     </div>
                     {assetSubmittedDate && (
                       <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>
-                        Saved on {new Date(assetSubmittedDate).toLocaleDateString()}
+                        Saved on {(() => { const d = new Date(assetSubmittedDate); return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`; })()}
                       </div>
                     )}
                   </div>
