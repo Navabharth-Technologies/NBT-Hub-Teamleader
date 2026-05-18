@@ -328,7 +328,6 @@ export default function AppHeader() {
           `}</style>
         </div>
       )}
-
     </>
   );
 }

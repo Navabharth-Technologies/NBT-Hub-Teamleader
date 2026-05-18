@@ -1267,7 +1267,7 @@ export default function DocumentsScreen({ onBack }) {
                         style={{
                           width: '100%', padding: '16px 20px', borderRadius: '16px', fontSize: isMobile ? '14px' : '16px',
                           fontWeight: '800', color: '#000000', backgroundColor: isDisabled ? '#f1f5f9' : '#f8fafc',
-                          border: errors[field.key] ? '2px solid #ef4444' : (!isDisabled ? '2px solid #315A9E' : '2px solid #e2e8f0'),
+                          border: errors[field.key] ? '2px solid #ef4444' : 'none',
                           outline: 'none', boxSizing: 'border-box', minHeight: '120px',
                           transition: 'all 0.2s', cursor: isDisabled ? 'default' : 'text', resize: 'vertical', fontFamily: 'inherit',
                           opacity: isDisabled ? 1 : 1
@@ -1402,7 +1402,7 @@ export default function DocumentsScreen({ onBack }) {
                         style={{
                           width: '100%', padding: '16px 20px', borderRadius: '16px', fontSize: isMobile ? '14px' : '16px',
                           fontWeight: '800', color: '#000000', backgroundColor: isDisabled ? '#f1f5f9' : '#f8fafc',
-                          border: errors[field.key] ? '2px solid #ef4444' : (!isDisabled ? '2px solid #315A9E' : '2px solid #e2e8f0'),
+                          border: errors[field.key] ? '2px solid #ef4444' : 'none',
                           outline: 'none', boxSizing: 'border-box', minHeight: '120px',
                           transition: 'all 0.2s', cursor: isDisabled ? 'default' : 'text', resize: 'vertical', fontFamily: 'inherit'
                         }}
@@ -1425,7 +1425,7 @@ export default function DocumentsScreen({ onBack }) {
                             width: '100%', padding: isMobile ? '12px' : '16px 20px',
                             borderRadius: isMobile ? '10px' : '16px', fontSize: isMobile ? '13px' : '16px',
                             fontWeight: '800', color: '#000000', backgroundColor: (isDisabled || field.key === 'age') ? '#f1f5f9' : '#f8fafc',
-                            border: errors[field.key] ? '2px solid #ef4444' : (!(isDisabled || field.key === 'age') ? '2px solid #315A9E' : '2px solid #e2e8f0'),
+                            border: errors[field.key] ? '2px solid #ef4444' : 'none',
                             outline: 'none', boxSizing: 'border-box',
                             transition: 'all 0.2s', cursor: (isDisabled || field.key === 'age') ? 'default' : 'text'
                           }}

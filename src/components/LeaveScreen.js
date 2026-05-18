@@ -1152,35 +1152,46 @@ const LeaveScreen = ({ onBack }) => {
         {showForm && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(11, 30, 63, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(11, 30, 63, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1600, padding: '10px' }}
             onClick={() => setShowForm(false)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              style={{ backgroundColor: 'white', width: '90%', maxWidth: '500px', borderRadius: '30px', padding: isMobile ? '20px' : '40px', position: 'relative', boxShadow: '0 20px 50px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }}
+              style={{ 
+                backgroundColor: 'white', 
+                width: '95%', 
+                maxWidth: '500px', 
+                borderRadius: winWidth < 480 ? '24px' : '30px', 
+                padding: winWidth < 480 ? '20px 16px' : (winWidth < 768 ? '24px' : '35px'), 
+                position: 'relative', 
+                boxShadow: '0 20px 50px rgba(0,0,0,0.2)', 
+                maxHeight: 'calc(100vh - 40px)', 
+                overflowY: 'auto', 
+                boxSizing: 'border-box' 
+              }}
               className="leave-modal-content"
               onClick={e => e.stopPropagation()}
             >
-              <h2 style={{ margin: isMobile ? '0 0 15px 0' : '0 0 30px 0', fontSize: isMobile ? '20px' : '24px', fontWeight: '1000', color: '#0B1E3F' }}>Request Time Off</h2>
-              <form onSubmit={handleSubmitRequest}>
-                <div style={{ marginBottom: isMobile ? '12px' : '20px' }}>
-                  <label style={{ fontSize: isMobile ? '11px' : '13px', fontWeight: '900', color: '#64748b', marginBottom: '8px', display: 'block' }}>LEAVE TYPE</label>
-                  <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })} style={{ width: '100%', padding: isMobile ? '12px' : '15px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: isMobile ? '14px' : '15px', fontWeight: '700' }}>
+              <h2 style={{ margin: winWidth < 480 ? '0 0 15px 0' : '0 0 25px 0', fontSize: winWidth < 480 ? '20px' : '24px', fontWeight: '1000', color: '#0B1E3F' }}>Request Time Off</h2>
+              <form onSubmit={handleSubmitRequest} style={{ marginTop: '20px' }}>
+                <div style={{ marginBottom: winWidth < 480 ? '12px' : '18px' }}>
+                  <label style={{ fontSize: winWidth < 480 ? '11px' : '13px', fontWeight: '900', color: '#64748b', marginBottom: '8px', display: 'block' }}>LEAVE TYPE</label>
+                  <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })} style={{ width: '100%', padding: winWidth < 480 ? '10px 12px' : '14px 16px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: winWidth < 480 ? '14px' : '15px', fontWeight: '700' }}>
                     <option>Casual Leave</option>
                     <option>LOP</option>
                     <option>Earned Leaves</option>
                   </select>
                 </div>
 
-                <div style={{ marginBottom: isMobile ? '12px' : '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ marginBottom: winWidth < 480 ? '12px' : '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <input type="checkbox" id="isHalfDay" checked={formData.is_half_day} onChange={e => setFormData({ ...formData, is_half_day: e.target.checked })} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
-                  <label htmlFor="isHalfDay" style={{ fontSize: isMobile ? '13px' : '14px', fontWeight: '900', color: '#0B1E3F', cursor: 'pointer' }}>HALF DAY REQUEST</label>
+                  <label htmlFor="isHalfDay" style={{ fontSize: winWidth < 480 ? '13px' : '14px', fontWeight: '900', color: '#0B1E3F', cursor: 'pointer' }}>HALF DAY REQUEST</label>
                 </div>
 
                 {formData.is_half_day && (
-                  <div style={{ marginBottom: isMobile ? '12px' : '20px' }}>
-                    <label style={{ fontSize: isMobile ? '11px' : '13px', fontWeight: '900', color: '#64748b', marginBottom: '8px', display: 'block' }}>HALF DAY SLOT <span style={{ color: '#ef4444' }}>*</span></label>
-                    <select value={formData.half_day_slot} onChange={e => setFormData({ ...formData, half_day_slot: e.target.value })} style={{ width: '100%', padding: isMobile ? '12px' : '15px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: isMobile ? '14px' : '15px', fontWeight: '700' }} required>
+                  <div style={{ marginBottom: winWidth < 480 ? '12px' : '18px' }}>
+                    <label style={{ fontSize: winWidth < 480 ? '11px' : '13px', fontWeight: '900', color: '#64748b', marginBottom: '8px', display: 'block' }}>HALF DAY SLOT <span style={{ color: '#ef4444' }}>*</span></label>
+                    <select value={formData.half_day_slot} onChange={e => setFormData({ ...formData, half_day_slot: e.target.value })} style={{ width: '100%', padding: winWidth < 480 ? '10px 12px' : '14px 16px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: winWidth < 480 ? '14px' : '15px', fontWeight: '700' }} required>
                       <option value="">Select Slot</option>
                       <option value="First Half (9:30 - 2:30)">First Half (9:30 - 2:30)</option>
                       <option value="Second Half (1:30 - 6:00 pm)">Second Half (1:30 - 6:00 pm)</option>
@@ -1188,25 +1199,25 @@ const LeaveScreen = ({ onBack }) => {
                   </div>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '12px' : '20px', marginBottom: isMobile ? '12px' : '20px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: winWidth < 560 ? '1fr' : '1fr 1fr', gap: winWidth < 480 ? '10px' : '16px', marginBottom: winWidth < 480 ? '12px' : '18px' }}>
                   <div>
-                    <label style={{ fontSize: isMobile ? '11px' : '13px', fontWeight: '900', color: '#64748b', marginBottom: '8px', display: 'block' }}>START DATE <span style={{ color: '#ef4444' }}>*</span></label>
-                    <input type="date" value={formData.start_date || ''} onChange={e => setFormData({ ...formData, start_date: e.target.value })} style={{ width: '100%', padding: isMobile ? '12px' : '15px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: '14px', fontWeight: '700', boxSizing: 'border-box' }} required />
+                    <label style={{ fontSize: winWidth < 480 ? '11px' : '13px', fontWeight: '900', color: '#64748b', marginBottom: '8px', display: 'block' }}>START DATE <span style={{ color: '#ef4444' }}>*</span></label>
+                    <input type="date" value={formData.start_date || ''} onChange={e => setFormData({ ...formData, start_date: e.target.value })} style={{ width: '100%', padding: winWidth < 480 ? '10px 12px' : '14px 16px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: '14px', fontWeight: '700', boxSizing: 'border-box' }} required />
                   </div>
                   <div>
-                    <label style={{ fontSize: isMobile ? '11px' : '13px', fontWeight: '900', color: '#64748b', marginBottom: '8px', display: 'block' }}>END DATE <span style={{ color: '#ef4444' }}>*</span></label>
-                    <input type="date" value={formData.end_date || ''} onChange={e => setFormData({ ...formData, end_date: e.target.value })} style={{ width: '100%', padding: isMobile ? '12px' : '15px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: '14px', fontWeight: '700', boxSizing: 'border-box' }} required />
+                    <label style={{ fontSize: winWidth < 480 ? '11px' : '13px', fontWeight: '900', color: '#64748b', marginBottom: '8px', display: 'block' }}>END DATE <span style={{ color: '#ef4444' }}>*</span></label>
+                    <input type="date" value={formData.end_date || ''} onChange={e => setFormData({ ...formData, end_date: e.target.value })} style={{ width: '100%', padding: winWidth < 480 ? '10px 12px' : '14px 16px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: '14px', fontWeight: '700', boxSizing: 'border-box' }} required />
                   </div>
                 </div>
 
-                <div style={{ marginBottom: isMobile ? '15px' : '25px' }}>
-                  <label style={{ fontSize: isMobile ? '11px' : '13px', fontWeight: '900', color: '#64748b', marginBottom: '8px', display: 'block' }}>REASON <span style={{ color: '#ef4444' }}>*</span></label>
-                  <textarea value={formData.reason} onChange={e => setFormData({ ...formData, reason: e.target.value })} style={{ width: '100%', padding: isMobile ? '12px' : '15px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: isMobile ? '14px' : '15px', fontWeight: '700', height: isMobile ? '80px' : '100px', resize: 'none' }} placeholder="Briefly explain..." required />
+                <div style={{ marginBottom: winWidth < 480 ? '15px' : '22px' }}>
+                  <label style={{ fontSize: winWidth < 480 ? '11px' : '13px', fontWeight: '900', color: '#64748b', marginBottom: '8px', display: 'block' }}>REASON <span style={{ color: '#ef4444' }}>*</span></label>
+                  <textarea value={formData.reason} onChange={e => setFormData({ ...formData, reason: e.target.value })} style={{ width: '100%', padding: winWidth < 480 ? '10px 12px' : '14px 16px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: winWidth < 480 ? '14px' : '15px', fontWeight: '700', height: winWidth < 480 ? '70px' : '90px', resize: 'none' }} placeholder="Briefly explain..." required />
                 </div>
 
                 <div style={{ display: 'flex', gap: '15px' }}>
-                  <button type="button" onClick={() => setShowForm(false)} style={{ flex: 1, padding: isMobile ? '14px' : '16px', borderRadius: '15px', border: '1.5px solid #f1f5f9', background: 'white', fontWeight: '900', cursor: 'pointer', fontSize: isMobile ? '13px' : '14px' }}>Cancel</button>
-                  <button type="submit" style={{ flex: 1, padding: isMobile ? '14px' : '16px', borderRadius: '15px', border: 'none', background: '#0B1E3F', color: 'white', fontWeight: '900', cursor: 'pointer', fontSize: isMobile ? '13px' : '14px', boxShadow: '0 10px 20px rgba(11, 30, 63, 0.2)' }}>Submit</button>
+                  <button type="button" onClick={() => setShowForm(false)} style={{ flex: 1, padding: winWidth < 480 ? '12px' : '15px', borderRadius: '15px', border: '1.5px solid #f1f5f9', background: 'white', fontWeight: '900', cursor: 'pointer', fontSize: winWidth < 480 ? '13px' : '14px' }}>Cancel</button>
+                  <button type="submit" style={{ flex: 1, padding: winWidth < 480 ? '12px' : '15px', borderRadius: '15px', border: 'none', background: '#0B1E3F', color: 'white', fontWeight: '900', cursor: 'pointer', fontSize: winWidth < 480 ? '13px' : '14px', boxShadow: '0 10px 20px rgba(11, 30, 63, 0.2)' }}>Submit</button>
                 </div>
               </form>
             </motion.div>

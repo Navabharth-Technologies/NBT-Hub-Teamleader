@@ -12,11 +12,13 @@ if (typeof window !== 'undefined' && !window.__NBT_THREAD_CONTEXT__) {
 
 export const ThreadProvider = ({ children }) => {
   const { user } = useAuth();
+  const currentUserId = user?.id || user?.userId || user?.empId || user?.employee_id;
   const [threads, setThreads] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [lastSeenId, setLastSeenId] = useState(() => {
-    return localStorage.getItem(`lastSeenThreadId_${user?.id}`) || 0;
+    const uid = user?.id || user?.userId || user?.empId || user?.employee_id;
+    return localStorage.getItem(`lastSeenThreadId_${uid}`) || 0;
   });
 
   useEffect(() => { 
@@ -30,7 +32,7 @@ export const ThreadProvider = ({ children }) => {
   const fetchThreads = async (uId = null, isPolling = false) => {
     if (!isPolling) setLoading(true);
     try {
-      const viewerId = uId || user?.id;
+      const viewerId = uId || currentUserId;
       const url = `${API_ENDPOINTS.THREADS}${viewerId ? `?viewerId=${viewerId}&all=true&limit=1000` : '?all=true&limit=1000'}`;
       const token = localStorage.getItem('token');
       const res = await fetch(url, { 
@@ -57,7 +59,7 @@ export const ThreadProvider = ({ children }) => {
         const sorted = normalized.sort((a, b) => b.id - a.id);
 
         if (sorted.length > 0) {
-          const seenId = Number(localStorage.getItem(`lastSeenThreadId_${user?.id}`) || 0);
+          const seenId = Number(localStorage.getItem(`lastSeenThreadId_${currentUserId}`) || 0);
           const unseen = sorted.filter(t => t.id > seenId).length;
           setUnreadCount(unseen);
         }
@@ -74,7 +76,7 @@ export const ThreadProvider = ({ children }) => {
   const clearNotifications = () => {
     if (threads.length > 0) {
       const latestId = threads[0].id;
-      localStorage.setItem(`lastSeenThreadId_${user?.id}`, latestId);
+      localStorage.setItem(`lastSeenThreadId_${currentUserId}`, latestId);
       setLastSeenId(latestId);
     }
     setUnreadCount(0);
@@ -221,11 +223,11 @@ export const ThreadProvider = ({ children }) => {
 
   const deletePost = async (id) => {
     try {
-        const url = `${API_ENDPOINTS.THREAD_DELETE(id)}?userId=${user?.id}&user_id=${user?.id}`;
+        const url = `${API_ENDPOINTS.THREAD_DELETE(id)}?userId=${currentUserId}&user_id=${currentUserId}`;
         const res = await fetch(url, { 
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user?.id, user_id: user?.id })
+          body: JSON.stringify({ userId: currentUserId, user_id: currentUserId })
         });
         if (res.ok) {
           await fetchThreads();
@@ -235,7 +237,7 @@ export const ThreadProvider = ({ children }) => {
 
   const fetchSingleThread = async (id) => {
     try {
-        const url = `${API_ENDPOINTS.THREAD_UPDATE(id)}?userId=${user?.id}&user_id=${user?.id}`;
+        const url = `${API_ENDPOINTS.THREAD_UPDATE(id)}?userId=${currentUserId}&user_id=${currentUserId}`;
         const res = await fetch(url);
         if (res.ok) return await res.json();
     } catch {}
@@ -244,7 +246,7 @@ export const ThreadProvider = ({ children }) => {
 
   const fetchUserThreads = async (userId) => {
     try {
-        const url = `${API_ENDPOINTS.THREAD_USER(userId)}${user?.id ? `?viewerId=${user.id}&viewer_id=${user.id}` : ''}`;
+        const url = `${API_ENDPOINTS.THREAD_USER(userId)}${currentUserId ? `?viewerId=${currentUserId}&viewer_id=${currentUserId}` : ''}`;
         const res = await fetch(url);
         if (res.ok) return await res.json();
     } catch {}
@@ -253,11 +255,11 @@ export const ThreadProvider = ({ children }) => {
 
   const deleteComment = async (threadId, commentId) => {
     try {
-        const url = `${API_ENDPOINTS.COMMENT_DELETE(threadId, commentId)}?userId=${user?.id}&user_id=${user?.id}`;
+        const url = `${API_ENDPOINTS.COMMENT_DELETE(threadId, commentId)}?userId=${currentUserId}&user_id=${currentUserId}`;
         const res = await fetch(url, { 
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user?.id, user_id: user?.id })
+          body: JSON.stringify({ userId: currentUserId, user_id: currentUserId })
         });
         if (res.ok) {
            await fetchThreads();
@@ -273,8 +275,8 @@ export const ThreadProvider = ({ children }) => {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-               userId: user?.id, 
-               user_id: user?.id, 
+               userId: currentUserId, 
+               user_id: currentUserId, 
                content,
                text: content,
                comment: content,
@@ -302,8 +304,8 @@ export const ThreadProvider = ({ children }) => {
         
         const body = { 
             content: payload.content,
-            userId: user?.id,
-            user_id: user?.id
+            userId: currentUserId,
+            user_id: currentUserId
         };
         
         if (payload.file) {
@@ -312,41 +314,41 @@ export const ThreadProvider = ({ children }) => {
         } else if (payload.removeMedia) {
            body.media = '';
            body.mediaType = '';
-        }
-
-        const token = localStorage.getItem('token');
-        const url = `${API_ENDPOINTS.THREAD_UPDATE(id)}?userId=${user?.id}&user_id=${user?.id}`;
-        
-        const res = await fetch(url, {
-            method: 'PUT',
-            headers: { 
-                'Content-Type': 'application/json',
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-            },
-            body: JSON.stringify(body)
-        });
-        
-        if (res.ok) {
-            await fetchThreads();
-            return true;
-        } else {
-            console.error("Update failed:", await res.text());
-        }
-    } catch (err) {
-        console.error("Update error:", err);
-    }
-    return false;
-  };
-
-  return (
-    <ThreadContext.Provider value={{ 
-      threads, unreadCount, loading, clearNotifications, addPost, deletePost, updatePost, 
-      fetchSingleThread, fetchUserThreads,
-      deleteComment, updateComment,
-      refreshThreads: () => fetchThreads(user?.id), toggleReaction, toggleBadge, addComment, fetchComments, fetchReactors 
-    }}>
-      {children}
-    </ThreadContext.Provider>
+         }
+ 
+         const token = localStorage.getItem('token');
+         const url = `${API_ENDPOINTS.THREAD_UPDATE(id)}?userId=${currentUserId}&user_id=${currentUserId}`;
+         
+         const res = await fetch(url, {
+             method: 'PUT',
+             headers: { 
+                 'Content-Type': 'application/json',
+                 ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+             },
+             body: JSON.stringify(body)
+         });
+         
+         if (res.ok) {
+             await fetchThreads();
+             return true;
+         } else {
+             console.error("Update failed:", await res.text());
+         }
+     } catch (err) {
+         console.error("Update error:", err);
+     }
+     return false;
+   };
+ 
+   return (
+     <ThreadContext.Provider value={{ 
+       threads, unreadCount, loading, clearNotifications, addPost, deletePost, updatePost, 
+       fetchSingleThread, fetchUserThreads,
+       deleteComment, updateComment,
+       refreshThreads: () => fetchThreads(currentUserId), toggleReaction, toggleBadge, addComment, fetchComments, fetchReactors 
+     }}>
+       {children}
+     </ThreadContext.Provider>
   );
 };
 
