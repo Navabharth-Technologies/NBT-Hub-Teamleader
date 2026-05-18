@@ -465,19 +465,20 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     userName: { fontSize: isMobile ? '18px' : (isTablet ? '22px' : '26px'), fontWeight: '900', color: '#0f172a', margin: '4px 0', lineHeight: 1.2 },
     infoGrid: {
       display: 'grid',
-      gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'),
-      gap: '15px',
-      marginTop: '15px'
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+      gap: isMobile ? '15px' : '25px',
+      marginTop: '25px',
+      width: '100%'
     },
     infoCard: {
       backgroundColor: 'white',
       padding: '20px',
-      borderRadius: '20px',
+      borderRadius: '16px',
       border: '1.5px solid #0B1E3F',
       display: 'flex',
       alignItems: 'center',
       gap: '15px',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+      boxShadow: '0 8px 25px rgba(0,0,0,0.03)'
     },
     iconCircle: {
       minWidth: '45px',
@@ -500,8 +501,8 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
       backgroundColor: 'white',
       padding: isMobile ? '20px' : '30px',
       borderRadius: '25px',
-      border: '1.5px solid #0B1E3F',
-      boxShadow: '0 10px 25px rgba(0,0,0,0.05)'
+      border: 'none',
+      boxShadow: '0 10px 40px rgba(0,0,0,0.08)'
     },
     sectionTitle: { fontSize: isMobile ? '14px' : '16px', fontWeight: '700', color: '#1e293b', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
     aboutContent: { textAlign: 'left', padding: '10px 0' },
@@ -646,23 +647,23 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         </div>
 
         <div style={styles.infoGrid}>
-          <div style={{ ...styles.infoCard }}>
+          <motion.div whileHover={{ scale: 1.05, y: -2 }} transition={{ type: 'spring', stiffness: 300 }} style={styles.infoCard}>
             <div style={styles.iconCircle}><Users size={18} color="#3863a8" /></div>
             <div>
               <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Current Team</div>
               <div style={styles.infoValue}>{teamName}</div>
             </div>
-          </div>
+          </motion.div>
 
-          <div style={styles.infoCard}>
+          <motion.div whileHover={{ scale: 1.05, y: -2 }} transition={{ type: 'spring', stiffness: 300 }} style={styles.infoCard}>
             <div style={styles.iconCircle}><Mail size={18} color="#3863a8" /></div>
             <div>
               <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Email Address</div>
               <div style={styles.infoValue}>{user?.email?.toLowerCase()}</div>
             </div>
-          </div>
+          </motion.div>
 
-          <div style={styles.infoCard}>
+          <motion.div whileHover={{ scale: 1.05, y: -2 }} transition={{ type: 'spring', stiffness: 300 }} style={styles.infoCard}>
             <div style={styles.iconCircle}><Calendar size={18} color="#3863a8" /></div>
             <div>
               <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Date of Joining</div>
@@ -670,30 +671,30 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                 {standardizeDate(joiningDate)}
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          <div style={styles.infoCard}>
+          <motion.div whileHover={{ scale: 1.05, y: -2 }} transition={{ type: 'spring', stiffness: 300 }} style={styles.infoCard}>
             <div style={styles.iconCircle}><Shield size={18} color="#3863a8" /></div>
             <div>
               <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Reporting Manager</div>
               <div style={styles.infoValue}>{reportingManager.name || "Not Assigned"}</div>
             </div>
-          </div>
+          </motion.div>
 
-          <div style={styles.infoCard}>
+          <motion.div whileHover={{ scale: 1.05, y: -2 }} transition={{ type: 'spring', stiffness: 300 }} style={styles.infoCard}>
             <div style={styles.iconCircle}><Fingerprint size={18} color="#3863a8" /></div>
             <div>
               <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Manager ID</div>
               <div style={styles.infoValue}>{reportingManager.id || "N/A"}</div>
             </div>
-          </div>
+          </motion.div>
         </div>
 
 
         <div style={styles.infoGrid}>
           <motion.div
-            whileHover={{ y: -5 }}
-            style={{ ...styles.infoCard, cursor: 'pointer', borderColor: '#0B1E3F', backgroundColor: '#eff6ff' }}
+            whileHover={{ y: -5, scale: 1.05 }}
+            style={{ ...styles.infoCard, cursor: 'pointer', border: '1px solid #dbeafe', borderLeft: '6px solid #1e40af', backgroundColor: '#eff6ff' }}
             onClick={() => setShowPasswordModal(true)}
           >
             <div style={{ ...styles.iconCircle, backgroundColor: '#dbeafe' }}><Shield size={18} color="#1e40af" /></div>
@@ -705,8 +706,8 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           </motion.div>
 
           <motion.div
-            whileHover={{ y: -5 }}
-            style={{ ...styles.infoCard, cursor: 'pointer', borderColor: '#0B1E3F', backgroundColor: '#fff7ed' }}
+            whileHover={{ y: -5, scale: 1.05 }}
+            style={{ ...styles.infoCard, cursor: 'pointer', border: '1px solid #ffedd5', borderLeft: '6px solid #f97316', backgroundColor: '#fff7ed' }}
             onClick={() => setShowTicketModal(true)}
           >
             <div style={{ ...styles.iconCircle, backgroundColor: '#ffedd5' }}><AlertCircle size={18} color="#f97316" /></div>
@@ -718,8 +719,8 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           </motion.div>
 
           <motion.div
-            whileHover={{ y: -5 }}
-            style={{ ...styles.infoCard, borderColor: '#0B1E3F', backgroundColor: '#f0fdf4' }}
+            whileHover={{ y: -5, scale: 1.05 }}
+            style={{ ...styles.infoCard, border: '1px solid #dcfce7', borderLeft: '6px solid #15803d', backgroundColor: '#f0fdf4' }}
           >
             <div style={{ ...styles.iconCircle, backgroundColor: '#dcfce7' }}><RefreshCw size={18} color="#15803d" /></div>
             <div style={{ flex: 1 }}>

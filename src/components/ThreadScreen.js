@@ -17,6 +17,7 @@ export default function ThreadScreen() {
     const navigate = useNavigate();
     const { threads, unreadCount, loading, clearNotifications, addPost, deletePost, updatePost, deleteComment, updateComment, toggleReaction, toggleBadge, addComment, fetchComments, fetchReactors } = useThread();
     const { user } = useAuth();
+    const currentUserId = user?.id || user?.userId || user?.empId || user?.employee_id;
     
     const [tagline, setTagline] = useState('');
     const [newPost, setNewPost] = useState('');
@@ -107,7 +108,7 @@ export default function ThreadScreen() {
         setUploading(true);
         try {
             await addPost({
-                userId: user?.id,
+                userId: currentUserId,
                 user: user?.name || 'User',
                 role: user?.role?.toUpperCase() || 'EMPLOYEE',
                 tagline: tagline,
@@ -125,12 +126,12 @@ export default function ThreadScreen() {
         }
     };
 
-    const onToggleLike = async (id, type = 'like') => await toggleReaction(id, user?.id, type);
+    const onToggleLike = async (id, type = 'like') => await toggleReaction(id, currentUserId, type);
 
     const [commentText, setCommentText] = useState('');
     const handleAddComment = async (id) => {
         if (!commentText.trim()) return;
-        const success = await addComment(id, user?.id, user?.name || 'User', commentText);
+        const success = await addComment(id, currentUserId, user?.name || 'User', commentText);
         if (success) {
             setCommentText('');
             const comments = await fetchComments(id);

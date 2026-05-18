@@ -776,7 +776,7 @@ const Dashboard = ({ setActiveTab }) => {
                   </AnimatePresence>
                 </>
               ) : (
-                <div style={{ backgroundColor: '#f8fafc', borderRadius: '28px', padding: '40px', textAlign: 'center', border: '1.5px solid #0B1E3F', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ backgroundColor: '#f1f5f9', borderRadius: '28px', padding: '40px', textAlign: 'center', border: '1px solid #e2e8f0', width: '100%', boxSizing: 'border-box', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
                   <div style={{ fontSize: '16px', fontWeight: '800', color: '#64748b' }}>No active assignments found.</div>
                 </div>
               )}
@@ -809,7 +809,7 @@ const Dashboard = ({ setActiveTab }) => {
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '24px' }}>
                 <div
                 onClick={() => navigate('/focus-logs')}
-                style={{ padding: '24px', backgroundColor: '#f0fdf4', borderRadius: '24px', border: '1.5px solid #0B1E3F', cursor: 'pointer' }}
+                style={{ padding: '24px', backgroundColor: '#ecfdf5', borderRadius: '24px', border: '1px solid #d1fae5', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}
               >
                 <div style={s.focusHeader}><div style={s.focusTitle}><CheckCircle2 size={24} /> Yesterday</div></div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -820,7 +820,7 @@ const Dashboard = ({ setActiveTab }) => {
                 <div style={{ ...s.statusBadge, marginTop: '15px' }}>{yesterdayStatus}</div>
               </div>
 
-              <div style={{ padding: '24px', backgroundColor: 'white', border: '1.5px solid #0B1E3F', borderRadius: '24px' }}>
+              <div style={{ padding: '24px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
                 <div style={s.focusHeader}>
                   <div style={{ ...s.focusTitle, display: 'flex', alignItems: 'center', gap: '12px' }}><TrendingUp size={24} /> Today</div>
                   <button style={s.editBtn} onClick={(e) => { e.stopPropagation(); isEditingToday ? handleSave() : setIsEditingToday(true); }}>{isEditingToday ? "Save" : "Edit"}</button>
@@ -959,8 +959,20 @@ const Dashboard = ({ setActiveTab }) => {
                         key={i}
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
+                        whileHover={{ scale: 1.05, x: 5 }}
                         transition={{ delay: i * 0.1 }}
-                        style={{ padding: '20px', backgroundColor: '#fcfdfe', borderRadius: '25px', border: '1.5px solid #0B1E3F', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}
+                        style={{ 
+                          padding: '20px', 
+                          backgroundColor: '#f8fafc', 
+                          borderRadius: '8px', 
+                          borderLeft: '5px solid #3B5998', 
+                          border: '1px solid #eef2f6',
+                          borderLeftStyle: 'solid',
+                          borderLeftWidth: '6px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                          marginBottom: '10px',
+                          cursor: 'pointer'
+                        }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1044,7 +1056,7 @@ const Dashboard = ({ setActiveTab }) => {
                   const daysUntil = Math.ceil((thisYearBday - today) / (1000 * 60 * 60 * 24));
                   const isToday = daysUntil === 0;
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '18px', backgroundColor: isToday ? '#fdf2f8' : '#f8fafc', border: `1.5px solid ${isToday ? '#ec4899' : '#0B1E3F'}` }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '18px', backgroundColor: isToday ? '#fdf2f8' : '#f8fafc', border: `1px solid ${isToday ? '#ec4899' : '#e2e8f0'}` }}>
                       <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: isToday ? '#ec4899' : '#e2e8f0', color: isToday ? 'white' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '900', flexShrink: 0 }}>
                         {(b.employee_name || b.name || '?').charAt(0).toUpperCase()}
                       </div>
@@ -1088,7 +1100,7 @@ const Dashboard = ({ setActiveTab }) => {
                   const today = new Date();
                   const isPast = hDate < today;
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '18px', backgroundColor: isPast ? '#f8fafc' : '#eff6ff', border: `1.5px solid ${isPast ? '#cbd5e1' : '#0B1E3F'}`, opacity: isPast ? 0.6 : 1 }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '18px', backgroundColor: isPast ? '#f8fafc' : '#eff6ff', border: `1px solid ${isPast ? '#cbd5e1' : '#e2e8f0'}`, opacity: isPast ? 0.6 : 1 }}>
                       <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: isPast ? '#e2e8f0' : '#3B5998', color: 'white', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <div style={{ fontSize: '9px', fontWeight: '900', textTransform: 'uppercase' }}>{hDate.toLocaleDateString('en-US', { month: 'short' })}</div>
                         <div style={{ fontSize: '14px', fontWeight: '900', lineHeight: 1 }}>{hDate.getDate()}</div>
@@ -1140,7 +1152,7 @@ const Dashboard = ({ setActiveTab }) => {
                   });
 
                   return unique.slice(0, 3).map((sug, i) => (
-                    <div key={i} style={{ padding: '14px 18px', borderRadius: '18px', backgroundColor: '#fffbeb', border: '1.5px solid #0B1E3F', position: 'relative' }}>
+                    <div key={i} style={{ padding: '14px 18px', borderRadius: '18px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', position: 'relative' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
                         <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{sug.employee_name || 'Anonymous'}</div>
                         {sug.created_at && (
