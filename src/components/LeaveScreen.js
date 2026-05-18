@@ -1173,7 +1173,7 @@ const LeaveScreen = ({ onBack }) => {
               onClick={e => e.stopPropagation()}
             >
               <h2 style={{ margin: winWidth < 480 ? '0 0 15px 0' : '0 0 25px 0', fontSize: winWidth < 480 ? '20px' : '24px', fontWeight: '1000', color: '#0B1E3F' }}>Request Time Off</h2>
-              <form onSubmit={handleSubmitRequest}>
+              <form onSubmit={handleSubmitRequest} style={{ marginTop: '20px' }}>
                 <div style={{ marginBottom: winWidth < 480 ? '12px' : '18px' }}>
                   <label style={{ fontSize: winWidth < 480 ? '11px' : '13px', fontWeight: '900', color: '#64748b', marginBottom: '8px', display: 'block' }}>LEAVE TYPE</label>
                   <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })} style={{ width: '100%', padding: winWidth < 480 ? '10px 12px' : '14px 16px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: winWidth < 480 ? '14px' : '15px', fontWeight: '700' }}>

@@ -328,8 +328,8 @@ export default function ThreadScreen() {
         <div style={styles.container}>
             {/* CREATE THREAD */}
             <div style={{ ...styles.card, borderTop: '5px solid #FDB913' }}>
-                <input style={styles.tagInput} placeholder="Add a tagline..." value={tagline} onChange={e => setTagline(e.target.value)} />
-                <textarea style={styles.mainInput} placeholder="Share an update with the team..." value={newPost} onChange={e => setNewPost(e.target.value)} />
+                <input id="thread-tagline-input" style={styles.tagInput} placeholder="Add a tagline..." value={tagline} onChange={e => setTagline(e.target.value)} />
+                <textarea id="thread-content-input" style={styles.mainInput} placeholder="Share an update with the team..." value={newPost} onChange={e => setNewPost(e.target.value)} />
 
                 <input type="file" ref={fileInputRef} onChange={handleFileSelect} hidden accept="image/*,video/*" />
                 
@@ -441,6 +441,7 @@ export default function ThreadScreen() {
                             {isEditing ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                     <textarea 
+                                        id={`thread-edit-content-input-${post.id}`}
                                         style={{ ...styles.mainInput, minHeight: '80px', padding: '15px' }}
                                         value={editContent}
                                         onChange={(e) => setEditContent(e.target.value)}
@@ -627,6 +628,7 @@ export default function ThreadScreen() {
                             <div style={{ marginTop: '20px', padding: '20px', backgroundColor: '#f8fafc', borderRadius: '25px' }}>
                                 <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                                     <input 
+                                        id={`thread-comment-input-${post.id}`}
                                         style={{ flex: 1, padding: '12px 18px', borderRadius: '12px', border: '1.5px solid #eef2f6', fontSize: '14px', outline: 'none' }} 
                                         placeholder="Add a comment..." 
                                         value={commentText} 
@@ -634,6 +636,7 @@ export default function ThreadScreen() {
                                         onKeyDown={e => e.key === 'Enter' && handleAddComment(post.id)} 
                                     />
                                     <button 
+                                        id={`thread-comment-post-btn-${post.id}`}
                                         style={{ padding: '0 20px', background: '#315A9E', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '900', cursor: 'pointer' }} 
                                         onClick={() => handleAddComment(post.id)}
                                     >
