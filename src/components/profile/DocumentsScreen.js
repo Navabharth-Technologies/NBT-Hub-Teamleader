@@ -524,7 +524,13 @@ export default function DocumentsScreen({ onBack }) {
     } else if (numericFields.includes(key)) {
       if (/[^0-9]/.test(value)) error = 'Digits only';
       else {
-        if ((key === 'contact_no' || key === 'emergency_contact_no') && value.length !== 10) error = 'Must be exactly 10 digits';
+        if (key === 'contact_no' || key === 'emergency_contact_no') {
+          if (!/^[6-9]/.test(value)) {
+            error = 'Contact number must start only with 6, 7, 8, or 9';
+          } else if (value.length !== 10) {
+            error = 'Must be exactly 10 digits';
+          }
+        }
         if (key === 'aadhar_number' && value.length !== 12) error = 'Must be exactly 12 digits';
         if (key === 'age' && (Number(value) < 18 || Number(value) > 100)) error = 'Invalid age range (18-100)';
       }
@@ -582,6 +588,9 @@ export default function DocumentsScreen({ onBack }) {
     } else if (numericFields.includes(key)) {
       // Remove all non-digits
       cleanValue = value.replace(/\D/g, '');
+      if ((key === 'contact_no' || key === 'emergency_contact_no') && cleanValue.length > 0 && !/^[6-9]/.test(cleanValue)) {
+        return;
+      }
     } else if (percentageFields.includes(key)) {
       // Allow only numbers and one decimal point
       cleanValue = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
