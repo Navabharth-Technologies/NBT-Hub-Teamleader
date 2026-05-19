@@ -331,7 +331,10 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         setShowPasswordModal(false);
         setOtpRequested(false);
         setPassData({ old: '', new: '', confirm: '', otp: '' });
-        setShowLogoutModal(true);
+        setTimeout(() => {
+          logout();
+          window.location.href = '/login';
+        }, 1500);
       } else {
         const err = await res.json();
         triggerToast(err.message || 'Reset failed', 'error');
@@ -359,13 +362,10 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
       if (res.ok) {
         setShowPasswordModal(false);
         setPassData({ old: '', new: '', confirm: '', otp: '' });
-        setLogoutAllDevices(false);
-        if (logoutAllDevices) {
-          // Clear session and redirect — the user chose to log out everywhere
-          setTimeout(() => logout(), 1500);
-        } else {
-          setShowLogoutModal(true);
-        }
+        setTimeout(() => {
+          logout();
+          window.location.href = '/login';
+        }, 1500);
       } else {
         const err = await res.json();
         triggerToast(err.message || 'Verification failed', 'error');
