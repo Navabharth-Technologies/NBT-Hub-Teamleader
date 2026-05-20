@@ -59,7 +59,7 @@ api.interceptors.response.use(
       sessionStorage.removeItem('user');
 
       // Redirect to login
-      window.location.href = '/';
+      window.location.href = './';
     }
 
     return Promise.reject(error);

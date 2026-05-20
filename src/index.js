@@ -7,7 +7,7 @@ import reportWebVitals from './reportWebVitals';
 import { AuthProvider } from './context/AuthContext';
 import { ThreadProvider } from './context/ThreadContext';
 
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 
 const originalFetch = window.fetch;
 let isRedirecting = false;
@@ -22,7 +22,7 @@ window.fetch = async (...args) => {
         isRedirecting = true;
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = `/?reason=${body.reason || 'token_expired'}`;
+        window.location.href = `./?reason=${body.reason || 'token_expired'}`;
       }
     } catch (e) {
       // JSON parse failed, ignore
@@ -34,9 +34,9 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <AuthProvider>
-      <BrowserRouter>
+      <HashRouter>
         <App />
-      </BrowserRouter>
+      </HashRouter>
     </AuthProvider>
   </React.StrictMode>
 );

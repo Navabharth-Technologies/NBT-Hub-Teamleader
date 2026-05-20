@@ -7,6 +7,47 @@ import { useAuth } from '../context/AuthContext';
 import { BASE_URL, API_ENDPOINTS } from '../config';
 import CartmanGif from '../assets/images/cartman_no.gif';
 
+const checkIfCorrect = (optObj, currentQ) => {
+  if (!currentQ || !currentQ.correct_answer || !optObj) return false;
+
+  const correct = String(currentQ.correct_answer).trim().toLowerCase();
+  const letter = String(optObj.letter).trim().toLowerCase();
+  const text = String(optObj.text).trim().toLowerCase();
+
+  // Case 1: Match by letter (e.g. 'a', 'option_a', 'option a', 'option-a')
+  if (
+    correct === letter ||
+    correct === `option_${letter}` ||
+    correct === `option ${letter}` ||
+    correct === `option-${letter}`
+  ) {
+    return true;
+  }
+
+  // Case 2: Match by text exactly
+  if (correct === text) {
+    return true;
+  }
+
+  // Case 3: Match by text containment (only for longer words to avoid false positive on single characters)
+  if (correct.length > 1 && (correct.includes(text) || text.includes(correct))) {
+    return true;
+  }
+
+  return false;
+};
+
+const formatCorrectAnswerText = (currentQ) => {
+  if (!currentQ || !currentQ.correct_answer) return 'Not available';
+  
+  const correctOpt = currentQ.options.find(opt => checkIfCorrect(opt, currentQ));
+  if (correctOpt) {
+    return `Option ${correctOpt.letter} - ${correctOpt.text}`;
+  }
+  
+  return String(currentQ.correct_answer).trim();
+};
+
 const FunQuizScreen = ({ onBack }) => {
   const { user } = useAuth();
 
@@ -59,8 +100,8 @@ const FunQuizScreen = ({ onBack }) => {
           has_answered: item.has_answered || false,
           already_answered: item.has_answered || false,
           previous_result: item.previous_result ? (item.previous_result === true || item.previous_result === 'correct' ? 'correct' : 'wrong') : null,
-          correct_answer: item.correct_answer || null,
-          user_selected_letter: item.user_selected_letter || item.user_answer || item.selected_option || null,
+          correct_answer: item.correct_answer || item.correct_option || item.correct || item.answer || item.correct_letter || item.correct_choice || item.option_correct || item.correctOption || item.correctAnswer || null,
+          user_selected_letter: item.user_selected_letter || item.user_answer || item.selected_option || item.user_selected || item.user_choice || item.selectedOption || item.userChoice || null,
           quiz_id: item.quiz_id || item.id || 1
         }));
         setQuestions(mapped);
@@ -128,34 +169,65 @@ const FunQuizScreen = ({ onBack }) => {
     const currentQ = questions[currentIdx];
     if (currentQ.has_answered) return;
 
-    // LOCAL ASSESSMENT (Checking correct answer locally as per user instruction)
-    const optObj = currentQ.options.find(o => o.letter === selectedOption);
-    const cleanCorrect = String(currentQ.correct_answer || '').trim().toLowerCase();
-    const cleanOpt = String(optObj?.text || '').trim().toLowerCase();
-    const isCorrect = cleanCorrect.includes(cleanOpt) || cleanOpt.includes(cleanCorrect);
-
-    setQuestions(prev => prev.map((q, i) => i === currentIdx ? {
-      ...q,
-      has_answered: true,
-      previous_result: isCorrect ? 'correct' : 'wrong',
-      user_selected_letter: selectedOption
-    } : q));
-
-    // Persist the answer choice to the database
     try {
       const token = localStorage.getItem('token');
-      await fetch(API_ENDPOINTS.QUIZ_ANSWER(currentQ.id), {
+      const res = await fetch(API_ENDPOINTS.QUIZ_ANSWER(currentQ.id), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token?.trim()}`
         },
-        body: JSON.stringify({ selected_option: selectedOption })
+        body: JSON.stringify({
+          selected_option: selectedOption,
+          selectedOption: selectedOption,
+          user_answer: selectedOption,
+          user_selected_letter: selectedOption,
+          answer: selectedOption
+        })
       });
+
+      let serverCorrect = null;
+      let serverIsCorrect = false;
+
+      if (res.ok) {
+        const resData = await res.json();
+        console.log("Submit Quiz Answer response:", resData);
+        serverCorrect = resData.correct_answer || resData.correct_option || resData.correct || resData.correctAnswer || resData.correctOption || resData.answer || resData.correct_letter || null;
+        serverIsCorrect = resData.is_correct === true || resData.success === true || resData.isCorrect === true || resData.status === 'correct';
+        
+        if (serverIsCorrect && !serverCorrect) {
+          serverCorrect = selectedOption;
+        }
+      }
+
+      if (!serverCorrect) {
+        const optObj = currentQ.options.find(o => o.letter === selectedOption);
+        const isCorrect = checkIfCorrect(optObj, currentQ);
+        serverIsCorrect = isCorrect;
+      }
+
+      setQuestions(prev => prev.map((q, i) => i === currentIdx ? {
+        ...q,
+        has_answered: true,
+        previous_result: serverIsCorrect ? 'correct' : 'wrong',
+        user_selected_letter: selectedOption,
+        correct_answer: serverCorrect || q.correct_answer
+      } : q));
+
       // Refresh scores to show progress in Hall of Fame immediately
       fetchScores();
     } catch (err) {
       console.error("Failed to log answer to database:", err);
+      
+      const optObj = currentQ.options.find(o => o.letter === selectedOption);
+      const isCorrect = checkIfCorrect(optObj, currentQ);
+      
+      setQuestions(prev => prev.map((q, i) => i === currentIdx ? {
+        ...q,
+        has_answered: true,
+        previous_result: isCorrect ? 'correct' : 'wrong',
+        user_selected_letter: selectedOption
+      } : q));
     }
   };
 
@@ -236,9 +308,7 @@ const FunQuizScreen = ({ onBack }) => {
     bottomSection: { backgroundColor: 'white', borderRadius: '24px', padding: isMobile ? '20px' : '30px', border: '1px solid #eef2f3' },
     option: (optObj, isAnswered) => {
       const isUserChoice = (optObj.letter === currentQ?.user_selected_letter || optObj.letter === selectedOption);
-      const cleanCorrect = String(currentQ?.correct_answer || '').trim().toLowerCase();
-      const cleanOpt = String(optObj.text || '').trim().toLowerCase();
-      const isActuallyCorrect = cleanOpt && cleanCorrect && (cleanCorrect.includes(cleanOpt) || cleanOpt.includes(cleanCorrect));
+      const isActuallyCorrect = checkIfCorrect(optObj, currentQ);
 
       let border = '1.5px solid #eef2f3';
       let bg = 'white';
@@ -562,7 +632,7 @@ const FunQuizScreen = ({ onBack }) => {
                           (() => {
                             const userPicked = currentQ.user_selected_letter || selectedOption;
                             const opt = currentQ.options.find(o => o.letter === userPicked);
-                            return `Incorrect. You selected: Option ${userPicked}${opt ? ' - ' + opt.text : ''}. The correct answer was: ${currentQ.correct_answer}`;
+                            return `Incorrect. You selected: Option ${userPicked || 'Unknown'}${opt ? ' - ' + opt.text : ''}. The correct answer was: ${formatCorrectAnswerText(currentQ)}`;
                           })()}
                       </span>
                     </div>

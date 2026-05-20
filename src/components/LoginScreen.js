@@ -10,6 +10,7 @@ export default function LoginScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -32,8 +33,16 @@ export default function LoginScreen() {
     e.preventDefault();
     setError('');
     setInfoMessage('');
+    setEmailError('');
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setEmailError('Please enter a valid email address.');
+      return;
+    }
+
     setLoading(true);
-    const res = await login(email, password);
+    const res = await login(email.trim(), password);
     if (res.success) {
       navigate('/');
     } else {
@@ -182,17 +191,21 @@ export default function LoginScreen() {
 
         <div style={s.inputGroup}>
           <label style={s.label}>Official Identity (Email) <span style={{ color: '#ef4444' }}>*</span></label>
-          <div style={s.inputWrapper}>
-            <Mail size={18} color="#94a3b8" />
+          <div style={{ ...s.inputWrapper, border: emailError ? '1.5px solid #ef4444' : '1.5px solid #f1f5f9' }}>
+            <Mail size={18} color={emailError ? "#ef4444" : "#94a3b8"} />
             <input
               style={s.input}
               type="email"
               placeholder="e.g. sahana@navshub.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (emailError) setEmailError('');
+              }}
               required
             />
           </div>
+          {emailError && <div style={{ color: '#ef4444', fontSize: '11px', fontWeight: '600', marginTop: '5px' }}>{emailError}</div>}
         </div>
 
         <div style={s.inputGroup}>
