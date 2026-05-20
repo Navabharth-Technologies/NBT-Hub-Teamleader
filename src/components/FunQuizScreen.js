@@ -87,23 +87,49 @@ const FunQuizScreen = ({ onBack }) => {
         const data = await res.json();
         const list = Array.isArray(data) ? data : (data.data || []);
 
-        const mapped = list.filter(i => i !== null).map(item => ({
-          id: item.id,
-          question: item.question,
-          options: [
-            { letter: 'A', text: item.option_a },
-            { letter: 'B', text: item.option_b },
-            { letter: 'C', text: item.option_c },
-            { letter: 'D', text: item.option_d }
-          ],
-          points_reward: item.points_reward,
-          has_answered: item.has_answered || false,
-          already_answered: item.has_answered || false,
-          previous_result: item.previous_result ? (item.previous_result === true || item.previous_result === 'correct' ? 'correct' : 'wrong') : null,
-          correct_answer: item.correct_answer || item.correct_option || item.correct || item.answer || item.correct_letter || item.correct_choice || item.option_correct || item.correctOption || item.correctAnswer || null,
-          user_selected_letter: item.user_selected_letter || item.user_answer || item.selected_option || item.user_selected || item.user_choice || item.selectedOption || item.userChoice || null,
-          quiz_id: item.quiz_id || item.id || 1
-        }));
+        const mapped = list.filter(i => i !== null).map(item => {
+          const userSelected = item.user_selected_letter || item.user_answer || item.selected_option || item.user_selected || item.user_choice || item.selectedOption || item.userChoice || null;
+          const correctAns = item.correct_answer || item.correct_option || item.correct || item.answer || item.correct_letter || item.correct_choice || item.option_correct || item.correctOption || item.correctAnswer || null;
+          const hasAnswered = item.has_answered || false;
+
+          let previousResult = null;
+          if (hasAnswered) {
+            if (userSelected && correctAns) {
+              const optObj = [
+                { letter: 'A', text: item.option_a },
+                { letter: 'B', text: item.option_b },
+                { letter: 'C', text: item.option_c },
+                { letter: 'D', text: item.option_d }
+              ].find(o => o.letter === String(userSelected).trim().toUpperCase());
+
+              if (optObj) {
+                previousResult = checkIfCorrect(optObj, { correct_answer: correctAns }) ? 'correct' : 'wrong';
+              } else {
+                previousResult = item.previous_result ? (item.previous_result === true || item.previous_result === 'correct' ? 'correct' : 'wrong') : 'wrong';
+              }
+            } else {
+              previousResult = item.previous_result ? (item.previous_result === true || item.previous_result === 'correct' ? 'correct' : 'wrong') : 'wrong';
+            }
+          }
+
+          return {
+            id: item.id,
+            question: item.question,
+            options: [
+              { letter: 'A', text: item.option_a },
+              { letter: 'B', text: item.option_b },
+              { letter: 'C', text: item.option_c },
+              { letter: 'D', text: item.option_d }
+            ],
+            points_reward: item.points_reward,
+            has_answered: hasAnswered,
+            already_answered: hasAnswered,
+            previous_result: previousResult,
+            correct_answer: correctAns,
+            user_selected_letter: userSelected,
+            quiz_id: item.quiz_id || item.id || 1
+          };
+        });
         setQuestions(mapped);
       }
     } catch (err) {
