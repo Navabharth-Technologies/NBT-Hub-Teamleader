@@ -30,9 +30,10 @@ export default function CourseScreen() {
     const [courseProgressMap, setCourseProgressMap] = useState({});
 
     const currentCourseProgress = courseProgressMap[selectedCourse?.id] || { progress: 0, isPdfDone: false, isTestDone: false };
-    const isVideoDone = currentCourseProgress.progress >= 100;
-    const isPdfDone = currentCourseProgress.isPdfDone;
-    const isTestDone = currentCourseProgress.isTestDone;
+    const isActuallyComplete = currentCourseProgress.completed === 1 || currentCourseProgress.completed === true || selectedCourse?.completed === 1 || selectedCourse?.completed === true;
+    const isVideoDone = isActuallyComplete || currentCourseProgress.progress >= 100;
+    const isPdfDone = isActuallyComplete || currentCourseProgress.isPdfDone || currentCourseProgress.is_pdf_done || currentCourseProgress.pdf_done;
+    const isTestDone = isActuallyComplete || currentCourseProgress.isTestDone || currentCourseProgress.is_test_done || currentCourseProgress.test_done;
     const [currentView, setCurrentView] = useState(null); // 'video', 'pdf', 'test'
     const [showCertificate, setShowCertificate] = useState(false);
     const [showCard, setShowCard] = useState(false);
@@ -161,31 +162,76 @@ export default function CourseScreen() {
             const uid = user?.employee_id || user?.id;
             if (!uid) return;
 
-            const res = await fetch(`${API_ENDPOINTS.COURSE_PROGRESS}?userId=${uid}`, {
-                headers: { 'Authorization': `Bearer ${token?.trim()}` }
-            });
+            // Fetch from user_courses table (primary) and courses/progress (fallback)
+            const [ucRes, cpRes] = await Promise.all([
+                fetch(`${API_ENDPOINTS.USER_COURSES}?userId=${uid}`, {
+                    headers: { 'Authorization': `Bearer ${token?.trim()}` }
+                }).catch(() => null),
+                fetch(`${API_ENDPOINTS.COURSE_PROGRESS}?userId=${uid}`, {
+                    headers: { 'Authorization': `Bearer ${token?.trim()}` }
+                }).catch(() => null)
+            ]);
 
-            if (res.ok) {
-                const result = await res.json();
-                const map = {};
+            const map = {};
 
-                // Handle both { success: true, data: [...] } and direct array/object formats
-                const data = result.data || result;
-
-                if (Array.isArray(data)) {
-                    data.forEach(item => {
-                        const cid = item.courseId || item.course_id;
-                        if (cid) map[cid] = item;
+            // Parse user_courses data (has completion_date and verified)
+            if (ucRes && ucRes.ok) {
+                try {
+                    const ucResult = await ucRes.json();
+                    const ucData = ucResult.data || ucResult;
+                    const ucList = Array.isArray(ucData) ? ucData : (ucData && typeof ucData === 'object' ? Object.values(ucData) : []);
+                    ucList.forEach(item => {
+                        const cid = item.courseId || item.course_id || item.id;
+                        if (cid) {
+                            map[cid] = {
+                                ...map[cid],
+                                ...item,
+                                completion_date: item.completion_date || item.completed_at || item.completed_date || item.completionDate || null,
+                                verified: item.verified ?? item.is_verified ?? item.verified_status ?? null,
+                                verified_at: item.verified_at || item.verified_date || null
+                            };
+                        }
                     });
-                } else if (data && typeof data === 'object') {
-                    Object.keys(data).forEach(key => {
-                        map[key] = data[key];
-                    });
+                } catch (e) {
+                    console.warn('user_courses parse error:', e);
                 }
-
-                console.log("Synchronized Progress Map:", map);
-                setCourseProgressMap(map);
             }
+
+            // Parse course progress data (merge with existing)
+            if (cpRes && cpRes.ok) {
+                try {
+                    const cpResult = await cpRes.json();
+                    const cpData = cpResult.data || cpResult;
+                    if (Array.isArray(cpData)) {
+                        cpData.forEach(item => {
+                            const cid = item.courseId || item.course_id;
+                            if (cid) {
+                                map[cid] = {
+                                    ...item,
+                                    ...map[cid], // user_courses data takes priority
+                                    // Preserve completion_date and verified from user_courses
+                                    completion_date: map[cid]?.completion_date || item.completion_date || item.completed_at || item.completed_date || null,
+                                    verified: map[cid]?.verified ?? item.verified ?? item.is_verified ?? null
+                                };
+                            }
+                        });
+                    } else if (cpData && typeof cpData === 'object') {
+                        Object.keys(cpData).forEach(key => {
+                            map[key] = {
+                                ...cpData[key],
+                                ...map[key],
+                                completion_date: map[key]?.completion_date || cpData[key]?.completion_date || cpData[key]?.completed_at || null,
+                                verified: map[key]?.verified ?? cpData[key]?.verified ?? null
+                            };
+                        });
+                    }
+                } catch (e) {
+                    console.warn('course_progress parse error:', e);
+                }
+            }
+
+            console.log("Synchronized Progress Map (with user_courses):", map);
+            setCourseProgressMap(map);
         } catch (err) {
             console.error('Progress Synchronization Error:', err);
         }
@@ -557,7 +603,61 @@ export default function CourseScreen() {
                 )}
                 <div style={s.innerContainer}>
                     <button style={s.backBtn} onClick={handleBackToFleet}><ChevronLeft size={18} /> BACK TO KNOWLEDGE HUB</button>
-                    <h1 style={{ ...s.title, marginBottom: '40px' }}>{selectedCourse.title}</h1>
+                    <h1 style={{ ...s.title, marginBottom: '15px' }}>{selectedCourse.title}</h1>
+                    {/* Completion Date & Verified Status from backend user_courses table */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '30px', alignItems: 'center' }}>
+                        {(() => {
+                            const completionDate = currentCourseProgress.completion_date || currentCourseProgress.completed_at || currentCourseProgress.completed_date;
+                            const verifiedStatus = currentCourseProgress.verified ?? currentCourseProgress.is_verified;
+                            return (
+                                <>
+                                    {isActuallyComplete && completionDate && (
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', gap: '6px',
+                                            backgroundColor: '#dcfce7', color: '#15803d',
+                                            padding: '6px 14px', borderRadius: '20px',
+                                            fontSize: '12px', fontWeight: '800'
+                                        }}>
+                                            <Clock size={14} />
+                                            {(() => {
+                                                const d = new Date(completionDate);
+                                                return isNaN(d.getTime()) ? completionDate : `COMPLETED: ${d.getDate()} ${d.toLocaleString('default', { month: 'short' })} ${d.getFullYear()}`;
+                                            })()}
+                                        </div>
+                                    )}
+                                    {isActuallyComplete && !completionDate && (
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', gap: '6px',
+                                            backgroundColor: '#dcfce7', color: '#15803d',
+                                            padding: '6px 14px', borderRadius: '20px',
+                                            fontSize: '12px', fontWeight: '800'
+                                        }}>
+                                            <CheckCircle size={14} /> COMPLETED
+                                        </div>
+                                    )}
+                                    {verifiedStatus === 1 || verifiedStatus === true || verifiedStatus === 'verified' || verifiedStatus === 'Verified' ? (
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', gap: '6px',
+                                            backgroundColor: '#15803d', color: 'white',
+                                            padding: '6px 14px', borderRadius: '20px',
+                                            fontSize: '12px', fontWeight: '900'
+                                        }}>
+                                            <Check size={14} /> VERIFIED
+                                        </div>
+                                    ) : verifiedStatus === 0 || verifiedStatus === false || verifiedStatus === 'pending' || verifiedStatus === 'Pending' ? (
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', gap: '6px',
+                                            backgroundColor: '#fef3c7', color: '#b45309',
+                                            padding: '6px 14px', borderRadius: '20px',
+                                            fontSize: '12px', fontWeight: '800'
+                                        }}>
+                                            <Clock size={14} /> PENDING REVIEW
+                                        </div>
+                                    ) : null}
+                                </>
+                            );
+                        })()}
+                    </div>
                     <div style={{ ...s.taskRow, cursor: 'pointer' }} onClick={() => setCurrentView('video')}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                             <div style={{ padding: '15px', borderRadius: '15px', backgroundColor: '#eff6ff', color: '#3b82f6' }}><PlayCircle size={24} /></div>
@@ -566,8 +666,8 @@ export default function CourseScreen() {
                                 <div style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Comprehensive deep dive into core architectural patterns.</div>
                             </div>
                         </div>
-                        <button style={{ padding: '12px 24px', borderRadius: '14px', border: 'none', fontWeight: '900', fontSize: '11px', backgroundColor: (courseProgressMap[selectedCourse.id]?.progress >= 100) ? '#dcfce7' : '#0B1E3F', color: (courseProgressMap[selectedCourse.id]?.progress >= 100) ? '#16a34a' : 'white', cursor: 'pointer', width: winWidth < 768 ? '100%' : 'auto' }}>
-                            {(courseProgressMap[selectedCourse.id]?.progress >= 100) ? 'COMPLETED' : (courseProgressMap[selectedCourse.id]?.progress > 0) ? 'CONTINUE WATCHING' : 'START WATCHING'}
+                        <button style={{ padding: '12px 24px', borderRadius: '14px', border: 'none', fontWeight: '900', fontSize: '11px', backgroundColor: isVideoDone ? '#dcfce7' : '#0B1E3F', color: isVideoDone ? '#16a34a' : 'white', cursor: 'pointer', width: winWidth < 768 ? '100%' : 'auto' }}>
+                            {isVideoDone ? 'COMPLETED' : (currentCourseProgress.progress > 0) ? 'CONTINUE WATCHING' : 'START WATCHING'}
                         </button>
                     </div>
                     <div style={{ ...s.taskRow, cursor: 'pointer' }} onClick={() => {
@@ -596,9 +696,9 @@ export default function CourseScreen() {
                         </button>
                     </div>
                     <div
-                        style={{ ...s.taskRow, opacity: (courseProgressMap[selectedCourse.id]?.progress >= 100 && isPdfDone) ? 1 : 0.6, cursor: (courseProgressMap[selectedCourse.id]?.progress >= 100 && isPdfDone) ? 'pointer' : 'default' }}
+                        style={{ ...s.taskRow, opacity: (isVideoDone && isPdfDone) ? 1 : 0.6, cursor: (isVideoDone && isPdfDone) ? 'pointer' : 'default' }}
                         onClick={() => {
-                            if (courseProgressMap[selectedCourse.id]?.progress >= 100 && isPdfDone) {
+                            if (isVideoDone && isPdfDone) {
                                 if (isTestDone) {
                                     setShowCertificate(true);
                                     setShowCard(true);
@@ -608,7 +708,7 @@ export default function CourseScreen() {
                             }
                         }}
                     >
-                        {(courseProgressMap[selectedCourse.id]?.progress >= 100 && isPdfDone) ? (
+                        {(isVideoDone && isPdfDone) ? (
                             <button
                                 style={{ padding: '12px 24px', borderRadius: '14px', border: 'none', fontWeight: '900', fontSize: '11px', backgroundColor: '#f59e0b', color: 'white', cursor: 'pointer', width: winWidth < 768 ? '100%' : 'auto' }}
                                 onClick={async () => {
@@ -760,6 +860,8 @@ export default function CourseScreen() {
                         const progress = courseProgressMap[course.id]?.progress || 0;
                         const isActuallyComplete = courseProgressMap[course.id]?.completed === 1 ||
                             courseProgressMap[course.id]?.completed === true;
+                        const completionDate = courseProgressMap[course.id]?.completion_date || courseProgressMap[course.id]?.completed_at || courseProgressMap[course.id]?.completed_date;
+                        const verifiedStatus = courseProgressMap[course.id]?.verified ?? courseProgressMap[course.id]?.is_verified;
 
                         const imageUrl = formatUrl(course.image || course.image_url || course.thumbnail || course.course_image || course.image_path || course.pic);
                         const videoLink = formatUrl(course.video || course.video_url || course.video_link || course.link);
@@ -780,8 +882,48 @@ export default function CourseScreen() {
                                     )}
                                 </div>
                                 <div style={s.courseContent}>
-                                    <div style={s.levelBadge}>{course.level || 'Expert'}</div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px', alignItems: 'center' }}>
+                                        <div style={s.levelBadge}>{course.level || 'Expert'}</div>
+                                        {/* Completion Date Badge from backend user_courses table */}
+                                        {isActuallyComplete && completionDate && (
+                                            <div style={{
+                                                backgroundColor: '#dcfce7', color: '#15803d',
+                                                padding: '6px 12px', borderRadius: '12px',
+                                                fontSize: '10px', fontWeight: '800',
+                                                display: 'flex', alignItems: 'center', gap: '4px'
+                                            }}>
+                                                <Clock size={12} />
+                                                {(() => {
+                                                    const d = new Date(completionDate);
+                                                    return isNaN(d.getTime()) ? `COMPLETED: ${completionDate}` : `COMPLETED: ${d.getDate()} ${d.toLocaleString('default', { month: 'short' })}`;
+                                                })()}
+                                            </div>
+                                        )}
+                                    </div>
                                     <h2 style={s.courseTitle}>{course.title}</h2>
+                                    {/* Verified Badge from backend user_courses table */}
+                                    {(verifiedStatus === 1 || verifiedStatus === true || verifiedStatus === 'verified' || verifiedStatus === 'Verified') && (
+                                        <div style={{
+                                            display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                            backgroundColor: '#15803d', color: 'white',
+                                            padding: '4px 12px', borderRadius: '12px',
+                                            fontSize: '10px', fontWeight: '900',
+                                            marginBottom: '12px', alignSelf: 'flex-start'
+                                        }}>
+                                            <Check size={12} /> VERIFIED
+                                        </div>
+                                    )}
+                                    {(verifiedStatus === 0 || verifiedStatus === false || verifiedStatus === 'pending' || verifiedStatus === 'Pending') && isActuallyComplete && (
+                                        <div style={{
+                                            display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                            backgroundColor: '#fef3c7', color: '#b45309',
+                                            padding: '4px 12px', borderRadius: '12px',
+                                            fontSize: '10px', fontWeight: '800',
+                                            marginBottom: '12px', alignSelf: 'flex-start'
+                                        }}>
+                                            <Clock size={12} /> PENDING REVIEW
+                                        </div>
+                                    )}
                                     <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontWeight: '700' }}>
                                         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={16} /> {videoDurations[course.id] || course.duration || '2h 15m'}</span>
                                         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Star size={16} color="#f59e0b" fill="#f59e0b" /> {course.rating || '4.9'}</span>

@@ -39,12 +39,11 @@ const SECTIONS = [
       { key: 'father_husband_name', label: "Father/Husband's Name", type: 'text' },
       { key: 'category', label: 'Category', type: 'select', options: ['General', 'OBC', 'SC', 'ST', 'Other'] },
       { key: 'pan_number', label: 'PAN Number', type: 'text', placeholder: 'ABCDE1234F' },
-      { key: 'pancard_photo', label: 'PAN Card Proof', type: 'file', onlyImages: true },
       { key: 'aadhar_number', label: 'Aadhar Number', type: 'text', placeholder: '1234 5678 9012' },
+      { key: 'pancard_photo', label: 'PAN Card Proof', type: 'file', onlyImages: true },
       { key: 'adharcard_photo', label: 'Aadhar Card Proof', type: 'file', onlyImages: true },
       { key: 'voter_id', label: 'Voter ID Number', type: 'text' },
       { key: 'voter_id_photo', label: 'Voter ID Proof', type: 'file', onlyImages: true },
-      { key: 'passport_photo', label: 'Passport Photo', type: 'file', onlyImages: true },
     ]
   },
   {
@@ -189,6 +188,7 @@ export default function DocumentsScreen({ onBack }) {
   const [form, setForm] = useState({
     emp_name: '', gender: '', dob: '', age: '', religion: '', blood_group: '', marital_status: 'Single', nationality: 'Indian', father_husband_name: '', pan_number: '', aadhar_number: '', category: 'General',
     designation: '', department: '', process: '', supervisor_l1: '', supervisor_l2: '', doj: '', ft_pt: 'Full Time', status: 'Active', place: '', moved: '', official_email_id: '',
+    dailyGoal: '',
     contact_no: '', emergency_contact_no: '', personal_email_id: '', present_address: '', permanent_address: '', state: '',
     qualification: '', edu_completion_year: '', college: '', university: '', previous_organization: '', previous_experience: '', source: '', languages_known: '',
     separation: '', lwd: '', attrition_bucket: 'N/A', reason: '',
@@ -507,7 +507,7 @@ export default function DocumentsScreen({ onBack }) {
     let error = null;
 
     // REQUIRED FIELDS CHECK
-    const required = ['emp_name', 'dob', 'pan_number', 'aadhar_number', 'contact_no', 'designation', 'department', 'official_email_id'];
+    const required = ['emp_name', 'dob', 'pan_number', 'aadhar_number', 'contact_no', 'designation', 'department', 'official_email_id', 'dailyGoal', 'pancard_photo', 'adharcard_photo'];
     if (required.includes(key) && (!value || String(value).trim() === '')) {
       return `${key.replace(/_/g, ' ').toUpperCase()} is required`;
     }
@@ -1210,7 +1210,7 @@ export default function DocumentsScreen({ onBack }) {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '120px' }}>
                       <label style={{ fontSize: isMobile ? '11px' : '12px', fontWeight: '900', color: '#000000', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-                        {field.label} {['emp_name', 'dob', 'pan_number', 'aadhar_number', 'contact_no', 'designation', 'department', 'official_email_id'].includes(field.key) && <span style={{ color: '#ef4444' }}>*</span>}
+                        {field.label} {['emp_name', 'dob', 'pan_number', 'aadhar_number', 'contact_no', 'designation', 'department', 'official_email_id', 'dailyGoal', 'pancard_photo', 'adharcard_photo'].includes(field.key) && <span style={{ color: '#ef4444' }}>*</span>}
                       </label>
                       {isLockedForRole && <Shield size={10} color="#000000" />}
                     </div>
