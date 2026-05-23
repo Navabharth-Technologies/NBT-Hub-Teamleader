@@ -205,7 +205,7 @@ export default function TicketSection({ onClose }) {
                       onClick={() => setDepartment(d)}
                       style={{ 
                         padding: '10px 18px', borderRadius: '12px', border: department === d ? 'none' : '1.5px solid #f1f5f9',
-                        backgroundColor: department === d ? '#315A9E' : 'white', borderRadius: '12px',
+                        backgroundColor: department === d ? '#315A9E' : 'white',
                         color: department === d ? 'white' : '#64748b', fontSize: '12px', fontWeight: '900', cursor: 'pointer'
                       }}
                     >

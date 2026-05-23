@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { BASE_URL, API_ENDPOINTS } from '../config';
-import BackButton from '../components/BackButton';
+import BackButton from './BackButton'; // Clear dev-server compile cache
 
 const checkIfCorrect = (optObj, currentQ) => {
   if (!currentQ || !currentQ.correct_answer || !optObj) return false;
@@ -628,7 +628,7 @@ const FunQuizScreen = ({ onBack }) => {
 
       {!quizActive && (
         <div style={s.layout}>
-          {/* LEFT COLUMN: HERO + PAST QUIZZES */}
+            {/* LEFT COLUMN: HERO + PAST QUIZZES */}
           <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '25px' }}>
             {/* HERO SECTION */}
             <div style={{ ...s.hero, flex: 'none' }}>

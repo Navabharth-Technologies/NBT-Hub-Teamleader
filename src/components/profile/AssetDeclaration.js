@@ -229,7 +229,6 @@ export default function AssetDeclaration({ onBack, employeeId: propId }) {
       width: '100%',
       padding: isMobile ? '14px' : '20px',
       borderRadius: isMobile ? '15px' : '20px',
-      backgroundColor: '#0B1E3F',
       color: 'white',
       border: 'none',
       fontSize: isMobile ? '14px' : '16px',
