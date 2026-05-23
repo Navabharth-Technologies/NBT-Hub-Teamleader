@@ -8,7 +8,7 @@ import {
   ChevronRight, Calendar, Shield, LogOut,
   Users, FileText, Edit3, Fingerprint, Phone, Check, X,
   Eye, EyeOff, CheckCircle, LogIn, Camera,
-  User as UserIcon
+  User as UserIcon, Trophy
 } from 'lucide-react';
 
 import TicketSection from './TicketSection';
@@ -715,17 +715,6 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
             <div>
               <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Daily Goal</div>
               <div style={styles.infoValue}>{user?.dailyGoal || 'No goal set'}</div>
-            </div>
-          </motion.div>
-
-          {/* Role Info Card */}
-          <motion.div whileHover={{ scale: 1.05, y: -2 }} transition={{ type: 'spring', stiffness: 300 }} style={styles.infoCard}>
-            <div style={styles.iconCircle}>
-              <UserIcon size={18} color="#3863a8" />
-            </div>
-            <div>
-              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Role</div>
-              <div style={styles.infoValue}>{user?.role?.toUpperCase() || 'N/A'}</div>
             </div>
           </motion.div>
 

@@ -48,47 +48,6 @@ const formatCorrectAnswerText = (currentQ) => {
   return String(currentQ.correct_answer).trim();
 };
 
-const checkIfCorrect = (optObj, currentQ) => {
-  if (!currentQ || !currentQ.correct_answer || !optObj) return false;
-
-  const correct = String(currentQ.correct_answer).trim().toLowerCase();
-  const letter = String(optObj.letter).trim().toLowerCase();
-  const text = String(optObj.text).trim().toLowerCase();
-
-  // Case 1: Match by letter (e.g. 'a', 'option_a', 'option a', 'option-a')
-  if (
-    correct === letter ||
-    correct === `option_${letter}` ||
-    correct === `option ${letter}` ||
-    correct === `option-${letter}`
-  ) {
-    return true;
-  }
-
-  // Case 2: Match by text exactly
-  if (correct === text) {
-    return true;
-  }
-
-  // Case 3: Match by text containment (only for longer words to avoid false positive on single characters)
-  if (correct.length > 1 && (correct.includes(text) || text.includes(correct))) {
-    return true;
-  }
-
-  return false;
-};
-
-const formatCorrectAnswerText = (currentQ) => {
-  if (!currentQ || !currentQ.correct_answer) return 'Not available';
-  
-  const correctOpt = currentQ.options.find(opt => checkIfCorrect(opt, currentQ));
-  if (correctOpt) {
-    return `Option ${correctOpt.letter} - ${correctOpt.text}`;
-  }
-  
-  return String(currentQ.correct_answer).trim();
-};
-
 const FunQuizScreen = ({ onBack }) => {
   const { user } = useAuth();
 
