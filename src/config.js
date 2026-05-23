@@ -92,6 +92,7 @@ export const API_ENDPOINTS = {
   SUPPORT_AGENTS: `${BASE_URL}/api/support-agents`,
   COURSES: `${BASE_URL}/api/courses`,
   COURSE_PROGRESS: `${BASE_URL}/api/courses/progress`,
+  USER_COURSES: `${BASE_URL}/api/user-courses`,
   COURSE_COMPLETE: (id) => `${BASE_URL}/api/courses/${id}/complete`,
   TIMELINE: (managerId) => `${BASE_URL}/api/timeline?managerId=${cleanId(managerId)}`,
   ATTENDANCE_LOGS: (userId) => `${BASE_URL}/api/attendance_logs?userId=${cleanId(userId)}`,

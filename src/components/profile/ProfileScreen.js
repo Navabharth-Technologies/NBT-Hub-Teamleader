@@ -245,7 +245,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     // Trigger the profile fetch on mount
     fetchReportingManager();
 
-    if (user?.role === 'teamleader') fetchTeamReports();
+    if (['teamleader', 'manager', 'admin', 'lead'].includes(user?.role?.toLowerCase())) fetchTeamReports();
     return () => window.removeEventListener('resize', handleResize);
   }, [user, fetchReportingManager, fetchTeamReports]);
 
@@ -341,10 +341,14 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         body: JSON.stringify({ email: user.email, otp: passData.otp, newPassword: passData.new })
       });
       if (res.ok) {
+        triggerToast('Your password has been changed. Please relogin.');
         setShowPasswordModal(false);
         setOtpRequested(false);
         setPassData({ old: '', new: '', confirm: '', otp: '' });
-        setShowLogoutModal(true);
+        setTimeout(() => {
+          logout();
+          window.location.href = './';
+        }, 2500);
       } else {
         const err = await res.json();
         triggerToast(err.message || 'Reset failed', 'error');
@@ -370,15 +374,13 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         })
       });
       if (res.ok) {
+        triggerToast('Your password has been changed. Please relogin.');
         setShowPasswordModal(false);
         setPassData({ old: '', new: '', confirm: '', otp: '' });
-        setLogoutAllDevices(false);
-        if (logoutAllDevices) {
-          // Clear session and redirect — the user chose to log out everywhere
-          setTimeout(() => logout(), 1500);
-        } else {
-          setShowLogoutModal(true);
-        }
+        setTimeout(() => {
+          logout();
+          window.location.href = './';
+        }, 2500);
       } else {
         const err = await res.json();
         triggerToast(err.message || 'Verification failed', 'error');
@@ -691,6 +693,28 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
             <div>
               <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Reporting Manager</div>
               <div style={styles.infoValue}>{reportingManager.name || "Not Assigned"}</div>
+            </div>
+          </motion.div>
+          
+          {/* Role Info Card */}
+          <motion.div whileHover={{ scale: 1.05, y: -2 }} transition={{ type: 'spring', stiffness: 300 }} style={styles.infoCard}>
+            <div style={styles.iconCircle}>
+              <UserIcon size={18} color="#3863a8" />
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Role</div>
+              <div style={styles.infoValue}>{user?.role?.toUpperCase() || 'N/A'}</div>
+            </div>
+          </motion.div>
+
+          {/* Daily Goal Card */}
+          <motion.div whileHover={{ scale: 1.05, y: -2 }} transition={{ type: 'spring', stiffness: 300 }} style={styles.infoCard}>
+            <div style={styles.iconCircle}>
+              <Trophy size={18} color="#3863a8" />
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Daily Goal</div>
+              <div style={styles.infoValue}>{user?.dailyGoal || 'No goal set'}</div>
             </div>
           </motion.div>
 
