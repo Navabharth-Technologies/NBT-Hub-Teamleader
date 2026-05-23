@@ -301,7 +301,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     sessionStorage.clear();
-    window.location.href = '/';
+    window.location.hash = '/login';
   };
 
   const handleRequestOTP = async () => {
