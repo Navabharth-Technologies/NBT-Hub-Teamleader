@@ -55,6 +55,15 @@ const Dashboard = ({ setActiveTab }) => {
     if (!dateStr) return null;
     if (dateStr instanceof Date) return dateStr;
     if (typeof dateStr === 'string') {
+      const trimmed = dateStr.trim();
+      if (/^\d{2}[-/.]\d{2}[-/.]\d{4}$/.test(trimmed)) {
+        const parts = trimmed.split(/[-/.]/);
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+        const year = parseInt(parts[2], 10);
+        const manualDate = new Date(year, month, day);
+        if (!isNaN(manualDate.getTime())) return manualDate;
+      }
       // FORCE LOCAL TIME: Strip 'Z' and offset indicators (+05:30, -07:00, etc.)
       // This ensures the browser displays the exact string from the DB without timezone shifts.
       let s = dateStr.replace(/[Zz]$/, '').replace(/[\+\-]\d{2}:\d{2}$/, '');
@@ -92,8 +101,17 @@ const Dashboard = ({ setActiveTab }) => {
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
     const uid = user.id || user.userId || user.empId || user.employee_id;
-    if (!uid || String(uid) === '1') return;
+    if (!uid) return;
     setLoading(true);
+
+    const sanitizeTasks = (tasks) => {
+      return (Array.isArray(tasks) ? tasks : []).map((t, i) => {
+        if (t && typeof t === 'object') {
+          return { id: t.id || i, text: String(t.text || '') };
+        }
+        return { id: i, text: String(t || '') };
+      });
+    };
 
     try {
       const token = localStorage.getItem('token');
@@ -107,8 +125,8 @@ const Dashboard = ({ setActiveTab }) => {
       // 1. Fetch TL's own assigned tasks from PM
       const assignedResp = await fetch(API_ENDPOINTS.TASKS_ASSIGNED(uid), fetchOptions);
       if (assignedResp.ok) {
-        const list = await assignedResp.json();
-        const cleanList = (Array.isArray(list) ? list : (list.value || list.data || [])).filter(t => t && typeof t === 'object');
+        const listVal = await assignedResp.json();
+        const cleanList = (Array.isArray(listVal) ? listVal : ((listVal && (listVal.value || listVal.data)) || [])).filter(t => t && typeof t === 'object');
         setAssignedLeaderTasks(cleanList);
 
         // Pre-populate progress and status maps from backend data using functional updates to avoid dependency loops
@@ -141,39 +159,41 @@ const Dashboard = ({ setActiveTab }) => {
       // Fetch Leave Stats
       const statsResp = await fetch(API_ENDPOINTS.LEAVE_STATS_MY(), fetchOptions);
       if (statsResp.ok) {
-        const stats = await statsResp.json();
-        setLeaveStats(Array.isArray(stats) ? stats[0] : (stats.data || stats));
+        const statsVal = await statsResp.json();
+        setLeaveStats(Array.isArray(statsVal) ? statsVal[0] : ((statsVal && (statsVal.data || statsVal)) || { total: 0, approved: 0, pending: 0, rejected: 0, balance: 0 }));
       }
 
       // 2. Fetch TL's own daily goal logs (from task_updates table)
       const historyResp = await fetch(API_ENDPOINTS.TASK_UPDATES_USER(uid), fetchOptions);
       if (historyResp.ok) {
-        const raw = await historyResp.json();
+        const rawVal = await historyResp.json();
         const todayStr = new Date().toLocaleDateString('en-CA');
         const yesterdayStr = new Date(Date.now() - 86400000).toLocaleDateString('en-CA');
 
-        const list = (Array.isArray(raw) ? raw : (raw.value || raw.data || []))
+        const list = (Array.isArray(rawVal) ? rawVal : ((rawVal && (rawVal.value || rawVal.data)) || []))
           .map(r => {
-            // Handle JSON stringified tasks from backend
-            if (typeof r.tasks === 'string' && r.tasks.trim().startsWith('[')) {
-              try { r.tasks = JSON.parse(r.tasks); } catch (e) { r.tasks = []; }
+            if (r) {
+              // Handle JSON stringified tasks from backend
+              if (typeof r.tasks === 'string' && r.tasks.trim().startsWith('[')) {
+                try { r.tasks = JSON.parse(r.tasks); } catch (e) { r.tasks = []; }
+              }
             }
             return r;
           })
-          .filter(r => String(r.userId || r.employee_id || r.uid) === String(uid))
+          .filter(r => r && String(r.userId || r.employee_id || r.uid) === String(uid))
           .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         const todayRec = list.find(r => {
-          if (!r.timestamp) return false;
+          if (!r || !r.timestamp) return false;
           return new Date(r.timestamp).toLocaleDateString('en-CA') === todayStr;
         });
         const yesterdayRec = list.find(r => {
-          if (!r.timestamp) return false;
+          if (!r || !r.timestamp) return false;
           return new Date(r.timestamp).toLocaleDateString('en-CA') === yesterdayStr;
         });
 
         if (todayRec) {
-          setTodayTasks(Array.isArray(todayRec.tasks) ? todayRec.tasks : []);
+          setTodayTasks(sanitizeTasks(todayRec.tasks));
           setOverallStatus(todayRec.overallStatus || todayRec.overall_status || 'Pending');
         } else {
           setTodayTasks([{ id: Date.now(), text: '' }]);
@@ -181,7 +201,7 @@ const Dashboard = ({ setActiveTab }) => {
         }
 
         if (yesterdayRec) {
-          setYesterdayTasks(yesterdayRec.tasks || []);
+          setYesterdayTasks(sanitizeTasks(yesterdayRec.tasks));
           setYesterdayStatus(yesterdayRec.overallStatus);
           setYesterdayCompletion(yesterdayRec.overallStatus?.toLowerCase() === 'completed' ? 100 : 50);
         }
@@ -196,13 +216,13 @@ const Dashboard = ({ setActiveTab }) => {
       let membersList = [];
       if (teamResp.ok) {
         const members = await teamResp.json();
-        membersList = Array.isArray(members) ? members : (members.data || []);
+        membersList = Array.isArray(members) ? members : ((members && members.data) || []);
       }
 
       if (internsResp.ok) {
         const interns = await internsResp.json();
-        const internsList = (Array.isArray(interns) ? interns : (interns.data || []))
-          .filter(i => String(i.reporting_manager_id) === String(uid))
+        const internsList = (Array.isArray(interns) ? interns : ((interns && interns.data) || []))
+          .filter(i => i && String(i.reporting_manager_id) === String(uid))
           .map(i => ({
             ...i,
             id: i.id || i.intern_id,
@@ -217,7 +237,7 @@ const Dashboard = ({ setActiveTab }) => {
 
       const deadlines = {};
       membersList.forEach(m => {
-        if (m.deadline) deadlines[m.id || m.employee_id] = new Date(m.deadline);
+        if (m && m.deadline) deadlines[m.id || m.employee_id] = new Date(m.deadline);
       });
       setMemberDeadlines(deadlines);
 
@@ -225,10 +245,10 @@ const Dashboard = ({ setActiveTab }) => {
       const reportsResp = await fetch(API_ENDPOINTS.TEAM_REPORTS(uid), fetchOptions);
       if (reportsResp.ok) {
         const rData = await reportsResp.json();
-        const rList = (Array.isArray(rData) ? rData : (rData.value || rData.data || [])).filter(r => r && typeof r === 'object');
+        const rList = (Array.isArray(rData) ? rData : ((rData && (rData.value || rData.data)) || [])).filter(r => r && typeof r === 'object');
 
         // Filter to only show team members and sort by newest first
-        const memberIds = new Set(membersList.map(m => String(m.id || m.employee_id)));
+        const memberIds = new Set(membersList.filter(m => m).map(m => String(m.id || m.employee_id)));
         memberIds.add(String(uid)); // Include self in activity feed
         const filteredReports = rList
           .map(r => {
@@ -265,11 +285,11 @@ const Dashboard = ({ setActiveTab }) => {
         ]);
         if (qRes.ok && lbRes.ok) {
           const [qData, lbData] = await Promise.all([qRes.json(), lbRes.json()]);
-          const qList = Array.isArray(qData) ? qData : (qData.data || []);
-          const lbList = Array.isArray(lbData) ? lbData : (lbData.data || []);
+          const qList = Array.isArray(qData) ? qData : ((qData && qData.data) || []);
+          const lbList = Array.isArray(lbData) ? lbData : ((lbData && lbData.data) || []);
           
-          const myQ = qList.find(s => String(s.employee_id || s.user_id || s.id) === String(uid));
-          const myRankIdx = lbList.findIndex(s => String(s.employee_id || s.user_id || s.id) === String(uid));
+          const myQ = qList.find(s => s && String(s.employee_id || s.user_id || s.id) === String(uid));
+          const myRankIdx = lbList.findIndex(s => s && String(s.employee_id || s.user_id || s.id) === String(uid));
           
           setQuizStats({
             score: Number(myQ?.total_quiz_points || 0),
@@ -295,30 +315,38 @@ const Dashboard = ({ setActiveTab }) => {
         fetch(API_ENDPOINTS.COURSES, { headers }).catch(() => ({ ok: false })),
         fetch(API_ENDPOINTS.SUGGESTIONS, { headers }).catch(() => ({ ok: false }))
       ]);
-      if (bResp && bResp.ok) setBirthdaysList(await bResp.json());
+      if (bResp && bResp.ok) {
+        const bData = await bResp.json();
+        setBirthdaysList(Array.isArray(bData) ? bData : ((bData && bData.data) || []));
+      }
       if (hResp && hResp.ok) {
         const hData = await hResp.json();
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const upcoming = (Array.isArray(hData) ? hData : [])
-          .filter(h => new Date(h.date || h.holiday_date) >= today)
-          .sort((a, b) => new Date(a.date || a.holiday_date) - new Date(b.date || b.holiday_date));
+          .filter(h => h && new Date(h.date || h.holiday_date) >= today)
+          .sort((a, b) => new Date(a?.date || a?.holiday_date) - new Date(b?.date || b?.holiday_date));
         setHolidays(upcoming);
       }
       if (cResp && cResp.ok) {
-        const catalog = await cResp.json();
+        const cData = await cResp.json();
+        const catalog = Array.isArray(cData) ? cData : ((cData && cData.data) || []);
         const uid = user?.id || user?.userId || user?.empId || user?.employee_id;
         const savedProgress = localStorage.getItem(`courseProgressRecords_${uid}`);
         if (savedProgress) {
-          const map = JSON.parse(savedProgress);
-          const inProgress = catalog.filter(c => (map[c.id]?.progress || 0) > 0 && map[c.id].progress < 100)
-            .map(c => ({ ...c, currentProgress: map[c.id].progress }));
-          setActiveCourses(inProgress);
+          try {
+            const map = JSON.parse(savedProgress) || {};
+            const inProgress = catalog.filter(c => c && map[c.id] && (map[c.id]?.progress || 0) > 0 && map[c.id].progress < 100)
+              .map(c => ({ ...c, currentProgress: map[c.id].progress }));
+            setActiveCourses(inProgress);
+          } catch (e) {
+            console.error(e);
+          }
         }
       }
       if (sResp && sResp.ok) {
         const sData = await sResp.json();
-        setSuggestions(Array.isArray(sData) ? sData : (sData.data || []));
+        setSuggestions(Array.isArray(sData) ? sData : ((sData && sData.data) || []));
       }
     } catch { }
   }, [user]);
@@ -398,7 +426,7 @@ const Dashboard = ({ setActiveTab }) => {
         employee_id: user.employee_id || user.id,
         userName: user.name,
         employee_name: user.name,
-        tasks: todayTasks.filter(t => t.text.trim()),
+        tasks: (Array.isArray(todayTasks) ? todayTasks : []).filter(t => t && typeof t.text === 'string' && t.text.trim()),
         overallStatus: overallStatus,
         overall_status: overallStatus,
         timestamp: new Date().toISOString()
@@ -416,8 +444,15 @@ const Dashboard = ({ setActiveTab }) => {
         setIsEditingToday(false);
         // fetch it by backend and show only backend fetch dont add any other additional things
         await fetchDashboardData();
+      } else {
+        const errText = await resp.text();
+        console.error("[TASK SAVE ERROR] Server responded with:", errText);
+        alert("Failed to save tasks: " + errText);
       }
-    } catch (err) { }
+    } catch (err) {
+      console.error("[TASK SAVE EXCEPTION] Network or runtime error:", err);
+      alert("Failed to save tasks due to network or application error: " + err.message);
+    }
   };
 
   const handleSprintStatusClick = async (projName, st, taskId) => {
@@ -622,9 +657,16 @@ const Dashboard = ({ setActiveTab }) => {
                       const pProg = sprintProgressMap[pName] || task.progress || 0;
 
                       const dDate = (td.deadline || task.deadline) ? new Date(td.deadline || task.deadline) : null;
+                      if (dDate) {
+                        dDate.setHours(0, 0, 0, 0);
+                      }
                       const today = new Date();
                       today.setHours(0, 0, 0, 0);
-                      const isDeadlineReached = dDate ? dDate < today : false;
+                      const diffTime = dDate ? dDate.getTime() - today.getTime() : null;
+                      const diffDays = diffTime !== null ? Math.round(diffTime / (1000 * 60 * 60 * 24)) : null;
+                      const isDeadlineReached = diffDays !== null ? diffDays < 0 : false;
+                      const isSameDay = diffDays === 0;
+                      const isNear = diffDays > 0 && diffDays <= 2;
 
                       const verifyStatusRaw = td.verify || task.verify || '';
                       const reviewText = td.task_review || task.task_review || td.verify_description || task.verify_description || '';
@@ -654,9 +696,17 @@ const Dashboard = ({ setActiveTab }) => {
                                   const dateVal = td.deadline || task.deadline;
                                   const formatDateExact = (dVal) => {
                                     if (!dVal) return 'N/A';
-                                    let d = new Date(dVal);
+                                    const str = String(dVal).trim();
+                                    let d;
+                                    // Pure date string "YYYY-MM-DD" — parse as local time to avoid UTC-to-local shift
+                                    const pureDateMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:T00:00:00(?:\.0+)?Z?)?$/);
+                                    if (pureDateMatch) {
+                                      d = new Date(parseInt(pureDateMatch[1]), parseInt(pureDateMatch[2]) - 1, parseInt(pureDateMatch[3]));
+                                    } else {
+                                      d = new Date(str);
+                                    }
                                     if (isNaN(d.getTime())) {
-                                      const parts = String(dVal).split(/[-/ T:]/);
+                                      const parts = str.split(/[-/ T:]/);
                                       if (parts.length >= 3) {
                                         if (parts[0].length === 4) d = new Date(parts[0], parseInt(parts[1]) - 1, parts[2]);
                                         else if (parts[2].length === 4) d = new Date(parts[2], parseInt(parts[1]) - 1, parts[0]);
@@ -691,6 +741,16 @@ const Dashboard = ({ setActiveTab }) => {
                                     dBg = '#fef2f2';
                                     dBorder = '#ef444433';
                                     dText = `${originalDeadline} | DEADLINE COMPLETED`;
+                                  } else if (isSameDay) {
+                                    dColor = '#c2410c'; // Dark orange
+                                    dBg = '#fff7ed'; // Light orange background
+                                    dBorder = '#ea580c44'; // Orange border
+                                    dText = `${originalDeadline} | TODAY IS LAST DAY TO COMPLETE`;
+                                  } else if (isNear) {
+                                    dColor = '#b45309';
+                                    dBg = '#fffbeb';
+                                    dBorder = '#b4530933';
+                                    dText = `${originalDeadline} | DEADLINE IS NEAR`;
                                   }
 
                                   return (
@@ -813,8 +873,8 @@ const Dashboard = ({ setActiveTab }) => {
               >
                 <div style={s.focusHeader}><div style={s.focusTitle}><CheckCircle2 size={24} /> Yesterday</div></div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {yesterdayTasks.length > 0 ? yesterdayTasks.map((t, i) => (
-                    <div key={i} style={{ fontSize: '13px', fontWeight: '700', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle2 size={14} /> {t.text}</div>
+                  {Array.isArray(yesterdayTasks) && yesterdayTasks.length > 0 ? yesterdayTasks.map((t, i) => (
+                    <div key={i} style={{ fontSize: '13px', fontWeight: '700', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle2 size={14} /> {t?.text}</div>
                   )) : <div style={{ color: '#64748b', fontSize: '13px' }}>No log found.</div>}
                 </div>
                 <div style={{ ...s.statusBadge, marginTop: '15px' }}>{yesterdayStatus}</div>
@@ -827,16 +887,25 @@ const Dashboard = ({ setActiveTab }) => {
                 </div>
                 {!isEditingToday ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {todayTasks.filter(t => t.text).map((t, i) => (
-                      <div key={i} style={{ padding: '12px 16px', backgroundColor: '#f8fafc', borderRadius: '12px', fontWeight: '600', color: '#1e293b', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}><CheckCircle2 size={14} color="#3B5998" /> {t.text}</div>
+                    {(Array.isArray(todayTasks) ? todayTasks : []).filter(t => t && t.text && t.text.trim()).map((t, i) => (
+                      <div key={i} style={{ padding: '12px 16px', backgroundColor: '#f8fafc', borderRadius: '12px', fontWeight: '600', color: '#1e293b', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}><CheckCircle2 size={14} color="#3B5998" /> {t?.text}</div>
                     ))}
+                    {(Array.isArray(todayTasks) ? todayTasks : []).filter(t => t && t.text && t.text.trim()).length === 0 && (
+                      <div style={{ padding: '12px 16px', backgroundColor: '#fff7ed', borderRadius: '12px', border: '1px solid #ffedd5', fontWeight: '700', color: '#c2410c', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <AlertCircle size={16} color="#c2410c" /> Update ur todays task
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {todayTasks.map((t, idx) => (
-                      <input key={idx} style={s.input} value={t.text} onChange={e => {
+                    {(Array.isArray(todayTasks) ? todayTasks : []).map((t, idx) => (
+                      <input key={idx} style={s.input} value={t?.text || ''} onChange={e => {
                         const nt = [...todayTasks];
-                        nt[idx].text = e.target.value;
+                        if (nt[idx] && typeof nt[idx] === 'object') {
+                          nt[idx] = { ...nt[idx], text: e.target.value };
+                        } else {
+                          nt[idx] = { id: Date.now(), text: e.target.value };
+                        }
                         setTodayTasks(nt);
                       }} placeholder="Daily goal..." />
                     ))}
@@ -922,7 +991,7 @@ const Dashboard = ({ setActiveTab }) => {
             <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div style={s.focusHeader}><div style={{ ...s.focusTitle, color: 'white' }}><Users size={24} color="white" /> Team Collaboration</div></div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', flex: 1, overflowY: 'auto', paddingRight: '10px' }}>
-                {teamMembers.map(m => (
+                {(Array.isArray(teamMembers) ? teamMembers : []).map(m => (
                   <div key={m?.id || Math.random()} onClick={() => m && navigate('/focus-logs', { state: { targetUser: m } })} style={{ cursor: 'pointer', padding: '12px 16px', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid rgba(255,255,255,0.08)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#fff', color: '#0B1E3F', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '12px' }}>{avatarInitial(m?.name)}</div>
@@ -1039,16 +1108,11 @@ const Dashboard = ({ setActiveTab }) => {
               )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {birthdaysList.length > 0 ? (
+              {Array.isArray(birthdaysList) && birthdaysList.length > 0 ? (
                 birthdaysList.slice(0, 2).map((b, i) => {
-                  let rawDob = b.date || b.date_of_birth || b.dob || b.birthday || '';
-                  if (typeof rawDob === 'string' && rawDob.includes('-')) {
-                    const parts = rawDob.split('-');
-                    if (parts.length === 3 && parts[0].length === 2 && (parts[2].length === 4 || parts[2].length === 2)) {
-                      rawDob = `${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`;
-                    }
-                  }
-                  const dob = new Date(rawDob);
+                  let rawDob = b?.date || b?.date_of_birth || b?.dob || b?.birthday || '';
+                  const dob = parseSafeDate(rawDob);
+                  if (!dob) return null;
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
                   const thisYearBday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
@@ -1058,10 +1122,10 @@ const Dashboard = ({ setActiveTab }) => {
                   return (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '18px', backgroundColor: isToday ? '#fdf2f8' : '#f8fafc', border: `1px solid ${isToday ? '#ec4899' : '#e2e8f0'}` }}>
                       <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: isToday ? '#ec4899' : '#e2e8f0', color: isToday ? 'white' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '900', flexShrink: 0 }}>
-                        {(b.employee_name || b.name || '?').charAt(0).toUpperCase()}
+                        {(b?.employee_name || b?.name || '?').charAt(0).toUpperCase()}
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{b.employee_name || b.name}</div>
+                        <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{b?.employee_name || b?.name}</div>
                         <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700' }}>
                           {`${dob.getFullYear()}/${String(dob.getMonth() + 1).padStart(2, '0')}/${String(dob.getDate()).padStart(2, '0')}`}
                         </div>
@@ -1084,7 +1148,7 @@ const Dashboard = ({ setActiveTab }) => {
               <div style={s.focusTitle}>
                 <Calendar size={24} color="#3B5998" /> Public Holidays
               </div>
-              {holidays.length > 2 && (
+              {Array.isArray(holidays) && holidays.length > 2 && (
                 <button
                   onClick={() => navigate('/holidays')}
                   style={{ background: 'none', border: '1.5px solid #e2e8f0', borderRadius: '12px', padding: '6px 14px', fontSize: '11px', fontWeight: '900', color: '#3B5998', cursor: 'pointer' }}
@@ -1094,9 +1158,10 @@ const Dashboard = ({ setActiveTab }) => {
               )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {holidays.length > 0 ? (
+              {Array.isArray(holidays) && holidays.length > 0 ? (
                 holidays.slice(0, 2).map((h, i) => {
-                  const hDate = new Date(h.date || h.holiday_date);
+                  const hDate = h ? new Date(h.date || h.holiday_date) : null;
+                  if (!hDate || isNaN(hDate.getTime())) return null;
                   const today = new Date();
                   const isPast = hDate < today;
                   return (
@@ -1106,7 +1171,7 @@ const Dashboard = ({ setActiveTab }) => {
                         <div style={{ fontSize: '14px', fontWeight: '900', lineHeight: 1 }}>{hDate.getDate()}</div>
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{h.holiday_name || h.name || h.title}</div>
+                        <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{h?.holiday_name || h?.name || h?.title}</div>
                         <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700' }}>
                           {hDate.toLocaleDateString('en-US', { weekday: 'long' })}
                         </div>
@@ -1126,7 +1191,7 @@ const Dashboard = ({ setActiveTab }) => {
           </div>
 
           {/* Saturday Suggestions */}
-          {suggestions.length > 0 && (
+          {Array.isArray(suggestions) && suggestions.length > 0 && (
             <div style={{ ...s.bigCard, width: isMobile ? '100%' : '100%' }}>
               <div style={s.focusHeader}>
                 <div style={s.focusTitle}>
@@ -1137,9 +1202,12 @@ const Dashboard = ({ setActiveTab }) => {
                 {(() => {
                   const unique = [];
                   const seen = new Set();
-                  const sorted = [...suggestions].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                  const sorted = [...(Array.isArray(suggestions) ? suggestions : [])]
+                    .filter(sug => sug)
+                    .sort((a, b) => new Date(b?.created_at) - new Date(a?.created_at));
                   
                   sorted.forEach(sug => {
+                    if (!sug) return;
                     const d = parseSafeDate(sug.created_at);
                     const dateKey = d ? d.toISOString().split('T')[0] : 'no-date';
                     const userKey = cleanId(sug.employee_id || sug.employee_name || 'anon');
@@ -1154,8 +1222,8 @@ const Dashboard = ({ setActiveTab }) => {
                   return unique.slice(0, 3).map((sug, i) => (
                     <div key={i} style={{ padding: '14px 18px', borderRadius: '18px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', position: 'relative' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{sug.employee_name || 'Anonymous'}</div>
-                        {sug.created_at && (
+                        <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{sug?.employee_name || 'Anonymous'}</div>
+                        {sug?.created_at && (
                           <div style={{ fontSize: '9px', fontWeight: '800', color: '#f59e0b', textTransform: 'uppercase', backgroundColor: '#fef3c7', padding: '2px 8px', borderRadius: '6px' }}>
                             {(() => {
                               const d = parseSafeDate(sug.created_at);
@@ -1165,8 +1233,8 @@ const Dashboard = ({ setActiveTab }) => {
                           </div>
                         )}
                       </div>
-                      {sug.requirement && <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}><strong>Req:</strong> {sug.requirement}</div>}
-                      {sug.suggestion && <div style={{ fontSize: '12px', color: '#475569' }}><strong>Suggestion:</strong> {sug.suggestion}</div>}
+                      {sug?.requirement && <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}><strong>Req:</strong> {sug.requirement}</div>}
+                      {sug?.suggestion && <div style={{ fontSize: '12px', color: '#475569' }}><strong>Suggestion:</strong> {sug.suggestion}</div>}
                     </div>
                   ));
                 })()}

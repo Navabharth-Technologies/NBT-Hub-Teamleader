@@ -42,39 +42,69 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
-    if (savedUser && token) {
-      const parsed = JSON.parse(savedUser);
-      setUser(parsed);
+    // Always ensure loading is cleared — even if an error occurs
+    let didSetLoading = false;
+    const safeSetLoadingFalse = () => {
+      if (!didSetLoading) {
+        didSetLoading = true;
+        setLoading(false);
+      }
+    };
 
-      // Fetch latest profile to ensure name/designation are up to date
-      fetch(`${API_ENDPOINTS.MY_EMPLOYEE_PROFILE}`, {
-        headers: { 'Authorization': `Bearer ${token?.trim()}` }
-      })
-      .then(async (res) => {
-        if (res.status === 401) {
-          logout();
-          return null;
+    try {
+      const savedUser = localStorage.getItem('user');
+      const token = localStorage.getItem('token');
+
+      if (savedUser && token) {
+        let parsed = null;
+        try {
+          parsed = JSON.parse(savedUser);
+        } catch (parseErr) {
+          // Stored user data is corrupted — clear it and show login
+          console.warn('[AUTH] Corrupted user data in localStorage, clearing.', parseErr);
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          safeSetLoadingFalse();
+          return;
         }
-        return res.json();
-      })
-      .then(data => {
-        if (data && !data.error) {
-          const profile = data.data || data;
-          const imgFields = ['profileImage', 'profile_image', 'profile_pic', 'profile_picture', 'avatar'];
-          const preservedImgs = {};
-          imgFields.forEach(f => {
-            if (parsed[f] && !profile[f]) preservedImgs[f] = parsed[f];
-          });
-          const updated = { ...parsed, ...profile, ...preservedImgs };
-          setUser(updated);
-          safeSaveUser(updated);
-        }
-      })
-      .catch(() => {});
+
+        setUser(parsed);
+
+        // Fetch latest profile to ensure name/designation are up to date
+        fetch(`${API_ENDPOINTS.MY_EMPLOYEE_PROFILE}`, {
+          headers: { 'Authorization': `Bearer ${token?.trim()}` }
+        })
+        .then(async (res) => {
+          if (res.status === 401) {
+            logout();
+            return null;
+          }
+          return res.json();
+        })
+        .then(data => {
+          if (data && !data.error) {
+            const profile = data.data || data;
+            const imgFields = ['profileImage', 'profile_image', 'profile_pic', 'profile_picture', 'avatar'];
+            const preservedImgs = {};
+            imgFields.forEach(f => {
+              if (parsed[f] && !profile[f]) preservedImgs[f] = parsed[f];
+            });
+            const updated = { ...parsed, ...profile, ...preservedImgs };
+            setUser(updated);
+            safeSaveUser(updated);
+          }
+        })
+        .catch(() => {});
+
+      } else {
+        // No stored session — go to login immediately
+      }
+    } catch (err) {
+      console.error('[AUTH] Unexpected error during session restore:', err);
+    } finally {
+      // Always unblock the app — never leave loading=true forever
+      safeSetLoadingFalse();
     }
-    setLoading(false);
   }, []);
 
   const login = async (email, password) => {
@@ -101,6 +131,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     setUser(null);
+    window.location.href = '/';
   };
 
   const updateProfile = async (field, value) => {

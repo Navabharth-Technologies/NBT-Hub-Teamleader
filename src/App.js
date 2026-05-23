@@ -66,7 +66,24 @@ function App() {
     '/resignation': 'RESIGNATION'
   };
 
-  const currentTab = pathToTab[location.pathname] || 'HOME';
+  // Profile sub-routes that should highlight PROFILE in the nav dock
+  const profileSubRoutes = [
+    '/service-certificate',
+    '/pay-slips',
+    '/documents',
+    '/resignation',
+    '/asset-declaration',
+  ];
+
+  const getCurrentTab = () => {
+    const exact = pathToTab[location.pathname];
+    if (exact) return exact;
+    // Check if the current path starts with any profile sub-route
+    if (profileSubRoutes.some(r => location.pathname.startsWith(r))) return 'PROFILE';
+    return 'HOME';
+  };
+
+  const currentTab = getCurrentTab();
 
   const handleTabChange = (tab) => {
     const tabToPath = {

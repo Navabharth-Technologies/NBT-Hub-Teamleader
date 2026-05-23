@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Calendar as CalendarIcon, ShieldCheck, Clock } from 'lucide-react';
+import { ArrowLeft, Calendar as CalendarIcon, ShieldCheck, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { API_ENDPOINTS } from '../config';
 
@@ -9,6 +9,7 @@ export default function HolidaysScreen() {
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [winWidth, setWinWidth] = useState(window.innerWidth);
+  const isMobile = winWidth < 768;
 
   useEffect(() => {
     fetchHolidays();
@@ -40,18 +41,18 @@ export default function HolidaysScreen() {
     container: { backgroundColor: '#f8fafc', minHeight: '100vh', padding: '40px', fontFamily: "'Inter', sans-serif" },
     main: { maxWidth: '100%', margin: '0' },
     backBtn: { 
-      border: 'none', 
-      background: 'white', 
-      padding: '12px 24px', 
-      borderRadius: '20px', 
-      display: 'flex', 
-      alignItems: 'center', 
-      gap: '10px', 
-      cursor: 'pointer', 
-      fontSize: '13px', 
-      fontWeight: '800', 
-      color: '#3B5998', 
-      boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
+      padding: isMobile ? '8px' : '12px',
+      borderRadius: '12px',
+      backgroundColor: 'white',
+      border: '1.5px solid #e2e8f0',
+      cursor: 'pointer',
+      flexShrink: 0,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+      outline: 'none',
+      width: 'fit-content',
       marginBottom: '30px',
       transition: 'all 0.2s ease'
     },
@@ -142,7 +143,7 @@ export default function HolidaysScreen() {
           onMouseEnter={e => e.currentTarget.style.transform = 'translateX(-5px)'}
           onMouseLeave={e => e.currentTarget.style.transform = 'translateX(0)'}
         >
-          <ChevronLeft size={18} strokeWidth={2.5} /> BACK TO DASHBOARD
+          <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
         </button>
 
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} style={s.headerCard}>

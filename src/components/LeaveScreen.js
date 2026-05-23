@@ -1152,7 +1152,7 @@ const LeaveScreen = ({ onBack }) => {
         {showForm && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(11, 30, 63, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1600, padding: '10px' }}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(11, 30, 63, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 1600, padding: '130px 10px 30px 10px' }}
             onClick={() => setShowForm(false)}
           >
             <motion.div
@@ -1165,15 +1165,13 @@ const LeaveScreen = ({ onBack }) => {
                 padding: winWidth < 480 ? '20px 16px' : (winWidth < 768 ? '24px' : '35px'), 
                 position: 'relative', 
                 boxShadow: '0 20px 50px rgba(0,0,0,0.2)', 
-                maxHeight: 'calc(100vh - 40px)', 
-                overflowY: 'auto', 
                 boxSizing: 'border-box' 
               }}
               className="leave-modal-content"
               onClick={e => e.stopPropagation()}
             >
-              <h2 style={{ margin: winWidth < 480 ? '0 0 15px 0' : '0 0 25px 0', fontSize: winWidth < 480 ? '20px' : '24px', fontWeight: '1000', color: '#0B1E3F' }}>Request Time Off</h2>
-              <form onSubmit={handleSubmitRequest} style={{ marginTop: '20px' }}>
+              <h2 style={{ margin: winWidth < 480 ? '10px 0 25px 0' : '15px 0 35px 0', fontSize: winWidth < 480 ? '20px' : '24px', fontWeight: '1000', color: '#0B1E3F' }}>Request Time Off</h2>
+              <form id="leave-request-form" onSubmit={handleSubmitRequest} style={{ marginTop: '30px', display: 'block' }}>
                 <div style={{ marginBottom: winWidth < 480 ? '12px' : '18px' }}>
                   <label style={{ fontSize: winWidth < 480 ? '11px' : '13px', fontWeight: '900', color: '#64748b', marginBottom: '8px', display: 'block' }}>LEAVE TYPE</label>
                   <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })} style={{ width: '100%', padding: winWidth < 480 ? '10px 12px' : '14px 16px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: winWidth < 480 ? '14px' : '15px', fontWeight: '700' }}>

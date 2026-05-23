@@ -39,12 +39,11 @@ const SECTIONS = [
       { key: 'father_husband_name', label: "Father/Husband's Name", type: 'text' },
       { key: 'category', label: 'Category', type: 'select', options: ['General', 'OBC', 'SC', 'ST', 'Other'] },
       { key: 'pan_number', label: 'PAN Number', type: 'text', placeholder: 'ABCDE1234F' },
-      { key: 'pancard_photo', label: 'PAN Card Proof', type: 'file', onlyImages: true },
       { key: 'aadhar_number', label: 'Aadhar Number', type: 'text', placeholder: '1234 5678 9012' },
+      { key: 'pancard_photo', label: 'PAN Card Proof', type: 'file', onlyImages: true },
       { key: 'adharcard_photo', label: 'Aadhar Card Proof', type: 'file', onlyImages: true },
       { key: 'voter_id', label: 'Voter ID Number', type: 'text' },
       { key: 'voter_id_photo', label: 'Voter ID Proof', type: 'file', onlyImages: true },
-      { key: 'passport_photo', label: 'Passport Photo', type: 'file', onlyImages: true },
     ]
   },
   {
@@ -173,7 +172,6 @@ const SECTIONS = [
       { key: 'total_experience', label: 'Total Experience (Years)', type: 'text' },
       { key: 'experience_letter_photo', label: 'Experience Letter', type: 'file' },
       { key: 'separation', label: 'Separation Date', type: 'text', placeholder: 'DD/MM/YYYY' },
-      { key: 'lwd', label: 'Last Working Day (LWD)', type: 'text' },
       { key: 'attrition_bucket', label: 'Attrition Bucket', type: 'select', options: ['N/A', 'Resignation', 'Performance', 'Behavioral', 'Medical'] },
       { key: 'reason', label: 'Primary Reason', type: 'text' },
       { type: 'header', label: 'Salary Proof' },
@@ -200,7 +198,7 @@ export default function DocumentsScreen({ onBack }) {
     sslc_percentage: '', puc_percentage: '', ug_pg_percentage: '', puc_markscard: '',
     total_experience: '',
     previous_company_payslip: '',
-    voter_id: '', voter_id_photo: '', passport_photo: '', passbook_photo: ''
+    voter_id: '', voter_id_photo: '', passbook_photo: ''
   });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -507,7 +505,7 @@ export default function DocumentsScreen({ onBack }) {
     let error = null;
 
     // REQUIRED FIELDS CHECK
-    const required = ['emp_name', 'dob', 'pan_number', 'aadhar_number', 'contact_no', 'designation', 'department', 'official_email_id'];
+    const required = ['emp_name', 'dob', 'pan_number', 'aadhar_number', 'contact_no', 'designation', 'department', 'official_email_id', 'personal_email_id', 'emergency_contact_no', 'present_address', 'pancard_photo', 'adharcard_photo', 'bank_name', 'bank_account_no', 'ifsc_code', 'bank_branch', 'passbook_photo', 'previous_organization', 'previous_experience', 'total_experience', 'experience_letter_photo', 'separation', 'attrition_bucket', 'reason', 'previous_company_payslip'];
     if (required.includes(key) && (!value || String(value).trim() === '')) {
       return `${key.replace(/_/g, ' ').toUpperCase()} is required`;
     }
@@ -524,7 +522,13 @@ export default function DocumentsScreen({ onBack }) {
     } else if (numericFields.includes(key)) {
       if (/[^0-9]/.test(value)) error = 'Digits only';
       else {
-        if ((key === 'contact_no' || key === 'emergency_contact_no') && value.length !== 10) error = 'Must be exactly 10 digits';
+        if (key === 'contact_no' || key === 'emergency_contact_no') {
+          if (!/^[6-9]/.test(value)) {
+            error = 'Contact number must start only with 6, 7, 8, or 9';
+          } else if (value.length !== 10) {
+            error = 'Must be exactly 10 digits';
+          }
+        }
         if (key === 'aadhar_number' && value.length !== 12) error = 'Must be exactly 12 digits';
         if (key === 'age' && (Number(value) < 18 || Number(value) > 100)) error = 'Invalid age range (18-100)';
       }
@@ -582,6 +586,9 @@ export default function DocumentsScreen({ onBack }) {
     } else if (numericFields.includes(key)) {
       // Remove all non-digits
       cleanValue = value.replace(/\D/g, '');
+      if ((key === 'contact_no' || key === 'emergency_contact_no') && cleanValue.length > 0 && !/^[6-9]/.test(cleanValue)) {
+        return;
+      }
     } else if (percentageFields.includes(key)) {
       // Allow only numbers and one decimal point
       cleanValue = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
@@ -1201,7 +1208,7 @@ export default function DocumentsScreen({ onBack }) {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '120px' }}>
                       <label style={{ fontSize: isMobile ? '11px' : '12px', fontWeight: '900', color: '#000000', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-                        {field.label} {['emp_name', 'dob', 'pan_number', 'aadhar_number', 'contact_no', 'designation', 'department', 'official_email_id'].includes(field.key) && <span style={{ color: '#ef4444' }}>*</span>}
+                        {field.label} {['emp_name', 'dob', 'pan_number', 'aadhar_number', 'contact_no', 'designation', 'department', 'official_email_id', 'personal_email_id', 'emergency_contact_no', 'present_address', 'pancard_photo', 'adharcard_photo', 'bank_name', 'bank_account_no', 'ifsc_code', 'bank_branch', 'passbook_photo', 'previous_organization', 'previous_experience', 'total_experience', 'experience_letter_photo', 'separation', 'attrition_bucket', 'reason', 'previous_company_payslip'].includes(field.key) && <span style={{ color: '#ef4444' }}>*</span>}
                       </label>
                       {isLockedForRole && <Shield size={10} color="#000000" />}
                     </div>
@@ -1267,7 +1274,7 @@ export default function DocumentsScreen({ onBack }) {
                         style={{
                           width: '100%', padding: '16px 20px', borderRadius: '16px', fontSize: isMobile ? '14px' : '16px',
                           fontWeight: '800', color: '#000000', backgroundColor: isDisabled ? '#f1f5f9' : '#f8fafc',
-                          border: errors[field.key] ? '2px solid #ef4444' : 'none',
+                          border: errors[field.key] ? '2px solid #ef4444' : (!isDisabled ? '2px solid #315A9E' : '2px solid #e2e8f0'),
                           outline: 'none', boxSizing: 'border-box', minHeight: '120px',
                           transition: 'all 0.2s', cursor: isDisabled ? 'default' : 'text', resize: 'vertical', fontFamily: 'inherit',
                           opacity: isDisabled ? 1 : 1
@@ -1402,7 +1409,7 @@ export default function DocumentsScreen({ onBack }) {
                         style={{
                           width: '100%', padding: '16px 20px', borderRadius: '16px', fontSize: isMobile ? '14px' : '16px',
                           fontWeight: '800', color: '#000000', backgroundColor: isDisabled ? '#f1f5f9' : '#f8fafc',
-                          border: errors[field.key] ? '2px solid #ef4444' : 'none',
+                          border: errors[field.key] ? '2px solid #ef4444' : (!isDisabled ? '2px solid #315A9E' : '2px solid #e2e8f0'),
                           outline: 'none', boxSizing: 'border-box', minHeight: '120px',
                           transition: 'all 0.2s', cursor: isDisabled ? 'default' : 'text', resize: 'vertical', fontFamily: 'inherit'
                         }}
@@ -1413,7 +1420,11 @@ export default function DocumentsScreen({ onBack }) {
                           type="text"
                           value={(() => {
                             let val = (form[field.key] && typeof form[field.key] === 'string' && form[field.key].includes('T') && form[field.key].length > 15) ? form[field.key].split('T')[0] : (form[field.key] || '');
-                            if (field.key === 'dob' && typeof val === 'string') {
+                            if (['dob', 'doj', 'separation', 'lwd'].includes(field.key) && typeof val === 'string') {
+                              if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(val)) {
+                                const parts = val.substring(0, 10).split(/[-/]/);
+                                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                              }
                               return val.replace(/-/g, '/');
                             }
                             return val;
@@ -1425,7 +1436,7 @@ export default function DocumentsScreen({ onBack }) {
                             width: '100%', padding: isMobile ? '12px' : '16px 20px',
                             borderRadius: isMobile ? '10px' : '16px', fontSize: isMobile ? '13px' : '16px',
                             fontWeight: '800', color: '#000000', backgroundColor: (isDisabled || field.key === 'age') ? '#f1f5f9' : '#f8fafc',
-                            border: errors[field.key] ? '2px solid #ef4444' : 'none',
+                            border: errors[field.key] ? '2px solid #ef4444' : (!isDisabled ? '2px solid #315A9E' : '2px solid #e2e8f0'),
                             outline: 'none', boxSizing: 'border-box',
                             transition: 'all 0.2s', cursor: (isDisabled || field.key === 'age') ? 'default' : 'text'
                           }}

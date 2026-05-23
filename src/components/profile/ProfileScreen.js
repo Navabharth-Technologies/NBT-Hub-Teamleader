@@ -7,7 +7,8 @@ import {
   RefreshCw, Briefcase, Mail,
   ChevronRight, Calendar, Shield, LogOut,
   Users, FileText, Edit3, Fingerprint, Phone, Check, X,
-  Eye, EyeOff, CheckCircle, LogIn, Camera
+  Eye, EyeOff, CheckCircle, LogIn, Camera,
+  User as UserIcon
 } from 'lucide-react';
 
 import TicketSection from './TicketSection';
@@ -35,6 +36,18 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
       const timestamp = Number(dateStr);
       const date = new Date(timestamp > 10000000000 ? timestamp : timestamp * 1000);
       if (!isNaN(date.getTime())) return date;
+    }
+
+    if (typeof dateStr === 'string') {
+      const trimmed = dateStr.trim();
+      if (/^\d{2}[-/.]\d{2}[-/.]\d{4}$/.test(trimmed)) {
+        const parts = trimmed.split(/[-/.]/);
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+        const year = parseInt(parts[2], 10);
+        const manualDate = new Date(year, month, day);
+        if (!isNaN(manualDate.getTime())) return manualDate;
+      }
     }
 
     let date = new Date(dateStr);
@@ -288,7 +301,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     sessionStorage.clear();
-    window.location.href = '/login';
+    window.location.href = '/';
   };
 
   const handleRequestOTP = async () => {
@@ -678,6 +691,17 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
             <div>
               <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Reporting Manager</div>
               <div style={styles.infoValue}>{reportingManager.name || "Not Assigned"}</div>
+            </div>
+          </motion.div>
+
+          {/* Role Info Card */}
+          <motion.div whileHover={{ scale: 1.05, y: -2 }} transition={{ type: 'spring', stiffness: 300 }} style={styles.infoCard}>
+            <div style={styles.iconCircle}>
+              <UserIcon size={18} color="#3863a8" />
+            </div>
+            <div>
+              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Role</div>
+              <div style={styles.infoValue}>{user?.role?.toUpperCase() || 'N/A'}</div>
             </div>
           </motion.div>
 

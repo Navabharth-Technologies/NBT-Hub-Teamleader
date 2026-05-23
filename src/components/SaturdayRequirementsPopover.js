@@ -10,7 +10,15 @@ const SaturdayRequirementsPopover = () => {
     const [feedback, setFeedback] = useState({ requirements: '', suggestions: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const userData = JSON.parse(localStorage.getItem('user') || '{}');
+    let userData = {};
+    try {
+        const stored = localStorage.getItem('user');
+        if (stored) {
+            userData = JSON.parse(stored) || {};
+        }
+    } catch (e) {
+        console.warn("Failed to parse user data in SaturdayRequirementsPopover:", e);
+    }
     const uid = cleanId(userData.employee_id || userData.userId || userData.id || 'unknown');
 
     const isSaturday = new Date().getDay() === 6; // 0=Sun, 6=Sat

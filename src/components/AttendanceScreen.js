@@ -102,7 +102,19 @@ const AttendanceScreen = ({ onBack }) => {
   const s = {
     container: { minHeight: '100vh', backgroundColor: '#f8fafc', padding: isMobile ? '15px' : '20px', paddingBottom: '100px' },
     header: { display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '25px' },
-    backBtn: { width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #e2e8f0', cursor: 'pointer' },
+    backBtn: {
+      padding: isMobile ? '8px' : '12px',
+      borderRadius: '12px',
+      backgroundColor: 'white',
+      border: '1.5px solid #e2e8f0',
+      cursor: 'pointer',
+      flexShrink: 0,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+      outline: 'none'
+    },
     clockCard: { backgroundColor: 'white', borderRadius: '32px', padding: isMobile ? '30px 15px' : '40px 20px', border: '1px solid #e2e8f0', textAlign: 'center', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.05)', marginBottom: '25px', position: 'relative', overflow: 'hidden' },
     timeText: { fontSize: isMobile ? '32px' : '48px', fontWeight: '1000', color: '#0B1E3F', margin: '15px 0 5px 0', letterSpacing: '-1px' },
     dateText: { fontSize: isMobile ? '13px' : '15px', fontWeight: '700', color: '#94a3b8', marginBottom: '30px' },
@@ -140,7 +152,9 @@ const AttendanceScreen = ({ onBack }) => {
   return (
     <div style={s.container}>
       <header style={s.header}>
-        <div style={s.backBtn} onClick={onBack}><ArrowLeft size={20} color="#64748b" /></div>
+        <button style={s.backBtn} onClick={onBack}>
+          <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
+        </button>
         <h1 style={{ fontSize: '24px', fontWeight: '1000', color: '#0B1E3F', margin: 0 }}>Attendance</h1>
       </header>
 

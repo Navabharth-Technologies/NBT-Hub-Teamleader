@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Cake, RefreshCcw, ChevronLeft } from 'lucide-react';
+import { Cake, RefreshCcw, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { API_ENDPOINTS } from '../config';
 
@@ -19,6 +19,28 @@ export default function BirthdaysScreen() {
   }, []);
 
   const isMobile = winWidth < 768;
+
+  const parseSafeDate = (dateStr) => {
+    if (!dateStr) return null;
+    if (dateStr instanceof Date) return dateStr;
+    if (typeof dateStr === 'string') {
+      const trimmed = dateStr.trim();
+      if (/^\d{2}[-/.]\d{2}[-/.]\d{4}$/.test(trimmed)) {
+        const parts = trimmed.split(/[-/.]/);
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+        const year = parseInt(parts[2], 10);
+        const manualDate = new Date(year, month, day);
+        if (!isNaN(manualDate.getTime())) return manualDate;
+      }
+      let s = dateStr.replace(/[Zz]$/, '').replace(/[\+\-]\d{2}:\d{2}$/, '');
+      if (!s.includes('T') && s.includes('-')) s = s.replace(' ', 'T');
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) return d;
+    }
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? null : d;
+  };
 
   const fetchBirthdays = async () => {
     try {
@@ -73,9 +95,22 @@ export default function BirthdaysScreen() {
       <div style={{ maxWidth: '100%', margin: '0 0 20px 0' }}>
         <button
           onClick={() => navigate(-1)}
-          style={{ width: 'fit-content', border: 'none', background: 'white', padding: '12px 20px', borderRadius: '15px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '900', color: '#0B1E3F', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}
+          style={{
+            padding: isMobile ? '8px' : '12px',
+            borderRadius: '12px',
+            backgroundColor: 'white',
+            border: '1.5px solid #e2e8f0',
+            cursor: 'pointer',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+            outline: 'none',
+            width: 'fit-content'
+          }}
         >
-          <ChevronLeft size={16} /> Back to Dashboard
+          <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
         </button>
       </div>
       <main style={s.main}>
@@ -97,7 +132,8 @@ export default function BirthdaysScreen() {
             .map(b => {
               const today = new Date();
               today.setHours(0, 0, 0, 0);
-              const rawDate = new Date(b.date || b.dob);
+              const rawDate = parseSafeDate(b.date || b.dob);
+              if (!rawDate) return null;
               const thisYearBDate = new Date(rawDate);
               thisYearBDate.setFullYear(today.getFullYear());
               thisYearBDate.setHours(0, 0, 0, 0);
@@ -108,6 +144,7 @@ export default function BirthdaysScreen() {
 
               return { ...b, rawDate, thisYearBDate, isToday, isUpcoming, isPassed };
             })
+            .filter(Boolean)
             .sort((a, b) => a.thisYearBDate.getMonth() - b.thisYearBDate.getMonth() || a.thisYearBDate.getDate() - b.thisYearBDate.getDate())
             .map((b, i) => {
               const formattedDate = `${String(b.rawDate.getDate()).padStart(2, '0')}/${String(b.rawDate.getMonth() + 1).padStart(2, '0')}/${b.rawDate.getFullYear()}`;

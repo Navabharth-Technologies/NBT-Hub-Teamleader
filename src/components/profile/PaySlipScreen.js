@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, Download, FileText, Calendar, DollarSign,
+  ChevronLeft, ArrowLeft, Download, FileText, Calendar, DollarSign,
   ArrowRight, Search, Filter, CheckCircle2, AlertCircle,
   Printer, Share2, MoreHorizontal, User, Briefcase, MapPin,
   Clock, Plus, Minus, Landmark, FileSpreadsheet
@@ -105,7 +105,20 @@ const PaySlipScreen = ({ onBack }) => {
   return (
     <div style={{ padding: isMobile ? '0 15px 40px 15px' : '0 40px 60px 40px', maxWidth: '100%', marginTop: '15px', fontFamily: "'Inter', sans-serif" }}>
       <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '12px' : '20px', marginBottom: '10px', flexDirection: isMobile ? 'column' : 'row' }}>
-        <button onClick={onBack} style={{ padding: '12px', borderRadius: '15px', backgroundColor: 'white', border: '1px solid #e2e8f0', cursor: 'pointer' }}><ChevronLeft size={24} color="#10274A" /></button>
+        <button onClick={onBack} style={{
+          padding: isMobile ? '8px' : '12px',
+          borderRadius: '12px',
+          backgroundColor: 'white',
+          border: '1.5px solid #e2e8f0',
+          cursor: 'pointer',
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+        }}>
+          <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
+        </button>
         <h1 style={{ fontSize: isMobile ? '24px' : '32px', fontWeight: '900', color: '#10274A', margin: 0 }}>Salary Statements</h1>
       </div>
 
@@ -206,6 +219,7 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
       csv += `Conveyance,${data.earnings.conveyance},PT,${data.deductions.pt}\n`;
       csv += `Special Allowance,${data.earnings.special},LWF,${data.deductions.lwf}\n`;
       csv += `,,Income Tax,${data.deductions.incomeTax}\n`;
+      csv += `,,Loss of Pay,${data.deductions.lop}\n`;
       csv += `Performance Incentive,${data.incentives.performance},,\n`;
       csv += `Yearly Incentive,${data.incentives.yearly},,\n\n`;
 
@@ -215,7 +229,7 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
       csv += "ATTENDANCE SUMMARY\n";
       csv += `Present,${data.attendance.present},Weekly Off,${data.attendance.wo}\n`;
       csv += `Holidays,${data.attendance.hl},Leaves,${data.attendance.leave}\n`;
-      csv += `Absent,${data.attendance.absent},OT Hours,${data.attendance.totalOT}\n`;
+      csv += `Loss of Pay,${data.attendance.absent},OT Hours,${data.attendance.totalOT}\n`;
 
       const encodedUri = encodeURI(csv);
       const link = document.createElement("a");
@@ -252,6 +266,7 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
     pt: d.pt_deduction || d.pt || 0,
     lwf: d.lwf || 0,
     incomeTax: d.income_tax || d.tax || 0,
+    lop: d.lop_deduction || d.lop || 0,
     total: d.total_deductions || 0
   };
 
@@ -276,7 +291,7 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
 
   const totalEarnings = data.earnings.total || (Number(data.earnings.basic) + Number(data.earnings.hra) + Number(data.earnings.conveyance) + Number(data.earnings.special));
   const totalIncentives = data.incentives.total || (Number(data.incentives.performance) + Number(data.incentives.yearly));
-  const totalDeductions = data.deductions.total || (Number(data.deductions.pf) + Number(data.deductions.esi) + Number(data.deductions.pt) + Number(data.deductions.lwf) + Number(data.deductions.incomeTax));
+  const totalDeductions = data.deductions.total || (Number(data.deductions.pf) + Number(data.deductions.esi) + Number(data.deductions.pt) + Number(data.deductions.lwf) + Number(data.deductions.incomeTax) + Number(data.deductions.lop));
   const netPayable = d.net_payable || (totalEarnings + totalIncentives - totalDeductions);
 
   const fmt = (v) => (Number(v) || 0).toLocaleString('en-IN');
@@ -343,7 +358,20 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
     <div style={s.docWrapper}>
       {/* Top Controls */}
       <div style={s.topNav}>
-        <button onClick={onBack} style={s.backBtn}><ChevronLeft size={16} /> Back to Profile</button>
+        <button onClick={onBack} style={{
+          padding: isMobile ? '8px' : '12px',
+          borderRadius: '12px',
+          backgroundColor: 'white',
+          border: '1.5px solid #e2e8f0',
+          cursor: 'pointer',
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+        }}>
+          <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
+        </button>
 
         {/* UNIFIED DOWNLOAD DROPDOWN */}
         <div style={{ position: 'relative' }} ref={dropdownRef}>
@@ -461,7 +489,7 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
               <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOT. LEAVE:-</span><span style={s.value}>{data.attendance.leave}</span></div></td>
             </tr>
             <tr>
-              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOTAL ABSENT</span><span style={s.value}>{data.attendance.absent}</span></div></td>
+              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>LOSS OF PAY</span><span style={s.value}>{data.attendance.absent}</span></div></td>
               <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOTAL WORK+OT</span><span style={s.value}>{data.attendance.totalWork}</span></div></td>
               <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOTAL OT</span><span style={s.value}>{data.attendance.totalOT}</span></div></td>
               <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>BS/REFERENCE AMT.</span><span style={s.value}>{data.attendance.refAmt}</span></div></td>
@@ -478,12 +506,14 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
             <div style={s.row}><span>Conveyance</span> <span>{fmt(data.earnings.conveyance)}</span></div>
             <div style={s.row}><span>Special Allowance</span> <span>{fmt(data.earnings.special)}</span></div>
             <div style={{ ...s.row, borderBottom: 'none' }}><span>&nbsp;</span><span>&nbsp;</span></div>
+            <div style={{ ...s.row, borderBottom: 'none' }}><span>&nbsp;</span><span>&nbsp;</span></div>
             <div style={s.rowTotal}><span>Total Earning</span> <span>{fmt(totalEarnings)}</span></div>
           </div>
           <div style={s.sideBlock}>
             <div style={s.sideHeader}>INCENTIVES</div>
             <div style={s.row}><span>Performance</span> <span>{fmt(data.incentives.performance)}</span></div>
             <div style={s.row}><span>Yearly Incentive</span> <span>{fmt(data.incentives.yearly)}</span></div>
+            <div style={{ ...s.row, borderBottom: 'none' }}><span>&nbsp;</span><span>&nbsp;</span></div>
             <div style={{ ...s.row, borderBottom: 'none' }}><span>&nbsp;</span><span>&nbsp;</span></div>
             <div style={{ ...s.row, borderBottom: 'none' }}><span>&nbsp;</span><span>&nbsp;</span></div>
             <div style={{ ...s.row, borderBottom: 'none' }}><span>&nbsp;</span><span>&nbsp;</span></div>
@@ -496,6 +526,7 @@ const PaySlipDetail = ({ slip, profile, onBack }) => {
             <div style={s.row}><span>PT</span> <span>{fmt(data.deductions.pt)}</span></div>
             <div style={s.row}><span>LWF</span> <span>{fmt(data.deductions.lwf)}</span></div>
             <div style={s.row}><span>Income Tax</span> <span>{fmt(data.deductions.incomeTax)}</span></div>
+            <div style={s.row}><span>Loss of Pay</span> <span>{fmt(data.deductions.lop)}</span></div>
             <div style={{ ...s.rowTotal, ...s.row }}><span>Total Deduct.</span> <span>{fmt(totalDeductions)}</span></div>
             <div style={{ ...s.rowTotal, background: 'none' }}><span>Net Payable</span> <span>{fmt(netPayable)}</span></div>
           </div>

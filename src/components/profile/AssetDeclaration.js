@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { 
-  ChevronLeft, Laptop, MousePointer2, Keyboard, Monitor, 
+  ArrowLeft, Laptop, MousePointer2, Keyboard, Monitor, 
   Hash, ShieldCheck, Save, AlertCircle, CheckCircle2, 
   Cpu, RotateCcw, Briefcase
 } from 'lucide-react';
@@ -131,15 +131,17 @@ export default function AssetDeclaration({ onBack, employeeId: propId }) {
       marginBottom: '40px'
     },
     backBtn: {
-      padding: '12px',
-      borderRadius: '16px',
+      padding: isMobile ? '8px' : '12px',
+      borderRadius: '12px',
       backgroundColor: 'white',
-      border: '1.5px solid #E2E8F0',
+      border: '1.5px solid #e2e8f0',
       cursor: 'pointer',
+      flexShrink: 0,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      color: '#0B1E3F'
+      boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+      outline: 'none'
     },
     title: {
       fontSize: isMobile ? '24px' : '32px',
@@ -269,10 +271,11 @@ export default function AssetDeclaration({ onBack, employeeId: propId }) {
       <div style={styles.header}>
         <motion.button 
           whileHover={{ x: -5 }}
+          whileTap={{ scale: 0.97 }}
           onClick={onBack} 
           style={styles.backBtn}
         >
-          <ChevronLeft size={24} />
+          <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
         </motion.button>
         <div>
           <h1 style={styles.title}>Asset Declaration</h1>

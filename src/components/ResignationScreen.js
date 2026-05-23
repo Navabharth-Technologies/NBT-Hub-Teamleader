@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Send, ChevronLeft, Users, RefreshCw, User, Info } from 'lucide-react';
+import { LogOut, Send, ChevronLeft, ArrowLeft, Users, RefreshCw, User, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { getTheme } from '../constants/Theme';
@@ -286,7 +286,20 @@ export default function ResignationScreen({ onBack }) {
     <div style={s.container}>
       <div style={s.main}>
         <div style={s.header}>
-          <button style={s.backBtn} onClick={onBack}><ChevronLeft size={20} /></button>
+          <button onClick={onBack} style={{
+            padding: isMobile ? '8px' : '12px',
+            borderRadius: '12px',
+            backgroundColor: 'white',
+            border: '1.5px solid #e2e8f0',
+            cursor: 'pointer',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+          }}>
+            <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
+          </button>
           <h1 style={s.title}>Exit Management</h1>
         </div>
 
@@ -440,9 +453,20 @@ export default function ResignationScreen({ onBack }) {
                 <div style={s.detailHeader}>
                   <button
                     onClick={() => setSelectedResignation(null)}
-                    style={{ ...s.backBtn, boxShadow: 'none' }}
+                    style={{
+                      padding: isMobile ? '8px' : '12px',
+                      borderRadius: '12px',
+                      backgroundColor: 'white',
+                      border: '1.5px solid #e2e8f0',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                    }}
                   >
-                    <ChevronLeft size={20} />
+                    <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
                   </button>
                   <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#0B1E3F', margin: 0 }}>Review Resignation</h2>
                 </div>

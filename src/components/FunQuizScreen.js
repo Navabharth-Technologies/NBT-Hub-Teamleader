@@ -1,11 +1,52 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Trophy, Zap, ArrowLeft, CheckCircle, Info, ChevronRight, Check as CheckIcon, X as XIcon, Loader2
+  Trophy, Zap, ArrowLeft, CheckCircle, ChevronRight, Check as CheckIcon, X as XIcon, Loader2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { BASE_URL, API_ENDPOINTS } from '../config';
-import CartmanGif from '../assets/images/cartman_no.gif';
+import BackButton from '../components/BackButton';
+
+const checkIfCorrect = (optObj, currentQ) => {
+  if (!currentQ || !currentQ.correct_answer || !optObj) return false;
+
+  const correct = String(currentQ.correct_answer).trim().toLowerCase();
+  const letter = String(optObj.letter).trim().toLowerCase();
+  const text = String(optObj.text).trim().toLowerCase();
+
+  // Case 1: Match by letter (e.g. 'a', 'option_a', 'option a', 'option-a')
+  if (
+    correct === letter ||
+    correct === `option_${letter}` ||
+    correct === `option ${letter}` ||
+    correct === `option-${letter}`
+  ) {
+    return true;
+  }
+
+  // Case 2: Match by text exactly
+  if (correct === text) {
+    return true;
+  }
+
+  // Case 3: Match by text containment (only for longer words to avoid false positive on single characters)
+  if (correct.length > 1 && (correct.includes(text) || text.includes(correct))) {
+    return true;
+  }
+
+  return false;
+};
+
+const formatCorrectAnswerText = (currentQ) => {
+  if (!currentQ || !currentQ.correct_answer) return 'Not available';
+
+  const correctOpt = currentQ.options.find(opt => checkIfCorrect(opt, currentQ));
+  if (correctOpt) {
+    return `Option ${correctOpt.letter} - ${correctOpt.text}`;
+  }
+
+  return String(currentQ.correct_answer).trim();
+};
 
 const FunQuizScreen = ({ onBack }) => {
   const { user } = useAuth();
@@ -39,30 +80,77 @@ const FunQuizScreen = ({ onBack }) => {
   const fetchQuestions = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${BASE_URL}/api/fun-quizzes`, {
-        headers: { 'Authorization': `Bearer ${token?.trim()}` }
-      });
+      const [res, compRes] = await Promise.all([
+        fetch(`${BASE_URL}/api/fun-quizzes`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
+        Promise.resolve({ ok: false }) // fetch(`${BASE_URL}/api/quizzes/my-completions`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }).catch(() => null)
+      ]);
+
       if (res.ok) {
         const data = await res.json();
         const list = Array.isArray(data) ? data : (data.data || []);
+        const storedAnswers = JSON.parse(localStorage.getItem('quiz_user_answers') || '{}');
 
-        const mapped = list.filter(i => i !== null).map(item => ({
-          id: item.id,
-          question: item.question,
-          options: [
-            { letter: 'A', text: item.option_a },
-            { letter: 'B', text: item.option_b },
-            { letter: 'C', text: item.option_c },
-            { letter: 'D', text: item.option_d }
-          ],
-          points_reward: item.points_reward,
-          has_answered: item.has_answered || false,
-          already_answered: item.has_answered || false,
-          previous_result: item.previous_result ? (item.previous_result === true || item.previous_result === 'correct' ? 'correct' : 'wrong') : null,
-          correct_answer: item.correct_answer || null,
-          user_selected_letter: item.user_selected_letter || item.user_answer || item.selected_option || null,
-          quiz_id: item.quiz_id || item.id || 1
-        }));
+        let completions = [];
+        if (compRes && compRes.ok) {
+          const compData = await compRes.json();
+          completions = Array.isArray(compData) ? compData : (compData.data || []);
+        }
+
+        const mapped = list.filter(i => i !== null).map(item => {
+          let userSelected = item.selected_ans || item.selected_answer || item.user_selected_letter || item.user_answer || item.selected_option || item.user_selected || item.user_choice || item.selectedOption || item.userChoice || null;
+
+          if (!userSelected && storedAnswers[item.id]) {
+            userSelected = storedAnswers[item.id];
+          }
+
+          if (!userSelected) {
+            const comp = completions.find(c => c.quiz_id === item.id || c.question_id === item.id || c.id === item.id);
+            if (comp) {
+              userSelected = comp.selected_ans || comp.selected_option || comp.user_answer || comp.user_selected_letter || comp.answer || null;
+            }
+          }
+
+          const correctAns = item.correct_answer || item.correct_option || item.correct || item.answer || item.correct_letter || item.correct_choice || item.option_correct || item.correctOption || item.correctAnswer || null;
+          const hasAnswered = item.has_answered || false;
+
+          let previousResult = null;
+          if (hasAnswered) {
+            if (userSelected && correctAns) {
+              const optObj = [
+                { letter: 'A', text: item.option_a },
+                { letter: 'B', text: item.option_b },
+                { letter: 'C', text: item.option_c },
+                { letter: 'D', text: item.option_d }
+              ].find(o => o.letter === String(userSelected).trim().toUpperCase());
+
+              if (optObj) {
+                previousResult = checkIfCorrect(optObj, { correct_answer: correctAns }) ? 'correct' : 'wrong';
+              } else {
+                previousResult = item.previous_result ? (item.previous_result === true || item.previous_result === 'correct' ? 'correct' : 'wrong') : 'wrong';
+              }
+            } else {
+              previousResult = item.previous_result ? (item.previous_result === true || item.previous_result === 'correct' ? 'correct' : 'wrong') : 'wrong';
+            }
+          }
+
+          return {
+            id: item.id,
+            question: item.question,
+            options: [
+              { letter: 'A', text: item.option_a },
+              { letter: 'B', text: item.option_b },
+              { letter: 'C', text: item.option_c },
+              { letter: 'D', text: item.option_d }
+            ],
+            points_reward: item.points_reward,
+            has_answered: hasAnswered,
+            already_answered: hasAnswered,
+            previous_result: previousResult,
+            correct_answer: correctAns,
+            user_selected_letter: userSelected,
+            quiz_id: item.quiz_id || item.id || 1
+          };
+        });
         setQuestions(mapped);
       }
     } catch (err) {
@@ -72,36 +160,88 @@ const FunQuizScreen = ({ onBack }) => {
     }
   };
 
-  const [userLifetimeScore, setUserLifetimeScore] = useState(0);
+  const myLeaderboardData = leaderboard.find(s => {
+    const cleanSId = String(s.id || '').split(':')[0].trim().toLowerCase();
+    const cleanSName = String(s.name || '').split(':')[0].trim().toLowerCase();
+
+    const possibleUserKeys = [
+      user?.employee_id,
+      user?.userId,
+      user?.id,
+      user?.uid,
+      user?.email,
+      user?.name,
+      user?.employee_name
+    ];
+
+    return possibleUserKeys.some(key => {
+      const cleanKey = String(key || '').split(':')[0].trim().toLowerCase();
+      return cleanKey && (cleanSId === cleanKey || cleanSName === cleanKey);
+    });
+  });
+  const userLifetimeScore = myLeaderboardData ? (myLeaderboardData.quiz_points || myLeaderboardData.quizPoints || 0) : 0;
 
   const fetchScores = async () => {
     try {
       const token = localStorage.getItem('token');
-      const uid = user?.employee_id || user?.userId || user?.id;
 
-      // 1. Fetch the Quiz-Only data
-      const qRes = await fetch(API_ENDPOINTS.QUIZ_USER_POINTS, { 
-        headers: { 'Authorization': `Bearer ${token?.trim()}` } 
+      const headers = { 'Authorization': `Bearer ${token?.trim()}` };
+      const [rRes, qRes] = await Promise.all([
+        fetch(`${BASE_URL}/api/rewards/leaderboard`, { headers }).catch(() => null),
+        fetch(`${BASE_URL}/api/quizzes/leaderboard`, { headers }).catch(() => null)
+      ]);
+
+      const rData = rRes && rRes.ok ? await rRes.json() : [];
+      const qData = qRes && qRes.ok ? await qRes.json() : [];
+
+      const rList = Array.isArray(rData) ? rData : (rData.data || []);
+      const qList = Array.isArray(qData) ? qData : (qData.data || []);
+
+      const mergedMap = new Map();
+
+      // Process Quiz points
+      qList.forEach(q => {
+        const id = String(q.employee_id || q.user_id || q.id || '');
+        if (!id) return;
+        mergedMap.set(id, {
+          id,
+          name: q.name || q.employee_name || `Employee ${id}`,
+          quizPoints: Number(q.total_score || q.quiz_score || q.total_quiz_points || q.points || 0),
+          rewardPoints: 0
+        });
       });
-      if (qRes.ok) {
-        const qData = await qRes.json();
-        const pointsList = Array.isArray(qData) ? qData : (qData.data || []);
-        const list = pointsList.map((u, i) => ({
-          name: u.name || `Employee ${u.employee_id || 'Resource'}`,
-          score: Number(u.total_quiz_points || u.points || 0),
-          reward_points: 0,
-          quiz_points: Number(u.total_quiz_points || u.points || 0),
-          count: Number(u.quizzes_completed || 0),
-          rank: i + 1,
+
+      // Process Reward points
+      rList.forEach(r => {
+        const id = String(r.employee_id || r.user_id || r.id || '');
+        if (!id) return;
+        const existing = mergedMap.get(id) || {
+          id,
+          name: r.name || r.employee_name || `Employee ${id}`,
+          quizPoints: 0,
+          rewardPoints: 0
+        };
+        // In rewards leaderboard, points are usually in 'points' or 'total_points'
+        existing.rewardPoints = Number(r.points || r.total_points || r.reward_points || 0);
+        mergedMap.set(id, existing);
+      });
+
+      const list = Array.from(mergedMap.values()).map((u, i) => {
+        const total = u.quizPoints + u.rewardPoints;
+        return {
+          id: u.id,
+          name: u.name,
+          score: total,
+          quiz_points: u.quizPoints,
+          reward_points: u.rewardPoints,
           color: ['#FBBC05', '#EA4335', '#34A853', '#4285F4', '#FBBC05'][i % 5],
           initial: (u.name || 'U').charAt(0).toUpperCase()
-        }));
-        setLeaderboard(list);
-        const myData = pointsList.find(s => String(s.employee_id || s.user_id || s.id) === String(uid));
-        setUserLifetimeScore(myData ? Number(myData.total_quiz_points || myData.points || 0) : 0);
-      }
+        };
+      }).sort((a, b) => b.score - a.score).map((u, i) => ({ ...u, rank: i + 1 }));
+
+      setLeaderboard(list);
     } catch (err) {
-      console.error("Quiz Sync failed:", err);
+      console.error("Leaderboard Sync failed:", err);
     } finally {
       setIsQuestionsLoading(false);
       setIsLoading(false);
@@ -128,34 +268,65 @@ const FunQuizScreen = ({ onBack }) => {
     const currentQ = questions[currentIdx];
     if (currentQ.has_answered) return;
 
-    // LOCAL ASSESSMENT (Checking correct answer locally as per user instruction)
-    const optObj = currentQ.options.find(o => o.letter === selectedOption);
-    const cleanCorrect = String(currentQ.correct_answer || '').trim().toLowerCase();
-    const cleanOpt = String(optObj?.text || '').trim().toLowerCase();
-    const isCorrect = cleanCorrect.includes(cleanOpt) || cleanOpt.includes(cleanCorrect);
-
-    setQuestions(prev => prev.map((q, i) => i === currentIdx ? {
-      ...q,
-      has_answered: true,
-      previous_result: isCorrect ? 'correct' : 'wrong',
-      user_selected_letter: selectedOption
-    } : q));
-
-    // Persist the answer choice to the database
     try {
       const token = localStorage.getItem('token');
-      await fetch(API_ENDPOINTS.QUIZ_ANSWER(currentQ.id), {
+      const res = await fetch(API_ENDPOINTS.QUIZ_ANSWER(currentQ.id), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token?.trim()}`
         },
-        body: JSON.stringify({ selected_option: selectedOption })
+        body: JSON.stringify({
+          selected_option: selectedOption,
+          selectedOption: selectedOption,
+          user_answer: selectedOption,
+          user_selected_letter: selectedOption,
+          answer: selectedOption,
+          selected_ans: selectedOption
+        })
       });
+
+      let finalCorrectAnswer = currentQ.correct_answer;
+
+      if (res.ok) {
+        const resData = await res.json();
+        console.log("Submit Quiz Answer response:", resData);
+        const returnedCorrect = resData.correct_answer || resData.correct_option || resData.correct || resData.correctAnswer || resData.correctOption || resData.answer || resData.correct_letter || null;
+        if (returnedCorrect) {
+          finalCorrectAnswer = returnedCorrect;
+        }
+      }
+
+      const optObj = currentQ.options.find(o => o.letter === selectedOption);
+      const isActuallyCorrect = checkIfCorrect(optObj, { correct_answer: finalCorrectAnswer, options: currentQ.options });
+
+      // Save user selected letter locally
+      const storedAnswers = JSON.parse(localStorage.getItem('quiz_user_answers') || '{}');
+      storedAnswers[currentQ.id] = selectedOption;
+      localStorage.setItem('quiz_user_answers', JSON.stringify(storedAnswers));
+
+      setQuestions(prev => prev.map((q, i) => i === currentIdx ? {
+        ...q,
+        has_answered: true,
+        previous_result: isActuallyCorrect ? 'correct' : 'wrong',
+        user_selected_letter: selectedOption,
+        correct_answer: finalCorrectAnswer
+      } : q));
+
       // Refresh scores to show progress in Hall of Fame immediately
       fetchScores();
     } catch (err) {
       console.error("Failed to log answer to database:", err);
+
+      const optObj = currentQ.options.find(o => o.letter === selectedOption);
+      const isCorrect = checkIfCorrect(optObj, currentQ);
+
+      setQuestions(prev => prev.map((q, i) => i === currentIdx ? {
+        ...q,
+        has_answered: true,
+        previous_result: isCorrect ? 'correct' : 'wrong',
+        user_selected_letter: selectedOption
+      } : q));
     }
   };
 
@@ -163,15 +334,17 @@ const FunQuizScreen = ({ onBack }) => {
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem('token');
-      
+
       // Calculate final summary locally
       const totalQuestions = questions.length;
       const correctCount = questions.filter(q => q.previous_result === 'correct').length;
       const totalPoints = questions.filter(q => q.previous_result === 'correct').reduce((sum, q) => sum + (q.points_reward || 0), 0);
 
-      const rawUid = user?.employee_id || user?.userId || user?.id || user?.employeeId;
-      const uid = String(rawUid).includes(',') ? String(rawUid).split(',')[0].trim() : String(rawUid).trim();
-      
+      const rawUid = user?.employee_id || user?.userId || user?.id || user?.employeeId || user?.uid;
+      const uid = String(rawUid).includes(',')
+        ? String(rawUid).split(',')[0].split(':')[0].trim()
+        : String(rawUid).split(':')[0].trim();
+
       const payload = {
         employee_id: Number(uid) || uid,
         user_id: Number(uid) || uid,
@@ -191,25 +364,42 @@ const FunQuizScreen = ({ onBack }) => {
         status: 'completed'
       };
 
-      const response = await fetch(API_ENDPOINTS.QUIZ_SUBMIT_SESSION, {
+      let response = await fetch(API_ENDPOINTS.QUIZ_SUBMIT_SESSION, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token?.trim()}`
         },
         body: JSON.stringify(payload)
+      }).catch(err => {
+        console.error("Quiz Submit Session failed:", err);
+        return null;
       });
 
-      if (response.ok) {
-        // Refresh EVERYTHING to reflect on dashboard
-        await Promise.all([fetchScores(), fetchQuestions()]);
-
-        // Brief visual confirmation then redirect
-        showSuccessState(totalPoints);
-        setTimeout(() => setQuizActive(false), 1500);
+      if (!response || !response.ok) {
+        response = await fetch(API_ENDPOINTS.QUIZ_SUBMIT_TOTAL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token?.trim()}`
+          },
+          body: JSON.stringify(payload)
+        }).catch(err => {
+          console.error("Quiz Submit Total failed:", err);
+          return null;
+        });
       }
+
+      if (response && response.ok) {
+        await Promise.all([fetchScores(), fetchQuestions()]).catch(() => null);
+      }
+
+      showSuccessState(totalPoints);
+      setTimeout(() => setQuizActive(false), 1500);
     } catch (err) {
       console.error("Batch submit failed:", err);
+      showSuccessState(0);
+      setTimeout(() => setQuizActive(false), 1500);
     } finally {
       setIsSubmitting(false);
     }
@@ -222,7 +412,7 @@ const FunQuizScreen = ({ onBack }) => {
     layout: { display: 'flex', gap: '25px', flexDirection: isTablet ? 'column' : 'row', marginBottom: '25px' },
     hero: {
       flex: 2, backgroundColor: '#B2DCE2', borderRadius: '24px', padding: isMobile ? '40px 20px' : '60px 50px',
-      display: 'flex', flexDirection: isMobile ? 'column-reverse' : 'row', justifyContent: 'space-between', 
+      display: 'flex', flexDirection: isMobile ? 'column-reverse' : 'row', justifyContent: 'space-between',
       alignItems: 'center', position: 'relative', overflow: 'hidden', gap: isMobile ? '30px' : '0',
       minHeight: '380px', border: '1.5px solid #000000'
     },
@@ -236,30 +426,41 @@ const FunQuizScreen = ({ onBack }) => {
     bottomSection: { backgroundColor: 'white', borderRadius: '24px', padding: isMobile ? '20px' : '30px', border: '1px solid #eef2f3' },
     option: (optObj, isAnswered) => {
       const isUserChoice = (optObj.letter === currentQ?.user_selected_letter || optObj.letter === selectedOption);
-      const cleanCorrect = String(currentQ?.correct_answer || '').trim().toLowerCase();
-      const cleanOpt = String(optObj.text || '').trim().toLowerCase();
-      const isActuallyCorrect = cleanOpt && cleanCorrect && (cleanCorrect.includes(cleanOpt) || cleanOpt.includes(cleanCorrect));
+      const isActuallyCorrect = checkIfCorrect(optObj, currentQ);
 
-      let border = '1.5px solid #eef2f3';
+      let border = '2px solid #eef2f3';
       let bg = 'white';
-      let color = '#64748b';
+      let color = '#1e293b';
       let status = 'default';
 
       if (isAnswered) {
         if (isActuallyCorrect) {
-          border = '2.5px solid #22c55e'; bg = '#f0fdf4'; color = '#15803d'; status = 'correct';
+          border = '2px solid #22c55e'; bg = '#f0fdf4'; color = '#15803d'; status = 'correct';
         } else if (isUserChoice) {
-          border = '2.5px solid #ef4444'; bg = '#fef2f2'; color = '#b91c1c'; status = 'wrong';
+          border = '2px solid #ef4444'; bg = '#fef2f2'; color = '#b91c1c'; status = 'wrong';
         }
       } else if (isUserChoice) {
-        border = '2.5px solid #0d676c'; bg = '#f0f9fa'; color = '#0d676c'; status = 'selected';
+        border = '2px solid #0d676c'; bg = '#f0f9fa'; color = '#0d676c'; status = 'selected';
       }
 
       return {
-        padding: '16px 20px', borderRadius: '14px', border: border, backgroundColor: bg,
-        color: color, fontSize: '14px', fontWeight: '800', cursor: isAnswered ? 'default' : 'pointer',
-        display: 'flex', alignItems: 'center', gap: '15px', transition: 'all 0.2s',
-        status: status
+        padding: '16px 20px',
+        borderRadius: '16px',
+        border: border,
+        backgroundColor: bg,
+        color: color,
+        fontSize: '15px',
+        fontWeight: '800',
+        cursor: isAnswered ? 'default' : 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '15px',
+        transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+        status: status,
+        boxSizing: 'border-box',
+        minHeight: '68px',
+        width: '100%',
+        position: 'relative'
       };
     }
   };
@@ -299,10 +500,11 @@ const FunQuizScreen = ({ onBack }) => {
       </div>
 
       {/* Leaderboard Table Header */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '2fr 1fr 1fr', 
-        padding: '12px 10px', 
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '2fr 1fr 1fr',
+        gap: '10px',
+        padding: '12px 10px',
         borderBottom: '2px solid #f1f5f9',
         fontSize: '10px',
         fontWeight: '900',
@@ -315,48 +517,68 @@ const FunQuizScreen = ({ onBack }) => {
         <span style={{ textAlign: 'right' }}>TOTAL</span>
       </div>
 
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        flex: 1, 
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
         maxHeight: showFullList ? '450px' : 'auto',
         overflowY: showFullList ? 'auto' : 'visible',
         paddingRight: showFullList ? '10px' : '0'
       }}>
         {(() => {
           const displayList = showFullList ? leaderboard : leaderboard.slice(0, 8);
-          
+
           if (displayList.length === 0) return <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: '12px' }}>No rankings available yet</div>;
 
           return displayList.map((p, i) => {
-            const isMe = String(p.id || p.employee_id || p.userId) === String(user?.employee_id || user?.userId || user?.id);
+            const isMe = (() => {
+              const cleanPId = String(p.id || p.employee_id || p.userId || '').split(':')[0].trim().toLowerCase();
+              const cleanPName = String(p.name || '').split(':')[0].trim().toLowerCase();
+
+              const possibleUserKeys = [
+                user?.employee_id,
+                user?.userId,
+                user?.id,
+                user?.uid,
+                user?.email,
+                user?.name,
+                user?.employee_name
+              ];
+
+              return possibleUserKeys.some(key => {
+                const cleanKey = String(key || '').split(':')[0].trim().toLowerCase();
+                return cleanKey && (cleanPId === cleanKey || cleanPName === cleanKey);
+              });
+            })();
             return (
-              <div key={i} style={{ 
-                display: 'grid', 
-                gridTemplateColumns: '2fr 1fr 1fr', 
-                alignItems: 'center', 
-                padding: '14px 10px', 
+              <div key={i} style={{
+                display: 'grid',
+                gridTemplateColumns: '2fr 1fr 1fr',
+                gap: '10px',
+                alignItems: 'center',
+                padding: '14px 10px',
                 borderBottom: '1px solid #f8fafc',
                 backgroundColor: isMe ? '#f0f9fa' : 'transparent',
                 borderRadius: isMe ? '12px' : '0'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ 
-                    width: '28px', height: '28px', borderRadius: '8px', 
-                    backgroundColor: p.color, display: 'flex', alignItems: 'center', 
-                    justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: '900' 
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  <div style={{
+                    width: '28px', height: '28px', borderRadius: '8px',
+                    backgroundColor: p.color, display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: '900',
+                    flexShrink: 0
                   }}>
                     {p.initial}
                   </div>
-                  <div style={{ fontSize: '11px', fontWeight: '800', color: '#0B1E3F', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                  <div style={{ fontSize: '11px', fontWeight: '800', color: '#0B1E3F', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>{p.name}</div>
                 </div>
-                
-                <div style={{ textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#64748b' }}>
-                  {p.quiz_points || p.score || 0}
+
+                <div style={{ textAlign: 'center', fontSize: '11px', fontWeight: '700', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+                  {String(p.quiz_points || p.score || 0)}
                 </div>
-                
-                <div style={{ textAlign: 'right', fontSize: '13px', fontWeight: '1000', color: '#0B1E3F' }}>
-                  {p.score}
+
+                <div style={{ textAlign: 'right', fontSize: '13px', fontWeight: '1000', color: '#0B1E3F', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+                  {String(p.score || 0)}
                 </div>
               </div>
             );
@@ -364,12 +586,12 @@ const FunQuizScreen = ({ onBack }) => {
         })()}
       </div>
 
-      <button 
+      <button
         onClick={() => setShowFullList(!showFullList)}
-        style={{ 
-          marginTop: '15px', width: '100%', padding: '10px', borderRadius: '12px', 
-          backgroundColor: '#f8fafc', border: '1px solid #eef2f3', color: '#3B5998', 
-          fontSize: '11px', fontWeight: '1000', cursor: 'pointer' 
+        style={{
+          marginTop: '15px', width: '100%', padding: '10px', borderRadius: '12px',
+          backgroundColor: '#f8fafc', border: '1px solid #eef2f3', color: '#3B5998',
+          fontSize: '11px', fontWeight: '1000', cursor: 'pointer'
         }}
       >
         {showFullList ? 'SHOW TOP 8' : 'VIEW FULL HALL OF FAME'}
@@ -414,12 +636,12 @@ const FunQuizScreen = ({ onBack }) => {
                 <h2 style={s.heroTitle}>Get Ready for<br />a Fun Quiz!</h2>
                 <p style={s.heroDesc}>Train your brain with smart, scientifically backed games that enhance various cognitive functions.</p>
 
-                <div style={{ 
-                  marginTop: '15px', 
-                  display: 'grid', 
-                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', 
-                  gap: '10px', 
-                  width: isMobile ? '100%' : 'auto' 
+                <div style={{
+                  marginTop: '15px',
+                  display: 'grid',
+                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                  gap: '10px',
+                  width: isMobile ? '100%' : 'auto'
                 }}>
                   <div style={{ backgroundColor: 'rgba(255,255,255,0.7)', padding: '10px 16px', borderRadius: '14px', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                     <div style={{ fontSize: '12px', fontWeight: '900', color: '#1e40af', textTransform: 'uppercase' }}>Daily Questions</div>
@@ -439,9 +661,9 @@ const FunQuizScreen = ({ onBack }) => {
                       <>
                         <div style={{ backgroundColor: 'rgba(255,255,255,0.7)', padding: '10px 16px', borderRadius: '14px', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                           <div style={{ fontSize: '12px', fontWeight: '900', color: '#1e40af', textTransform: 'uppercase' }}>Overall Score</div>
-                          <div style={{ fontSize: '16px', fontWeight: '1000', color: '#0B1E3F' }}>{userLifetimeScore + newSessionPoints}</div>
+                          <div style={{ fontSize: '16px', fontWeight: '1000', color: '#0B1E3F' }}>{userLifetimeScore}</div>
                         </div>
- 
+
                         <div style={{ backgroundColor: 'rgba(255,255,255,0.7)', padding: '10px 16px', borderRadius: '14px', border: '1px solid #dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                           <div style={{ fontSize: '12px', fontWeight: '900', color: '#15803d', textTransform: 'uppercase' }}>Session Score</div>
                           <div style={{ fontSize: '16px', fontWeight: '1000', color: '#0B1E3F' }}>{sessionScoreForDisplay}</div>
@@ -471,9 +693,7 @@ const FunQuizScreen = ({ onBack }) => {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: 'white', borderRadius: '24px', padding: isMobile ? '20px' : '30px', border: '1px solid #eef2f3' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <button onClick={() => setQuizActive(false)} style={{ padding: '8px', borderRadius: '10px', backgroundColor: 'white', border: '1.5px solid #e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                  <ArrowLeft size={16} color="#0B1E3F" />
-                </button>
+                <BackButton onClick={() => setQuizActive(false)} />
                 <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '900', color: '#0B1E3F', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Zap size={20} color="#0d676c" fill="#0d676c" /> Daily Brain Teaser
                 </h3>
@@ -485,9 +705,9 @@ const FunQuizScreen = ({ onBack }) => {
             </div>
 
             {/* INNER PAGE MONSTER HERO */}
-            <div style={{ 
-              backgroundColor: '#B2DCE2', borderRadius: '20px', padding: isMobile ? '25px' : '30px 40px', 
-              marginBottom: '30px', display: 'flex', flexDirection: isMobile ? 'column-reverse' : 'row', 
+            <div style={{
+              backgroundColor: '#B2DCE2', borderRadius: '20px', padding: isMobile ? '25px' : '30px 40px',
+              marginBottom: '30px', display: 'flex', flexDirection: isMobile ? 'column-reverse' : 'row',
               justifyContent: 'space-between', alignItems: 'center', overflow: 'hidden',
               gap: isMobile ? '20px' : '0'
             }}>
@@ -511,19 +731,19 @@ const FunQuizScreen = ({ onBack }) => {
                   <button
                     onClick={() => setCurrentIdx(p => Math.max(0, p - 1))}
                     disabled={currentIdx === 0}
-                    style={{ 
-                      backgroundColor: 'white', 
-                      border: '1.5px solid #eef2f3', 
-                      borderRadius: '10px', 
-                      padding: '8px 12px', 
-                      cursor: currentIdx === 0 ? 'not-allowed' : 'pointer', 
-                      opacity: currentIdx === 0 ? 0.5 : 1, 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '6px', 
-                      color: currentIdx > 0 ? '#0B1E3F' : '#64748b', 
-                      fontSize: '12px', 
-                      fontWeight: currentIdx > 0 ? '1000' : '800' 
+                    style={{
+                      backgroundColor: 'white',
+                      border: '1.5px solid #eef2f3',
+                      borderRadius: '10px',
+                      padding: '8px 12px',
+                      cursor: currentIdx === 0 ? 'not-allowed' : 'pointer',
+                      opacity: currentIdx === 0 ? 0.5 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      color: currentIdx > 0 ? '#0B1E3F' : '#64748b',
+                      fontSize: '12px',
+                      fontWeight: currentIdx > 0 ? '1000' : '800'
                     }}
                   >
                     <ArrowLeft size={14} strokeWidth={currentIdx > 0 ? 3 : 2} />
@@ -557,12 +777,12 @@ const FunQuizScreen = ({ onBack }) => {
                     <div style={{ marginBottom: '20px', padding: '12px 16px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: currentQ.previous_result === 'correct' ? '#f0fdf4' : '#fef2f2', border: `1.5px solid ${currentQ.previous_result === 'correct' ? '#bbf7d0' : '#fecaca'}` }}>
                       {currentQ.previous_result === 'correct' ? <CheckIcon size={18} color="#15803d" /> : <XIcon size={18} color="#b91c1c" />}
                       <span style={{ fontSize: '14px', fontWeight: '800', color: currentQ.previous_result === 'correct' ? '#15803d' : '#b91c1c' }}>
-                        {currentQ.previous_result === 'correct' ? 
-                          'Excellent! You answered this correctly.' : 
+                        {currentQ.previous_result === 'correct' ?
+                          'Excellent! You answered this correctly.' :
                           (() => {
                             const userPicked = currentQ.user_selected_letter || selectedOption;
                             const opt = currentQ.options.find(o => o.letter === userPicked);
-                            return `Incorrect. You selected: Option ${userPicked}${opt ? ' - ' + opt.text : ''}. The correct answer was: ${currentQ.correct_answer}`;
+                            return `Incorrect. You selected: Option ${userPicked || 'Unknown'}${opt ? ' - ' + opt.text : ''}. The correct answer was: ${formatCorrectAnswerText(currentQ)}`;
                           })()}
                       </span>
                     </div>
@@ -584,22 +804,57 @@ const FunQuizScreen = ({ onBack }) => {
                             if (!currentQ.has_answered) setSelectedOption(optObj.letter);
                           }}
                         >
-                          <div style={{ 
-                            width: '28px', height: '28px', borderRadius: '8px', 
-                            backgroundColor: st.status === 'correct' ? '#22c55e' : (st.status === 'wrong' ? '#ef4444' : '#0d676c'), 
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: '900' 
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '10px',
+                            backgroundColor: st.status === 'correct' ? '#22c55e' : (st.status === 'wrong' ? '#ef4444' : (st.status === 'selected' ? '#0d676c' : '#f1f5f9')),
+                            color: (st.status === 'correct' || st.status === 'wrong' || st.status === 'selected') ? 'white' : '#475569',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '13px',
+                            fontWeight: '900',
+                            flexShrink: 0,
+                            transition: 'all 0.2s'
                           }}>
                             {optObj.letter}
                           </div>
-                          {optObj.text}
+                          <span style={{ flex: 1, textAlign: 'left', lineHeight: '1.4', color: st.status === 'correct' ? '#15803d' : (st.status === 'wrong' ? '#b91c1c' : '#0B1E3F'), transition: 'color 0.2s' }}>
+                            {optObj.text}
+                          </span>
 
                           {st.status === 'correct' && (
-                            <div style={{ marginLeft: 'auto', backgroundColor: '#22c55e', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '900' }}>
-                              {(currentQ?.user_selected_letter === optObj.letter || selectedOption === optObj.letter) ? 'CORRECT (YOUR CHOICE)' : 'CORRECT'}
+                            <div style={{
+                              marginLeft: '15px',
+                              backgroundColor: '#22c55e',
+                              color: 'white',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '11px',
+                              fontWeight: '900',
+                              flexShrink: 0,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px'
+                            }}>
+                              {(currentQ?.user_selected_letter === optObj.letter || selectedOption === optObj.letter) ? 'CORRECT' : 'CORRECT'}
                             </div>
                           )}
                           {st.status === 'wrong' && (
-                            <div style={{ marginLeft: 'auto', backgroundColor: '#ef4444', color: 'white', padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '900' }}>YOUR CHOICE</div>
+                            <div style={{
+                              marginLeft: '15px',
+                              backgroundColor: '#ef4444',
+                              color: 'white',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '11px',
+                              fontWeight: '900',
+                              flexShrink: 0,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px'
+                            }}>
+                              YOUR CHOICE
+                            </div>
                           )}
                         </div>
                       );
@@ -635,8 +890,8 @@ const FunQuizScreen = ({ onBack }) => {
                             }}
                           >
                             {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Trophy size={18} />}
-                            {isAlreadySubmitted 
-                              ? 'Already Submitted' 
+                            {isAlreadySubmitted
+                              ? 'Already Submitted'
                               : `Submit Final Score (${questions.filter(q => q.previous_result === 'correct').reduce((sum, q) => sum + (q.points_reward || 0), 0)} pts)`}
                           </button>
                         );

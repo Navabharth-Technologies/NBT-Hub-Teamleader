@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, FileBadge, Send, Clock, CheckCircle2,
+  ChevronLeft, ArrowLeft, FileBadge, Send, Clock, CheckCircle2,
   AlertCircle, History, User, Calendar, Briefcase,
-  FileText, Download, ShieldCheck, Shield,
+  FileText, Download, ShieldCheck, Shield, ChevronDown, Mail,
   MousePointer2, Keyboard, Monitor, Smartphone,
   Tablet, Camera, Database, Headphones
 } from 'lucide-react';
@@ -394,7 +394,20 @@ const ServiceCertificateScreen = ({ onBack }) => {
     <div style={s.container}>
       {/* Header */}
       <div style={s.header}>
-        <motion.button whileHover={{ scale: 1.05 }} style={s.backBtn} onClick={onBack}><ChevronLeft size={24} color="#10274A" /></motion.button>
+        <button onClick={onBack} style={{
+          padding: isMobile ? '8px' : '12px',
+          borderRadius: '12px',
+          backgroundColor: 'white',
+          border: '1.5px solid #e2e8f0',
+          cursor: 'pointer',
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+        }}>
+          <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
+        </button>
         <div>
           <h1 style={s.title}>Experience Letter</h1>
           <div style={{ color: '#64748b', fontSize: '14px', marginTop: '4px' }}>Request official service certificate</div>
@@ -418,19 +431,31 @@ const ServiceCertificateScreen = ({ onBack }) => {
               <form onSubmit={handleSubmit}>
                 <div style={{ marginBottom: '25px' }}>
                   <label style={s.label}>Purpose of Request <span style={{ color: '#ef4444' }}>*</span></label>
-                  <select
-                    style={s.select}
-                    value={purpose}
-                    onChange={(e) => setPurpose(e.target.value)}
-                    required
-                  >
-                    <option value="">Select Purpose</option>
-                    <option value="Higher Education">Higher Education</option>
-                    <option value="Bank Loan / Financial">Bank Loan / Financial</option>
-                    <option value="Visa / Immigration">Visa / Immigration</option>
-                    <option value="Job Change">Internal Movement / Job Change</option>
-                    <option value="Other">Other (Specify below)</option>
-                  </select>
+                  {/* Styled dropdown wrapper — prevents free-text input */}
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      style={{
+                        ...s.select,
+                        paddingRight: '44px',
+                        appearance: 'none',
+                        WebkitAppearance: 'none',
+                        MozAppearance: 'none',
+                        cursor: 'pointer',
+                        color: purpose ? '#1e293b' : '#94a3b8'
+                      }}
+                      value={purpose}
+                      onChange={(e) => setPurpose(e.target.value)}
+                      required
+                    >
+                      <option value="" disabled>Select Purpose</option>
+                      <option value="Higher Education">Higher Education</option>
+                      <option value="Bank Loan / Financial">Bank Loan / Financial</option>
+                      <option value="Visa / Immigration">Visa / Immigration</option>
+                      <option value="Job Change">Internal Movement / Job Change</option>
+                      <option value="Other">Other (Specify below)</option>
+                    </select>
+                    <ChevronDown size={16} color="#64748b" style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                  </div>
                 </div>
 
                 {purpose === 'Other' && (
@@ -458,34 +483,91 @@ const ServiceCertificateScreen = ({ onBack }) => {
                   </div>
                 </div>
 
-                <motion.button
-                  whileHover={hasSubmittedAssets ? { scale: 1.02 } : {}}
-                  whileTap={hasSubmittedAssets ? { scale: 0.98 } : {}}
-                  style={{
-                    ...s.submitBtn,
-                    opacity: (isSubmitting || !hasSubmittedAssets) ? 0.6 : 1,
-                    cursor: hasSubmittedAssets ? 'pointer' : 'not-allowed',
-                    backgroundColor: hasSubmittedAssets ? '#10274A' : '#94a3b8'
-                  }}
-                  disabled={isSubmitting || !hasSubmittedAssets || history.length > 0}
-                >
-                  {isSubmitting ? <Clock className="animate-spin" size={20} /> : (
-                    history.length > 0 ? <CheckCircle2 size={20} /> : (
-                      hasSubmittedAssets ? <Send size={20} /> : <ShieldCheck size={20} />
-                    )
-                  )}
-                  {isSubmitting ? 'Processing Request...' : (
-                    history.length > 0 ? 'Application Already Submitted' : (
-                      hasSubmittedAssets ? 'Submit Application' : 'Declare Assets to Unlock'
-                    )
-                  )}
-                </motion.button>
+                {/* Submit / Status Button */}
+                {(() => {
+                  // Find the latest non-asset service certificate request
+                  const latestReq = history.find(h => h.purpose !== 'Professional Asset Declaration');
+                  const reqStatus = latestReq ? String(latestReq.status || '').toLowerCase().trim() : '';
+                  const isApproved = reqStatus === 'approved' || reqStatus === 'completed';
+                  const alreadySubmitted = latestReq && !isApproved;
 
+                  if (isApproved) {
+                    // Green "Sent in Email" state
+                    return (
+                      <motion.button
+                        type="button"
+                        disabled
+                        style={{
+                          ...s.submitBtn,
+                          backgroundColor: '#16a34a',
+                          opacity: 1,
+                          cursor: 'default',
+                          boxShadow: '0 8px 24px rgba(22,163,74,0.25)'
+                        }}
+                      >
+                        <Mail size={20} />
+                        Sent in Email — Check Your Mail
+                      </motion.button>
+                    );
+                  }
+
+                  if (alreadySubmitted) {
+                    return (
+                      <motion.button
+                        type="button"
+                        disabled
+                        style={{
+                          ...s.submitBtn,
+                          opacity: 0.7,
+                          cursor: 'not-allowed',
+                          backgroundColor: '#64748b'
+                        }}
+                      >
+                        <CheckCircle2 size={20} />
+                        Application Already Submitted
+                      </motion.button>
+                    );
+                  }
+
+                  // Normal submit state
+                  const canSubmit = hasSubmittedAssets && !!purpose && !isSubmitting;
+                  return (
+                    <motion.button
+                      whileHover={canSubmit ? { scale: 1.02 } : {}}
+                      whileTap={canSubmit ? { scale: 0.98 } : {}}
+                      type="submit"
+                      style={{
+                        ...s.submitBtn,
+                        opacity: canSubmit ? 1 : 0.55,
+                        cursor: canSubmit ? 'pointer' : 'not-allowed',
+                        backgroundColor: canSubmit ? '#10274A' : '#94a3b8'
+                      }}
+                      disabled={!canSubmit}
+                    >
+                      {isSubmitting ? <Clock className="animate-spin" size={20} /> : (
+                        hasSubmittedAssets ? <Send size={20} /> : <ShieldCheck size={20} />
+                      )}
+                      {isSubmitting ? 'Processing Request...' : (
+                        hasSubmittedAssets ? 'Submit Application' : 'Declare Assets to Unlock'
+                      )}
+                    </motion.button>
+                  );
+                })()}
+
+                {/* Validation hints */}
                 {!hasSubmittedAssets && (
                   <div style={{ marginTop: '15px', padding: '12px', backgroundColor: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <AlertCircle size={16} color="#b45309" />
                     <span style={{ fontSize: '11px', color: '#b45309', fontWeight: '700' }}>
                       Asset declaration is mandatory before applying for a service certificate.
+                    </span>
+                  </div>
+                )}
+                {hasSubmittedAssets && !purpose && (
+                  <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <AlertCircle size={16} color="#e11d48" />
+                    <span style={{ fontSize: '11px', color: '#e11d48', fontWeight: '700' }}>
+                      Please select a Purpose of Request to continue.
                     </span>
                   </div>
                 )}

@@ -11,6 +11,7 @@ import { getTheme } from '../constants/Theme';
 const LeaveAttendanceFun = ({ onBack }) => {
   const { user } = useAuth();
   const theme = getTheme(user?.role);
+  const isMobile = window.innerWidth < 768;
   const [activeView, setActiveView] = useState('MAIN'); // MAIN, LEAVE, ATTENDANCE, FUN
 
   // Styles
@@ -27,15 +28,17 @@ const LeaveAttendanceFun = ({ onBack }) => {
       marginBottom: '25px'
     },
     backBtn: {
-      width: '40px',
-      height: '40px',
+      padding: isMobile ? '8px' : '12px',
       borderRadius: '12px',
       backgroundColor: 'white',
+      border: '1.5px solid #e2e8f0',
+      cursor: 'pointer',
+      flexShrink: 0,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      border: '1px solid #e2e8f0',
-      cursor: 'pointer'
+      boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+      outline: 'none'
     },
     cardGrid: {
       display: 'grid',
@@ -191,9 +194,9 @@ const LeaveAttendanceFun = ({ onBack }) => {
   return (
     <div style={s.container}>
       <header style={s.header}>
-        <div style={s.backBtn} onClick={activeView === 'MAIN' ? onBack : () => setActiveView('MAIN')}>
-          <ArrowLeft size={20} color="#64748b" />
-        </div>
+        <button style={s.backBtn} onClick={activeView === 'MAIN' ? onBack : () => setActiveView('MAIN')}>
+          <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
+        </button>
         <h1 style={{ fontSize: '24px', fontWeight: '1000', color: '#0B1E3F', margin: 0 }}>
           {activeView === 'MAIN' ? 'Hub Services' : activeView}
         </h1>

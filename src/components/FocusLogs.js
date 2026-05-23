@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Download, ChevronLeft, Search, Filter, Clock, FileText, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Calendar, Download, ArrowLeft, Search, Filter, Clock, FileText, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { API_ENDPOINTS } from '../config';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
@@ -275,23 +275,22 @@ export default function FocusLogs({ onBack }) {
           <button
             onClick={handleBack}
             style={{
+              padding: isMobile ? '8px' : '12px',
+              borderRadius: '12px',
+              backgroundColor: 'white',
+              border: '1.5px solid #e2e8f0',
+              cursor: 'pointer',
+              flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              border: 'none',
-              background: 'none',
-              cursor: 'pointer',
-              color: '#64748b',
-              fontWeight: '800',
-              fontSize: '14px',
-              marginBottom: '20px',
-              padding: '0',
-              transition: 'all 0.2s ease'
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+              outline: 'none',
+              width: 'fit-content',
+              marginBottom: '20px'
             }}
-            onMouseEnter={e => e.currentTarget.style.color = '#3B5998'}
-            onMouseLeave={e => e.currentTarget.style.color = '#64748b'}
           >
-            <ChevronLeft size={20} strokeWidth={3} /> BACK TO DASHBOARD
+            <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
           </button>
           <h1 style={s.title}>{targetUser ? `${targetUser.name}'s Focus Logs` : 'Daily Report'}</h1>
           <p style={s.subtitle}>{targetUser ? `Reviewing task reports for ${targetUser.name}.` : 'Personal visibility for task reporting.'}</p>

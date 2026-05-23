@@ -572,8 +572,20 @@ const AwardsScreen = ({ onBack }) => {
                     <motion.div key="main" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                         <div style={{ display: 'flex', flexDirection: isTablet ? 'column' : 'row', justifyContent: 'space-between', alignItems: isTablet ? 'flex-start' : 'center', gap: isTablet ? '20px' : '0', marginBottom: '40px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                                <button onClick={onBack} style={{ backgroundColor: 'white', border: 'none', width: '45px', height: '45px', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-                                    <ArrowLeft size={20} color="#0B1E3F" />
+                                <button onClick={onBack} style={{
+                                    padding: isMobile ? '8px' : '12px',
+                                    borderRadius: '12px',
+                                    backgroundColor: 'white',
+                                    border: '1.5px solid #e2e8f0',
+                                    cursor: 'pointer',
+                                    flexShrink: 0,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                                    outline: 'none'
+                                }}>
+                                    <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
                                 </button>
                                 <div>
                                     <h1 style={{ margin: 0, fontSize: isMobile ? '22px' : '32px', fontWeight: '1000', color: '#0B1E3F', letterSpacing: '-0.5px', lineHeight: '1.2' }}>Rewards & Recognition</h1>
@@ -593,6 +605,12 @@ const AwardsScreen = ({ onBack }) => {
                                     </div>
                                 </div>
 
+                                <button
+                                    onClick={() => setActiveView('RANKING')}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#FBBC05', color: '#0B1E3F', border: 'none', padding: '12px 24px', borderRadius: '16px', fontWeight: '900', cursor: 'pointer', boxShadow: '0 8px 20px rgba(251, 188, 5, 0.2)' }}
+                                >
+                                    <Trophy size={18} /> Hall of Fame
+                                </button>
                                 <button
                                     onClick={() => setActiveView('AUDIT')}
                                     style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#0B1E3F', color: 'white', border: 'none', padding: '12px 24px', borderRadius: '16px', fontWeight: '900', cursor: 'pointer', boxShadow: '0 8px 20px rgba(11, 30, 63, 0.2)' }}
@@ -623,7 +641,7 @@ const AwardsScreen = ({ onBack }) => {
                                     <Trophy size={24} color="#FBBC05" fill="#FBBC05" />
                                 </div>
                                 <div style={{ textAlign: isMobile ? 'center' : 'left' }}>
-                                    <div style={{ fontSize: isMobile ? '9px' : '10px', opacity: 0.6, fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px' }}>Global Ranking</div>
+                                    <div style={{ fontSize: isMobile ? '9px' : '10px', opacity: 0.6, fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px' }}>Global Recognition</div>
                                     <div style={{ fontSize: isMobile ? '18px' : '20px', fontWeight: '1000' }}>{stats.rank}</div>
                                 </div>
                             </div>
@@ -916,12 +934,81 @@ const AwardsScreen = ({ onBack }) => {
                             </div>
                         </div>
                     </motion.div>
+                ) : activeView === 'RANKING' ? (
+                    <motion.div key="ranking" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
+                        <div style={{ display: 'flex', flexDirection: isTablet ? 'column' : 'row', justifyContent: 'space-between', alignItems: isTablet ? 'flex-start' : 'center', gap: isTablet ? '20px' : '0', marginBottom: '25px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                                <button onClick={() => setActiveView('MAIN')} style={{
+                                    padding: isMobile ? '8px' : '12px',
+                                    borderRadius: '12px',
+                                    backgroundColor: 'white',
+                                    border: '1.5px solid #e2e8f0',
+                                    cursor: 'pointer',
+                                    flexShrink: 0,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                                    outline: 'none'
+                                }}>
+                                    <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
+                                </button>
+                                <div>
+                                    <h1 style={{ margin: 0, fontSize: '32px', fontWeight: '1000', color: '#0B1E3F', letterSpacing: '-1px' }}>Global Leaderboard</h1>
+                                    <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '15px', fontWeight: '800' }}>Overall ranking of all employees</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ 
+                            backgroundColor: '#fafbff', padding: '20px', borderRadius: '24px', border: '1.5px solid #e2e8f0',
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.02)', marginBottom: '30px'
+                        }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {quizLeaderboard.length > 0 ? (
+                                    [...quizLeaderboard].sort((a, b) => b.total_points - a.total_points).map((p, i) => (
+                                        <motion.div 
+                                            key={i} 
+                                            whileHover={{ scale: 1.01, boxShadow: '0 10px 25px rgba(59, 130, 246, 0.15)', borderColor: '#bfdbfe', backgroundColor: '#f8fafc', zIndex: 10 }}
+                                            transition={{ duration: 0.2 }}
+                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', backgroundColor: 'white', borderRadius: '15px', border: '1px solid #f1f5f9', cursor: 'pointer' }}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '900', color: '#3B5998' }}>
+                                                    {(p.name || p.employee_name || 'U').charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>{p.name || p.employee_name}</div>
+                                                    <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>Rank #{i+1}</div>
+                                                </div>
+                                            </div>
+                                            <div style={{ fontSize: '15px', fontWeight: '1000', color: '#0B1E3F' }}>{p.total_points} <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>REP</span></div>
+                                        </motion.div>
+                                    ))
+                                ) : (
+                                    <div style={{ textAlign: 'center', padding: '20px', fontSize: '13px', color: '#94a3b8', fontWeight: '800' }}>No leaderboard data available.</div>
+                                )}
+                            </div>
+                        </div>
+                    </motion.div>
                 ) : (
                     <motion.div key="audit" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
                         <div style={{ display: 'flex', flexDirection: isTablet ? 'column' : 'row', justifyContent: 'space-between', alignItems: isTablet ? 'flex-start' : 'center', gap: isTablet ? '20px' : '0', marginBottom: '25px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                                <button onClick={() => setActiveView('MAIN')} style={{ backgroundColor: 'white', border: 'none', width: '45px', height: '45px', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-                                    <ArrowLeft size={20} color="#0B1E3F" />
+                                <button onClick={() => setActiveView('MAIN')} style={{
+                                    padding: isMobile ? '8px' : '12px',
+                                    borderRadius: '12px',
+                                    backgroundColor: 'white',
+                                    border: '1.5px solid #e2e8f0',
+                                    cursor: 'pointer',
+                                    flexShrink: 0,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                                    outline: 'none'
+                                }}>
+                                    <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
                                 </button>
                                 <div>
                                     <h1 style={{ margin: 0, fontSize: '32px', fontWeight: '1000', color: '#0B1E3F', letterSpacing: '-1px' }}>Team Audit Trail</h1>
@@ -967,7 +1054,8 @@ const AwardsScreen = ({ onBack }) => {
                                             })
                                             .reduce((sum, log) => sum + (Number(log.points) || Number(log.rep) || 0), 0);
 
-                                        const allTimePoints = mHistory.reduce((sum, log) => sum + (Number(log.points) || Number(log.rep) || 0), 0);
+                                        const globalUser = (quizLeaderboard || []).find(p => cleanIdLocal(p.employee_id || p.id || p.userId) === mid);
+                                        const allTimePoints = globalUser ? Number(globalUser.total_points || globalUser.points || 0) : mHistory.reduce((sum, log) => sum + (Number(log.points) || Number(log.rep) || 0), 0);
 
                                         return { ...m, displayPoints: isFiltering ? rewardPeriodPoints : allTimePoints };
                                     })
@@ -1041,73 +1129,7 @@ const AwardsScreen = ({ onBack }) => {
                             </div>
                         </div>
 
-                        {/* Hall of Fame Leaderboard (New Section) */}
-                        <div style={{ marginTop: '50px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '25px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                    <div style={{ padding: '12px', backgroundColor: '#fff', borderRadius: '15px', border: '1.5px solid #0B1E3F' }}>
-                                        <Trophy size={24} color="#0B1E3F" />
-                                    </div>
-                                    <div>
-                                        <h3 style={{ fontSize: '20px', fontWeight: '1000', color: '#0B1E3F', margin: 0 }}>Hall of Fame</h3>
-                                        <p style={{ fontSize: '12px', color: '#64748b', fontWeight: '800', margin: 0 }}>Top performers across the organization</p>
-                                    </div>
-                                </div>
-                                <div style={{ display: 'flex', gap: '10px', backgroundColor: '#f1f5f9', padding: '5px', borderRadius: '15px' }}>
-                                    <button 
-                                        onClick={() => setRankingType && setRankingType('quiz')}
-                                        style={{ padding: '8px 20px', borderRadius: '12px', fontSize: '11px', fontWeight: '900', border: 'none', backgroundColor: (typeof rankingType !== 'undefined' && rankingType === 'quiz') ? 'white' : 'transparent', color: '#0B1E3F', cursor: 'pointer', boxShadow: (typeof rankingType !== 'undefined' && rankingType === 'quiz') ? '0 4px 10px rgba(0,0,0,0.05)' : 'none' }}
-                                    >
-                                        QUIZ ONLY
-                                    </button>
-                                    <button 
-                                        onClick={() => setRankingType && setRankingType('global')}
-                                        style={{ padding: '8px 20px', borderRadius: '12px', fontSize: '11px', fontWeight: '900', border: 'none', backgroundColor: (typeof rankingType !== 'undefined' && rankingType === 'global') ? 'white' : 'transparent', color: '#0B1E3F', cursor: 'pointer', boxShadow: (typeof rankingType !== 'undefined' && rankingType === 'global') ? '0 4px 10px rgba(0,0,0,0.05)' : 'none' }}
-                                    >
-                                        GLOBAL
-                                    </button>
-                                </div>
-                            </div>
 
-                            <div style={{ backgroundColor: 'white', borderRadius: '30px', border: '1.5px solid #f1f5f9', overflow: 'hidden', boxShadow: '0 10px 40px rgba(0,0,0,0.03)' }}>
-                                <div style={{ 
-                                    display: 'grid', 
-                                    gridTemplateColumns: rankingType === 'quiz' ? '2fr 1fr 1fr' : '2fr 1fr 1fr 1fr', 
-                                    padding: '20px 30px', 
-                                    backgroundColor: '#fcfdfe', 
-                                    borderBottom: '2px solid #f1f5f9' 
-                                }}>
-                                    <span style={{ fontSize: '11px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase' }}>Name</span>
-                                    {rankingType !== 'quiz' && <span style={{ fontSize: '11px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase', textAlign: 'center' }}>Reward</span>}
-                                    <span style={{ fontSize: '11px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase', textAlign: 'center' }}>Quiz</span>
-                                    <span style={{ fontSize: '11px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase', textAlign: 'right' }}>Total</span>
-                                </div>
-                                <div>
-                                    {(quizLeaderboard || []).slice(0, 10).map((p, i) => {
-                                        const isMe = cleanIdLocal(p.employee_id || p.id || p.userId) === cleanIdLocal(user?.employee_id || user?.userId || user?.id);
-                                        return (
-                                            <div key={i} style={{ 
-                                                display: 'grid', 
-                                                gridTemplateColumns: rankingType === 'quiz' ? '2fr 1fr 1fr' : '2fr 1fr 1fr 1fr', 
-                                                padding: '18px 30px', 
-                                                borderBottom: i === 9 ? 'none' : '1px solid #f8fafc', alignItems: 'center',
-                                                backgroundColor: isMe ? '#f0f9fa' : 'transparent'
-                                            }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                                    <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#3B5998', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '1000', fontSize: '13px', border: '1.5px solid #dbeafe' }}>
-                                                        {(p.name || 'U').charAt(0).toUpperCase()}
-                                                    </div>
-                                                    <span style={{ fontSize: '14px', fontWeight: '900', color: '#0B1E3F' }}>{p.name}</span>
-                                                </div>
-                                                {rankingType !== 'quiz' && <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', textAlign: 'center' }}>{p.reward_points || (Number(p.total_points || p.points || 0) - Number(p.total_quiz_points || p.quiz_points || 0)) || 0}</span>}
-                                                <span style={{ fontSize: '13px', fontWeight: '700', color: '#64748b', textAlign: 'center' }}>{p.total_quiz_points || p.quiz_points || 0}</span>
-                                                <span style={{ fontSize: '15px', fontWeight: '1000', color: '#0B1E3F', textAlign: 'right' }}>{p.total_points || p.points || 0}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>

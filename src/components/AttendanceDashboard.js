@@ -363,9 +363,20 @@ const AttendanceDashboard = ({ onBack }) => {
     <div style={s.container} className="attendance-container">
       <header style={s.header} className="attendance-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <motion.div whileHover={{ x: -5 }} onClick={onBack} style={{ cursor: 'pointer', backgroundColor: 'white', padding: '10px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-            <ArrowLeft size={20} color="#64748b" />
-          </motion.div>
+          <button onClick={onBack} style={{
+            padding: isMobile ? '8px' : '12px',
+            borderRadius: '12px',
+            backgroundColor: 'white',
+            border: '1.5px solid #e2e8f0',
+            cursor: 'pointer',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+          }}>
+            <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
+          </button>
           <div>
             <h1 style={{ fontSize: '24px', fontWeight: '900', color: '#0B1E3F', margin: 0 }}>Personal Attendance</h1>
             <p style={{ fontSize: '14px', color: '#64748b', margin: '4px 0 0 0' }}>Biometric Syncing: Operational</p>
