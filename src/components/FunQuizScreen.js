@@ -14,12 +14,16 @@ const checkIfCorrect = (optObj, currentQ) => {
   const letter = String(optObj.letter).trim().toLowerCase();
   const text = String(optObj.text).trim().toLowerCase();
 
-  // Case 1: Match by letter (e.g. 'a', 'option_a', 'option a', 'option-a')
+  // Case 1: Match by letter prefix/exact
   if (
     correct === letter ||
-    correct === `option_${letter}` ||
-    correct === `option ${letter}` ||
-    correct === `option-${letter}`
+    correct.startsWith(`option_${letter}`) ||
+    correct.startsWith(`option ${letter}`) ||
+    correct.startsWith(`option-${letter}`) ||
+    correct.startsWith(`${letter} `) ||
+    correct.startsWith(`${letter}-`) ||
+    correct.startsWith(`${letter}.`) ||
+    correct.startsWith(`${letter}:`)
   ) {
     return true;
   }
@@ -29,8 +33,19 @@ const checkIfCorrect = (optObj, currentQ) => {
     return true;
   }
 
-  // Case 3: Match by text containment (only for longer words to avoid false positive on single characters)
-  if (correct.length > 1 && (correct.includes(text) || text.includes(correct))) {
+  // Helper to check if a string is numeric
+  const isNumeric = (str) => {
+    const cleaned = str.replace(/[-%]/g, '').trim();
+    return cleaned !== '' && !isNaN(Number(cleaned));
+  };
+
+  // Case 3: Match by text containment (only for non-numeric, longer strings)
+  if (
+    !isNumeric(text) &&
+    !isNumeric(correct) &&
+    text.length > 2 &&
+    (correct.includes(text) || text.includes(correct))
+  ) {
     return true;
   }
 
@@ -260,8 +275,9 @@ const FunQuizScreen = ({ onBack }) => {
   }, []);
 
   useEffect(() => {
-    setSelectedOption(currentQ?.user_selected_letter || null);
-  }, [currentIdx, currentQ]);
+    const activeQ = questions[currentIdx];
+    setSelectedOption(activeQ?.user_selected_letter || null);
+  }, [currentIdx, questions]);
 
   const handleSubmit = async () => {
     if (!selectedOption) return;
@@ -425,8 +441,10 @@ const FunQuizScreen = ({ onBack }) => {
     },
     bottomSection: { backgroundColor: 'white', borderRadius: '24px', padding: isMobile ? '20px' : '30px', border: '1px solid #eef2f3' },
     option: (optObj, isAnswered) => {
+      const storedAnswers = JSON.parse(localStorage.getItem('quiz_user_answers') || '{}');
+      const userPicked = currentQ?.user_selected_letter || selectedOption || storedAnswers[currentQ?.id];
       const isUserChoice = isAnswered
-        ? (optObj.letter === currentQ?.user_selected_letter)
+        ? (optObj.letter === userPicked)
         : (optObj.letter === selectedOption);
       const isActuallyCorrect = checkIfCorrect(optObj, currentQ);
 
@@ -782,7 +800,8 @@ const FunQuizScreen = ({ onBack }) => {
                         {currentQ.previous_result === 'correct' ?
                           'Excellent! You answered this correctly.' :
                           (() => {
-                            const userPicked = currentQ.user_selected_letter || selectedOption;
+                            const storedAnswers = JSON.parse(localStorage.getItem('quiz_user_answers') || '{}');
+                            const userPicked = currentQ.user_selected_letter || selectedOption || storedAnswers[currentQ.id];
                             const opt = currentQ.options.find(o => o.letter === userPicked);
                             return `Incorrect. You selected: Option ${userPicked || 'Unknown'}${opt ? ' - ' + opt.text : ''}. The correct answer was: ${formatCorrectAnswerText(currentQ)}`;
                           })()}
