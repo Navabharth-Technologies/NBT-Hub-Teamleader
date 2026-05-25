@@ -182,7 +182,7 @@ const TaskNotification = ({ onNavigate }) => {
       const mappedTasks = [];
       tasks.forEach(t => {
         // 1. Assignment Notification
-        const rawTs = t.assigned_at || t.created_at || t.timestamp || t.deadline;
+        const rawTs = t.assigned_at || t.created_at || t.createdAt || t.timestamp || t.deadline;
         const d = parseDate(rawTs);
         const tid = `task_${t.id}`;
         newIds.add(tid);
@@ -215,15 +215,18 @@ const TaskNotification = ({ onNavigate }) => {
            const isReviewRead = readIds.includes(reviewId);
            if (!isReviewRead) hasAnyUnread = true;
 
-           // Use updated_at for review date if available, else fallback
-           const d = parseDate(t.updated_at || t.created_at);
+           // Prioritize specific review date columns from payload
+           const rawReviewDate = t.date || t.verify_date || t.verified_at || t.review_date || t.completed_at || t.completedAt || t.updated_at || t.updatedAt || t.created_at || t.createdAt;
+           const baseDate = parseDate(rawReviewDate);
+           // Add 1000ms offset so TASK_REVIEW sorts as newer than the TASK assignment if they share the same time
+           const d = new Date(baseDate.getTime() + 1000);
  
            mappedTasks.push({
              id: reviewId,
              type: 'TASK_REVIEW',
              title: `Task ${isAppr ? 'Verified' : isRej ? 'Rejected' : 'Reviewed'} by PM`,
              description: `PM marked "${t.task_name || t.title || 'Task'}" as ${verifyStatusRaw}. ${t.verify_description || ''}`,
-             formattedTime: formatDate(d, t.updated_at || t.created_at),
+             formattedTime: formatDate(d, rawReviewDate),
              isNew: !isReviewRead,
              rawDate: d,
              taskId: t.id
@@ -427,7 +430,13 @@ const TaskNotification = ({ onNavigate }) => {
       const merged = [...mappedTasks, ...mappedLeaves, ...mappedRewards, ...quizNotifs, ...filteredDbNotifs].sort((a, b) => {
         const dateA = a.rawDate instanceof Date ? a.rawDate.getTime() : 0;
         const dateB = b.rawDate instanceof Date ? b.rawDate.getTime() : 0;
-        return dateB - dateA;
+        if (dateB !== dateA) {
+          return dateB - dateA;
+        }
+        // If timestamps are exactly equal, TASK_REVIEW should be placed before TASK (i.e. newer/higher)
+        if (a.type === 'TASK_REVIEW' && b.type === 'TASK') return -1;
+        if (a.type === 'TASK' && b.type === 'TASK_REVIEW') return 1;
+        return 0;
       });
       setNotifications(merged);
 

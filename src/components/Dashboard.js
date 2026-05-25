@@ -93,6 +93,28 @@ const Dashboard = ({ setActiveTab }) => {
             detail = Array.isArray(data.value) ? data.value[0] : data.value;
           }
         }
+
+        // Fetch task verification status from VERIFY_TASK endpoint
+        try {
+          const verifyRes = await fetch(API_ENDPOINTS.VERIFY_TASK(tid), {
+            headers: { 'Authorization': `Bearer ${token?.trim()}` }
+          });
+          if (verifyRes.ok) {
+            const verifyData = await verifyRes.json();
+            const verifyInfo = Array.isArray(verifyData) ? verifyData[0] : (verifyData?.data?.[0] || verifyData?.data || verifyData);
+            if (verifyInfo && typeof verifyInfo === 'object') {
+              detail = {
+                ...detail,
+                verify: verifyInfo.verify || verifyInfo.status || verifyInfo.verifyStatus || detail.verify,
+                task_review: verifyInfo.task_review || verifyInfo.review || verifyInfo.taskReview || verifyInfo.verify_description || detail.task_review,
+                verify_description: verifyInfo.verify_description || verifyInfo.description || detail.verify_description
+              };
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching task review:", err);
+        }
+
         setTaskDetailMap(prev => ({ ...prev, [tid]: detail }));
       }
     } catch { }
@@ -261,11 +283,11 @@ const Dashboard = ({ setActiveTab }) => {
             } else {
               r.tasks = [];
             }
-            
+
             // Map status and timing from DB schema shown in logs
             if (r.overall_status && !r.overallStatus) r.overallStatus = r.overall_status;
             if (r.employee_id && !r.userId) r.userId = r.employee_id;
-            
+
             return r;
           })
           .filter(r => memberIds.has(String(r.userId || r.user_id || r.employee_id || r.uid)))
@@ -276,7 +298,7 @@ const Dashboard = ({ setActiveTab }) => {
           });
         setTeamReports(filteredReports);
       }
- 
+
       // 4. Fetch Quiz Points and Leaderboard for Dashboard QuickView
       try {
         const [qRes, lbRes] = await Promise.all([
@@ -287,10 +309,10 @@ const Dashboard = ({ setActiveTab }) => {
           const [qData, lbData] = await Promise.all([qRes.json(), lbRes.json()]);
           const qList = Array.isArray(qData) ? qData : ((qData && qData.data) || []);
           const lbList = Array.isArray(lbData) ? lbData : ((lbData && lbData.data) || []);
-          
+
           const myQ = qList.find(s => s && String(s.employee_id || s.user_id || s.id) === String(uid));
           const myRankIdx = lbList.findIndex(s => s && String(s.employee_id || s.user_id || s.id) === String(uid));
-          
+
           setQuizStats({
             score: Number(myQ?.total_quiz_points || 0),
             rank: myRankIdx !== -1 ? `#${myRankIdx + 1}` : 'N/A'
@@ -636,7 +658,7 @@ const Dashboard = ({ setActiveTab }) => {
             <ChevronRight size={18} color="#94a3b8" />
           </div>
         </motion.div>
- 
+
         {/* ────── MASTER CONTAINER WRAPPER ────── */}
         <div style={{ display: 'grid', gridTemplateColumns: isTablet ? '1fr' : '3fr 1fr', gap: '32px' }}>
 
@@ -677,7 +699,7 @@ const Dashboard = ({ setActiveTab }) => {
 
                       let badgeColor = isApproved ? '#16a34a' : isRejected ? '#ef4444' : '#f59e0b';
                       let badgeBg = isApproved ? '#f0fdf4' : isRejected ? '#fef2f2' : '#fffbeb';
-                      let badgeLabel = isApproved ? `✓ ${verifyStatusRaw}` : isRejected ? `✗ ${verifyStatusRaw}` : verifyStatusRaw ? verifyStatusRaw : 'Pending Review';
+                      let badgeLabel = isApproved ? 'Approved' : isRejected ? 'Rejected' : verifyStatusRaw ? verifyStatusRaw : 'Pending Review';
 
                       // Requirement: Deadline Reached + Not Completed => DEADLINE COMPLETED & PROJECT PENDING
                       if (!isApproved && !isRejected && isDeadlineReached && pStatus !== 'Completed') {
@@ -732,9 +754,9 @@ const Dashboard = ({ setActiveTab }) => {
                                     dBorder = '#16a34a33';
                                     // Use updated_at from master_tasks as the exact completion date (with broad casing support)
                                     const cDate = task.updated_at || td.updated_at || task.updatedAt || td.updatedAt || task.completed_at || td.completed_at || task.completedAt || td.completedAt || task.created_at || td.created_at || task.createdAt || td.createdAt || task.timestamp || td.timestamp || task.date || td.date;
-                                    
+
                                     let cStr = cDate ? formatDateExact(cDate) : 'Recently';
-                                    
+
                                     dText = `${originalDeadline} | COMPLETED: ${cStr}`;
                                   } else if (isDeadlineReached) {
                                     dColor = '#ef4444';
@@ -867,7 +889,7 @@ const Dashboard = ({ setActiveTab }) => {
 
             {/* Internal Grid for Yesterday/Today */}
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '24px' }}>
-                <div
+              <div
                 onClick={() => navigate('/focus-logs')}
                 style={{ padding: '24px', backgroundColor: '#ecfdf5', borderRadius: '24px', border: '1px solid #d1fae5', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}
               >
@@ -1030,11 +1052,11 @@ const Dashboard = ({ setActiveTab }) => {
                         animate={{ opacity: 1, x: 0 }}
                         whileHover={{ scale: 1.05, x: 5 }}
                         transition={{ delay: i * 0.1 }}
-                        style={{ 
-                          padding: '20px', 
-                          backgroundColor: '#f8fafc', 
-                          borderRadius: '8px', 
-                          borderLeft: '5px solid #3B5998', 
+                        style={{
+                          padding: '20px',
+                          backgroundColor: '#f8fafc',
+                          borderRadius: '8px',
+                          borderLeft: '5px solid #3B5998',
                           border: '1px solid #eef2f6',
                           borderLeftStyle: 'solid',
                           borderLeftWidth: '6px',
@@ -1055,7 +1077,7 @@ const Dashboard = ({ setActiveTab }) => {
                                   const timeSource = r.created_at || r.updated_at || r.timestamp || r.date || r.time;
                                   const d = parseSafeDate(timeSource);
                                   if (!d) return '';
-                                  
+
                                   const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
                                   const dateStr = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
                                   return `${dateStr} • ${timeStr}`;
@@ -1205,14 +1227,14 @@ const Dashboard = ({ setActiveTab }) => {
                   const sorted = [...(Array.isArray(suggestions) ? suggestions : [])]
                     .filter(sug => sug)
                     .sort((a, b) => new Date(b?.created_at) - new Date(a?.created_at));
-                  
+
                   sorted.forEach(sug => {
                     if (!sug) return;
                     const d = parseSafeDate(sug.created_at);
                     const dateKey = d ? d.toISOString().split('T')[0] : 'no-date';
                     const userKey = cleanId(sug.employee_id || sug.employee_name || 'anon');
                     const key = `${userKey}_${dateKey}`;
-                    
+
                     if (!seen.has(key)) {
                       unique.push(sug);
                       seen.add(key);

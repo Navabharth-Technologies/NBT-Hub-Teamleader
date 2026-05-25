@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const NavigationDock = ({ activeTab, onTabChange }) => {
   const { user } = useAuth();
-  const { unreadCount } = useThread();
+  const { unreadCount, clearNotifications } = useThread();
   const theme = getTheme(user?.role);
   const [winWidth, setWinWidth] = useState(window.innerWidth);
   const [isVisible, setIsVisible] = useState(true);
@@ -91,7 +91,12 @@ const NavigationDock = ({ activeTab, onTabChange }) => {
               <div
                 key={item.id}
                 className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
-                onClick={() => onTabChange(item.id)}
+                onClick={() => {
+                  onTabChange(item.id);
+                  if (item.id === 'THREAD' && clearNotifications) {
+                    clearNotifications();
+                  }
+                }}
                 style={{ color: activeTab === item.id ? theme.color : '#000' }}
               >
                 <div style={{ position: 'relative' }}>

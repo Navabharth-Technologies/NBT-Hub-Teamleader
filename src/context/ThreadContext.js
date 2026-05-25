@@ -58,9 +58,18 @@ export const ThreadProvider = ({ children }) => {
         
         const sorted = normalized.sort((a, b) => b.id - a.id);
 
-        if (sorted.length > 0) {
-          const seenId = Number(localStorage.getItem(`lastSeenThreadId_${currentUserId}`) || 0);
-          const unseen = sorted.filter(t => t.id > seenId).length;
+        if (sorted.length > 0 && currentUserId) {
+          const seenIdKey = `lastSeenThreadId_${currentUserId}`;
+          let seenIdVal = localStorage.getItem(seenIdKey);
+          if (seenIdVal === null || seenIdVal === 'undefined' || seenIdVal === 'null' || isNaN(Number(seenIdVal))) {
+            seenIdVal = sorted[0].id;
+            localStorage.setItem(seenIdKey, seenIdVal);
+          }
+          const seenId = Number(seenIdVal);
+          const unseen = sorted.filter(t => {
+            const isMine = String(t.userId || t.user_id) === String(currentUserId);
+            return t.id > seenId && !isMine;
+          }).length;
           setUnreadCount(unseen);
         }
 
@@ -74,7 +83,7 @@ export const ThreadProvider = ({ children }) => {
   };
 
   const clearNotifications = () => {
-    if (threads.length > 0) {
+    if (threads.length > 0 && currentUserId) {
       const latestId = threads[0].id;
       localStorage.setItem(`lastSeenThreadId_${currentUserId}`, latestId);
       setLastSeenId(latestId);
