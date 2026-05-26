@@ -707,16 +707,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
             </div>
           </motion.div>
 
-          {/* Daily Goal Card */}
-          <motion.div whileHover={{ scale: 1.05, y: -2 }} transition={{ type: 'spring', stiffness: 300 }} style={styles.infoCard}>
-            <div style={styles.iconCircle}>
-              <Trophy size={18} color="#3863a8" />
-            </div>
-            <div>
-              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Daily Goal</div>
-              <div style={styles.infoValue}>{user?.dailyGoal || 'No goal set'}</div>
-            </div>
-          </motion.div>
+
 
           <motion.div whileHover={{ scale: 1.05, y: -2 }} transition={{ type: 'spring', stiffness: 300 }} style={styles.infoCard}>
             <div style={styles.iconCircle}><Fingerprint size={18} color="#3863a8" /></div>
