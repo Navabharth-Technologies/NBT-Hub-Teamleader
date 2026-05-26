@@ -18,11 +18,11 @@ export default function ThreadScreen() {
     const { threads, unreadCount, loading, clearNotifications, addPost, deletePost, updatePost, deleteComment, updateComment, toggleReaction, toggleBadge, addComment, fetchComments, fetchReactors } = useThread();
     const { user } = useAuth();
     const currentUserId = user?.id || user?.userId || user?.empId || user?.employee_id;
-    
+
     const [tagline, setTagline] = useState('');
     const [newPost, setNewPost] = useState('');
     const [mediaFile, setMediaFile] = useState(null);
-    const [mediaType, setMediaType] = useState(null); 
+    const [mediaType, setMediaType] = useState(null);
     const [mediaPreview, setMediaPreview] = useState(null);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef(null);
@@ -43,7 +43,7 @@ export default function ThreadScreen() {
     const [reactorModal, setReactorModal] = useState(null); // { postId, emoji, users, count }
     const [loadingReactors, setLoadingReactors] = useState(false);
     const [fullscreenMedia, setFullscreenMedia] = useState(null); // { src, type }
-    
+
     const [editMediaFile, setEditMediaFile] = useState(null);
     const [editMediaType, setEditMediaType] = useState(null);
     const [editMediaPreview, setEditMediaPreview] = useState(null);
@@ -153,19 +153,19 @@ export default function ThreadScreen() {
         const y = e.clientY;
         setFlyingEmoji({ emoji, x, y, postId: id });
         setActiveEmojiPicker(null);
-        
+
         // Emotional Reaction - Distinct from the footer 'Like' action
-        onToggleLike(id, emoji); 
-        
+        onToggleLike(id, emoji);
+
         setTimeout(() => setFlyingEmoji(null), 3500);
     };
 
     const formatTime = (ts) => {
-        if (!ts) return ''; 
+        if (!ts) return '';
         // Use YYYY/MM/DD format to force local time interpretation across all browsers
         const d = new Date(typeof ts === 'string' ? ts.replace(/-/g, '/').replace('T', ' ').split('.')[0] : ts);
-        if (isNaN(d.getTime())) return '...'; 
-        
+        if (isNaN(d.getTime())) return '...';
+
         const year = d.getFullYear();
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
@@ -185,9 +185,9 @@ export default function ThreadScreen() {
         const dynamicCount = cachedData.length > 0 ? cachedData.length : fallbackCount;
 
         // Open modal immediately with cached/count data
-        setReactorModal({ 
-            postId: post.id, 
-            emoji: emoji === 'like' ? '❤️' : emoji, 
+        setReactorModal({
+            postId: post.id,
+            emoji: emoji === 'like' ? '❤️' : emoji,
             users: cachedData,
             count: dynamicCount
         });
@@ -205,7 +205,7 @@ export default function ThreadScreen() {
             if (liveUsers && liveUsers.length > 0) {
                 setReactorModal(prev => prev ? { ...prev, users: liveUsers, count: liveUsers.length } : null);
             }
-        } catch {}
+        } catch { }
         setLoadingReactors(false);
     };
 
@@ -220,16 +220,16 @@ export default function ThreadScreen() {
         taglineBadge: { display: 'inline-block', padding: '4px 10px', borderRadius: '8px', background: '#f0f9ff', color: '#315A9E', fontSize: isMobile ? '8px' : '9px', fontWeight: '900', textTransform: 'uppercase', marginBottom: '12px', border: '1px solid #e0f2fe' },
         postMedia: { marginTop: '20px', borderRadius: '25px', overflow: 'hidden', border: '1.5px solid #f8fafc', maxHeight: isMobile ? '300px' : '380px', maxWidth: '100%', width: 'fit-content', backgroundColor: '#fdfdfd', display: 'flex', justifyContent: 'flex-start', alignItems: 'center' },
         footer: { display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '15px', marginTop: '15px', gap: isMobile ? '5px' : '10px', flexWrap: isMobile ? 'wrap' : 'nowrap' },
-        action: (active, color) => ({ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: isMobile ? '4px' : '8px', 
-            color: active ? 'white' : color, 
+        action: (active, color) => ({
+            display: 'flex',
+            alignItems: 'center',
+            gap: isMobile ? '4px' : '8px',
+            color: active ? 'white' : color,
             backgroundColor: active ? color : '#f8fafc',
             padding: isMobile ? '6px 8px' : '8px 16px',
             borderRadius: '12px',
-            fontSize: isMobile ? '9px' : (isTablet ? '11px' : '12px'), 
-            fontWeight: '900', 
+            fontSize: isMobile ? '9px' : (isTablet ? '11px' : '12px'),
+            fontWeight: '900',
             cursor: 'pointer',
             transition: 'all 0.2s ease',
             border: active ? `1.5px solid ${color}` : '1.5px solid #f1f5f9',
@@ -292,27 +292,27 @@ export default function ThreadScreen() {
                     animate={{ opacity: 1, scale: 1 }}
                     style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
                 >
-                    <motion.div 
+                    <motion.div
                         animate={{ rotate: 360 }}
                         transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
-                        style={{ 
-                            width: '80px', 
-                            height: '80px', 
-                            border: '4px solid rgba(49, 90, 158, 0.1)', 
-                            borderTop: '4px solid #315A9E', 
+                        style={{
+                            width: '80px',
+                            height: '80px',
+                            border: '4px solid rgba(49, 90, 158, 0.1)',
+                            borderTop: '4px solid #315A9E',
                             borderRight: '4px solid #315A9E',
                             borderRadius: '50%',
                             boxShadow: '0 0 20px rgba(49, 90, 158, 0.1)'
-                        }} 
+                        }}
                     />
                     <motion.div
                         animate={{ opacity: [0.4, 1, 0.4] }}
                         transition={{ repeat: Infinity, duration: 2 }}
-                        style={{ 
-                            marginTop: '30px', 
-                            color: '#315A9E', 
-                            fontWeight: '900', 
-                            fontSize: '14px', 
+                        style={{
+                            marginTop: '30px',
+                            color: '#315A9E',
+                            fontWeight: '900',
+                            fontSize: '14px',
                             letterSpacing: '3px',
                             textTransform: 'uppercase'
                         }}
@@ -332,7 +332,7 @@ export default function ThreadScreen() {
                 <textarea id="thread-content-input" style={styles.mainInput} placeholder="Share an update with the team..." value={newPost} onChange={e => setNewPost(e.target.value)} />
 
                 <input type="file" ref={fileInputRef} onChange={handleFileSelect} hidden accept="image/*,video/*" />
-                
+
                 <div style={{ display: 'flex', gap: '15px', marginTop: '15px', alignItems: 'center' }}>
                     <div style={styles.mediaBtn} onClick={() => fileInputRef.current?.click()}><ImageIcon size={18} color="#10b981" /> Photo</div>
                     <div style={styles.mediaBtn} onClick={() => fileInputRef.current?.click()}><Film size={18} color="#ef4444" /> Video</div>
@@ -345,7 +345,7 @@ export default function ThreadScreen() {
                 {mediaPreview && (
                     <div style={{ marginTop: '20px', position: 'relative', borderRadius: '25px', overflow: 'hidden', maxWidth: '400px' }}>
                         <XCircle size={24} color="white" style={{ position: 'absolute', top: '10px', right: '10px', cursor: 'pointer', zIndex: 10 }} onClick={clearMedia} />
-                        {mediaType === 'video' ? ( <video src={mediaPreview} controls style={{ width: '100%', display: 'block' }} /> ) : ( <img src={mediaPreview} alt="" style={{ width: '100%', display: 'block' }} /> )}
+                        {mediaType === 'video' ? (<video src={mediaPreview} controls style={{ width: '100%', display: 'block' }} />) : (<img src={mediaPreview} alt="" style={{ width: '100%', display: 'block' }} />)}
                     </div>
                 )}
             </div>
@@ -372,11 +372,11 @@ export default function ThreadScreen() {
                 const authorId = user?.id || user?.empId || user?.userId || user?.employee_id;
                 const uid = post.userId || post.user_id;
                 const ts = post.createdAt;
-                
+
                 const authorIdMatch = authorId && uid && String(authorId) === String(uid);
                 const nameMatch = (user?.name && (post.userName || post.user)) && (user.name === (post.userName || post.user));
                 const isAuthor = authorIdMatch || nameMatch;
-                
+
                 const isLead = user?.role === 'TEAMLEADER' || user?.role === 'ADMIN' || user?.role === 'MANAGER';
                 const canManage = isAuthor;
                 const isEditing = editingPostId === post.id;
@@ -387,7 +387,7 @@ export default function ThreadScreen() {
                 return (
                     <div key={post.id} style={styles.threadCard}>
                         {post.tagline && <div style={styles.taglineBadge}>{post.tagline}</div>}
-                        
+
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                             <div style={{ display: 'flex', gap: '15px' }}>
                                 <div style={{ width: '48px', height: '48px', borderRadius: '15px', backgroundColor: '#0B1E3F', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, boxShadow: '0 4px 12px rgba(11, 30, 63, 0.15)' }}>
@@ -404,8 +404,8 @@ export default function ThreadScreen() {
                                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                     <div style={{ fontSize: isMobile ? '13px' : '15px', fontWeight: '1000', color: '#0B1E3F', letterSpacing: '-0.3px' }}>{userProfiles[uid]?.name || post.user_name || post.userName || post.user || 'Collaborator'}</div>
                                     <div style={{ fontSize: isMobile ? '9px' : '10px', color: '#315A9E', fontWeight: '900', textTransform: 'uppercase', marginTop: '2px', letterSpacing: '0.5px' }}>
-                                        {userProfiles[uid]?.role || post.role || 'Member'} • 
-                                        { (post.emp_id || post.empId || uid) && ` ID: ${post.emp_id || post.empId || uid} • ` }
+                                        {userProfiles[uid]?.role || post.role || 'Member'} •
+                                        {(post.emp_id || post.empId || uid) && ` ID: ${post.emp_id || post.empId || uid} • `}
                                         {formatTime(ts)}
                                     </div>
                                 </div>
@@ -413,21 +413,21 @@ export default function ThreadScreen() {
 
                             {canManage && (
                                 <div style={{ display: 'flex', gap: '5px' }}>
-                                    <button 
+                                    <button
                                         onClick={() => {
                                             setEditingPostId(post.id);
                                             setEditContent(post.content);
                                             setEditMediaFile(null);
                                             setEditMediaPreview(null);
                                             setEditRemoveMedia(false);
-                                        }} 
+                                        }}
                                         style={{ border: 'none', background: '#f8fafc', color: '#315A9E', padding: '10px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                         title="Edit post"
                                     >
                                         <Edit3 size={16} />
                                     </button>
-                                    <button 
-                                        onClick={() => deletePost(post.id)} 
+                                    <button
+                                        onClick={() => deletePost(post.id)}
                                         style={{ border: 'none', background: '#fef2f2', color: '#ef4444', padding: '10px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                         title="Delete post"
                                     >
@@ -440,29 +440,29 @@ export default function ThreadScreen() {
                         <div style={{ marginTop: '14px', fontSize: isMobile ? '13px' : '15px', color: '#0B1E3F', lineHeight: '1.6', fontWeight: '600', whiteSpace: 'pre-wrap' }}>
                             {isEditing ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                    <textarea 
+                                    <textarea
                                         id={`thread-edit-content-input-${post.id}`}
                                         style={{ ...styles.mainInput, minHeight: '80px', padding: '15px' }}
                                         value={editContent}
                                         onChange={(e) => setEditContent(e.target.value)}
                                     />
-                                    
+
                                     <input type="file" ref={editFileInputRef} onChange={handleEditFileSelect} hidden accept="image/*,video/*" />
                                     <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                         <div style={styles.mediaBtn} onClick={() => editFileInputRef.current?.click()}>
                                             <ImageIcon size={18} color="#10b981" /> Replace Photo/Video
                                         </div>
-                                        { (editMediaPreview || post.media_url || post.mediaUrl || post.media || post.image || post.media_path || post.file_path) && !editRemoveMedia && (
+                                        {(editMediaPreview || post.media_url || post.mediaUrl || post.media || post.image || post.media_path || post.file_path) && !editRemoveMedia && (
                                             <div style={{ ...styles.mediaBtn, color: '#ef4444' }} onClick={() => { setEditRemoveMedia(true); setEditMediaFile(null); setEditMediaPreview(null); }}>
                                                 <Trash2 size={18} color="#ef4444" /> Remove Media
                                             </div>
                                         )}
                                     </div>
-                                    
+
                                     {(editMediaPreview && !editRemoveMedia) && (
                                         <div style={{ marginTop: '10px', position: 'relative', borderRadius: '15px', overflow: 'hidden', maxWidth: '300px' }}>
                                             <XCircle size={24} color="white" style={{ position: 'absolute', top: '10px', right: '10px', cursor: 'pointer', zIndex: 10 }} onClick={() => { setEditMediaFile(null); setEditMediaPreview(null); }} />
-                                            {editMediaType === 'video' ? ( <video src={editMediaPreview} controls style={{ width: '100%', display: 'block' }} /> ) : ( <img src={editMediaPreview} alt="" style={{ width: '100%', display: 'block' }} /> )}
+                                            {editMediaType === 'video' ? (<video src={editMediaPreview} controls style={{ width: '100%', display: 'block' }} />) : (<img src={editMediaPreview} alt="" style={{ width: '100%', display: 'block' }} />)}
                                         </div>
                                     )}
 
@@ -477,13 +477,13 @@ export default function ThreadScreen() {
                                         }
                                         return (
                                             <div style={{ marginTop: '10px', borderRadius: '15px', overflow: 'hidden', maxWidth: '300px', opacity: 0.5 }}>
-                                                {isVideo ? ( <video src={src} controls style={{ width: '100%', display: 'block' }} /> ) : ( <img src={src} style={{ width: '100%', display: 'block' }} alt="" /> )}
+                                                {isVideo ? (<video src={src} controls style={{ width: '100%', display: 'block' }} />) : (<img src={src} style={{ width: '100%', display: 'block' }} alt="" />)}
                                             </div>
                                         );
                                     })()}
 
                                     <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
-                                        <button 
+                                        <button
                                             onClick={async () => {
                                                 const success = await updatePost(post.id, {
                                                     content: editContent,
@@ -502,7 +502,7 @@ export default function ThreadScreen() {
                                         >
                                             SAVE
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 setEditingPostId(null);
                                                 setEditMediaFile(null);
@@ -525,7 +525,7 @@ export default function ThreadScreen() {
                             const mediaPath = post.media_url || post.mediaUrl || post.media || post.image || post.media_path || post.file_path;
                             if (!mediaPath || typeof mediaPath !== 'string') return null;
                             const isVideo = post.media_type === 'video' || post.mediaType === 'video' || mediaPath.toLowerCase().includes('video') || mediaPath.toLowerCase().endsWith('.mp4');
-                            
+
                             let src = mediaPath;
                             if (!mediaPath.startsWith('http') && !mediaPath.startsWith('data:')) {
                                 const separator = mediaPath.startsWith('/') ? '' : '/';
@@ -533,15 +533,15 @@ export default function ThreadScreen() {
                             }
                             return (
                                 <div style={styles.postMedia}>
-                                    {isVideo ? ( 
-                                        <video src={src} controls style={{ maxWidth: '100%', maxHeight: '380px', display: 'block' }} /> 
-                                    ) : ( 
-                                        <img 
-                                            src={src} 
-                                            style={{ maxWidth: '100%', maxHeight: '380px', objectFit: 'contain', display: 'block', cursor: 'zoom-in' }} 
-                                            alt="" 
+                                    {isVideo ? (
+                                        <video src={src} controls style={{ maxWidth: '100%', maxHeight: '380px', display: 'block' }} />
+                                    ) : (
+                                        <img
+                                            src={src}
+                                            style={{ maxWidth: '100%', maxHeight: '380px', objectFit: 'contain', display: 'block', cursor: 'zoom-in' }}
+                                            alt=""
                                             onClick={() => setFullscreenMedia({ src, type: 'image' })}
-                                        /> 
+                                        />
                                     )}
                                 </div>
                             );
@@ -556,8 +556,8 @@ export default function ThreadScreen() {
                                 if (!count || count <= 0) return null;
                                 const hasReacted = post.userReactions?.[emoji] === true;
                                 return (
-                                    <div 
-                                        key={emoji} 
+                                    <div
+                                        key={emoji}
                                         style={{ ...styles.reactionBadge, backgroundColor: hasReacted ? '#f0f9ff' : 'white', borderColor: hasReacted ? '#315A9E' : '#f1f5f9' }}
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -572,16 +572,16 @@ export default function ThreadScreen() {
                         </div>
 
                         <div style={styles.footer}>
-                            <div 
-                                onClick={() => onToggleLike(post.id)} 
+                            <div
+                                onClick={() => onToggleLike(post.id)}
                                 onMouseEnter={() => setActiveEmojiPicker(post.id)}
                                 onMouseLeave={() => setActiveEmojiPicker(null)}
                                 style={styles.action(pLiked, '#ef4444')}
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Heart size={18} fill={pLiked ? "white" : "none"} stroke={pLiked ? "white" : "#ef4444"} strokeWidth={2.5} /> 
-                                    {pLiked ? 'LIKED' : 'LIKE'} 
-                                    <span 
+                                    <Heart size={18} fill={pLiked ? "white" : "none"} stroke={pLiked ? "white" : "#ef4444"} strokeWidth={2.5} />
+                                    {pLiked ? 'LIKED' : 'LIKE'}
+                                    <span
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             openReactorsModal(post, 'like');
@@ -594,15 +594,15 @@ export default function ThreadScreen() {
 
                                 <AnimatePresence>
                                     {activeEmojiPicker === post.id && (
-                                        <motion.div 
-                                            initial={{ opacity: 0, y: 10, scale: 0.8 }} 
-                                            animate={{ opacity: 1, y: 0, scale: 1 }} 
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10, scale: 0.8 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
                                             exit={{ opacity: 0, y: 10, scale: 0.8 }}
                                             style={styles.emojiPicker}
                                         >
                                             {EMOJI_LIST.map(emoji => (
-                                                <div 
-                                                    key={emoji} 
+                                                <div
+                                                    key={emoji}
                                                     style={{ fontSize: '24px', cursor: 'pointer', transition: 'transform 0.1s' }}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -619,7 +619,7 @@ export default function ThreadScreen() {
                                 </AnimatePresence>
                             </div>
                             <div onClick={() => handleOpenComments(post.id)} style={styles.action(activeCommentPost === post.id, '#315A9E')}>
-                                <MessageSquare size={18} strokeWidth={2.5} /> 
+                                <MessageSquare size={18} strokeWidth={2.5} />
                                 {activeCommentPost === post.id ? 'CLOSE' : 'COMMENT'} ({commentCount})
                             </div>
                         </div>
@@ -627,17 +627,17 @@ export default function ThreadScreen() {
                         {activeCommentPost === post.id && (
                             <div style={{ marginTop: '20px', padding: '20px', backgroundColor: '#f8fafc', borderRadius: '25px' }}>
                                 <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                                    <input 
+                                    <input
                                         id={`thread-comment-input-${post.id}`}
-                                        style={{ flex: 1, padding: '12px 18px', borderRadius: '12px', border: '1.5px solid #eef2f6', fontSize: '14px', outline: 'none' }} 
-                                        placeholder="Add a comment..." 
-                                        value={commentText} 
-                                        onChange={e => setCommentText(e.target.value)} 
-                                        onKeyDown={e => e.key === 'Enter' && handleAddComment(post.id)} 
+                                        style={{ flex: 1, padding: '12px 18px', borderRadius: '12px', border: '1.5px solid #eef2f6', fontSize: '14px', outline: 'none' }}
+                                        placeholder="Add a comment..."
+                                        value={commentText}
+                                        onChange={e => setCommentText(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && handleAddComment(post.id)}
                                     />
-                                    <button 
+                                    <button
                                         id={`thread-comment-post-btn-${post.id}`}
-                                        style={{ padding: '0 20px', background: '#315A9E', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '900', cursor: 'pointer' }} 
+                                        style={{ padding: '0 20px', background: '#315A9E', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '900', cursor: 'pointer' }}
                                         onClick={() => handleAddComment(post.id)}
                                     >
                                         Post
@@ -658,7 +658,7 @@ export default function ThreadScreen() {
                                                 const cText = c.content || c.text || c.comment || c.message || '...';
                                                 const commentAuthorId = c.userId || c.user_id;
                                                 const isMyComment = (authorId && commentAuthorId && String(authorId) === String(commentAuthorId)) || (user?.name === cUser);
-                                                
+
                                                 return (
                                                     <div key={c.id} style={{ display: 'flex', gap: '12px' }}>
                                                         <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: '#315A9E', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '1000', flexShrink: 0, boxShadow: '0 4px 10px rgba(49, 90, 158, 0.2)' }}>
@@ -683,19 +683,19 @@ export default function ThreadScreen() {
 
                                                             {editingCommentId === c.id ? (
                                                                 <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                                                    <textarea 
+                                                                    <textarea
                                                                         style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1.5px solid #315A9E', fontSize: '13px', outline: 'none', minHeight: '60px', background: '#f8fafc' }}
                                                                         value={editCommentContent}
                                                                         onChange={e => setEditCommentContent(e.target.value)}
                                                                         autoFocus
                                                                     />
                                                                     <div style={{ display: 'flex', gap: '8px' }}>
-                                                                        <button onClick={async () => { 
-                                                                            const success = await updateComment(post.id, c.id, editCommentContent); 
+                                                                        <button onClick={async () => {
+                                                                            const success = await updateComment(post.id, c.id, editCommentContent);
                                                                             if (success) {
                                                                                 const comments = await fetchComments(post.id);
                                                                                 setPostComments(prev => ({ ...prev, [post.id]: comments }));
-                                                                                setEditingCommentId(null); 
+                                                                                setEditingCommentId(null);
                                                                             }
                                                                         }} style={{ fontSize: '11px', fontWeight: '900', color: 'white', background: '#315A9E', border: 'none', padding: '6px 15px', borderRadius: '8px', cursor: 'pointer' }}>UPDATE</button>
                                                                         <button onClick={() => setEditingCommentId(null)} style={{ fontSize: '11px', fontWeight: '900', color: '#64748b', background: 'none', border: '1.5px solid #e2e8f0', padding: '6px 15px', borderRadius: '8px', cursor: 'pointer' }}>CANCEL</button>
@@ -727,18 +727,18 @@ export default function ThreadScreen() {
                 )}
 
                 {reactorModal && (
-                    <motion.div 
-                        initial={{ opacity: 0 }} 
-                        animate={{ opacity: 1 }} 
-                        exit={{ opacity: 0 }} 
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
                         style={styles.modalOverlay}
                         onClick={() => setReactorModal(null)}
                     >
-                        <motion.div 
-                            initial={{ scale: 0.9, y: 20 }} 
-                            animate={{ scale: 1, y: 0 }} 
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
                             exit={{ scale: 0.9, y: 20 }}
-                            style={styles.modalContent} 
+                            style={styles.modalContent}
                             onClick={e => e.stopPropagation()}
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -750,7 +750,7 @@ export default function ThreadScreen() {
                                 </div>
                                 <X size={24} style={{ cursor: 'pointer', color: '#64748b' }} onClick={() => setReactorModal(null)} />
                             </div>
-                            
+
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto', paddingRight: '5px' }}>
                                 {loadingReactors ? (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -799,7 +799,7 @@ export default function ThreadScreen() {
                         exit={{ opacity: 0 }}
                         onClick={() => setFullscreenMedia(null)}
                         style={{
-                            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', 
+                            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)',
                             zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center',
                             cursor: 'zoom-out', padding: '20px'
                         }}

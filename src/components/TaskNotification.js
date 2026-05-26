@@ -10,7 +10,7 @@ const TaskNotification = ({ onNavigate }) => {
   const [hasUnread, setHasUnread] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [lastIds, setLastIds] = useState(new Set());
-  
+
   const [winWidth, setWinWidth] = useState(window.innerWidth);
   const [prevUnreadCount, setPrevUnreadCount] = useState(0);
   const [isVibrating, setIsVibrating] = useState(false);
@@ -20,9 +20,9 @@ const TaskNotification = ({ onNavigate }) => {
     if (currentUnreadCount > prevUnreadCount) {
       try {
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3');
-        audio.play().catch(() => {}); // Silently handle autoplay blocks
-      } catch (e) {}
-      
+        audio.play().catch(() => { }); // Silently handle autoplay blocks
+      } catch (e) { }
+
       setIsVibrating(true);
       setTimeout(() => setIsVibrating(false), 800);
     }
@@ -42,16 +42,16 @@ const TaskNotification = ({ onNavigate }) => {
         const parts = rawStr.split('T');
         const datePart = parts[0].includes(' ') ? parts[0].split(' ')[0] : parts[0];
         const timePart = parts[1] ? parts[1].split('.')[0] : (rawStr.includes(' ') ? rawStr.split(' ')[1].split('.')[0] : '00:00:00');
-        
+
         const [year, month, day] = datePart.split('-');
         const [hh, mm, ss] = timePart.split(':');
-        
+
         let hour = parseInt(hh);
         const ampm = hour >= 12 ? 'pm' : 'am';
         hour = hour % 12;
         hour = hour ? hour : 12;
         const formattedTime = `${String(hour).padStart(2, '0')}:${mm}:${ss || '00'} ${ampm}`;
-        
+
         return `${year}/${month}/${day} at ${formattedTime}`;
       } catch (e) {
         console.warn('Manual date parse failed, falling back to JS Date');
@@ -76,18 +76,18 @@ const TaskNotification = ({ onNavigate }) => {
   const parseDate = (dateStr) => {
     if (!dateStr) return new Date();
     if (dateStr instanceof Date) return dateStr;
-    
+
     // Handle SQL format "YYYY-MM-DD HH:MM:SS"
     if (typeof dateStr === 'string' && !dateStr.includes('T') && !dateStr.includes('Z')) {
-        // If it looks like a standard SQL date, ensure we parse it correctly
-        const normalized = dateStr.replace(' ', 'T');
-        const d = new Date(normalized);
-        if (!isNaN(d.getTime())) return d;
+      // If it looks like a standard SQL date, ensure we parse it correctly
+      const normalized = dateStr.replace(' ', 'T');
+      const d = new Date(normalized);
+      if (!isNaN(d.getTime())) return d;
     }
     const d = new Date(dateStr);
     return isNaN(d.getTime()) ? new Date() : d;
   };
-  
+
   const calculateDays = (start, end) => {
     if (!start || !end) return 0;
     const s = new Date(start);
@@ -104,7 +104,7 @@ const TaskNotification = ({ onNavigate }) => {
     try {
       const token = localStorage.getItem('token');
       const headers = { 'Authorization': `Bearer ${token?.trim()}` };
-      
+
       // 1. Fetch Assigned Tasks
       const taskRes = await fetch(API_ENDPOINTS.TASKS_ASSIGNED(uid), { headers });
       let tasks = [];
@@ -117,40 +117,40 @@ const TaskNotification = ({ onNavigate }) => {
       let leaves = [];
       const userRole = (user?.role || '').toLowerCase();
       const isLeader = userRole.includes('lead') || userRole === 'tl' || userRole === 'manager' || userRole.includes('project manager');
-      
+
       try {
         // My Leaves
         const myRes = await fetch(`${BASE_URL}/api/leaves/my`, { headers });
         if (myRes.ok) {
-           const myData = await myRes.json();
-           const myArr = Array.isArray(myData) ? myData : (myData.data || myData.leaves || []);
-           leaves = [...myArr];
+          const myData = await myRes.json();
+          const myArr = Array.isArray(myData) ? myData : (myData.data || myData.leaves || []);
+          leaves = [...myArr];
         }
 
         // Team Pending (For Leader Notifications)
         if (isLeader) {
-           const pendRes = await fetch(`${BASE_URL}/api/leaves/pending`, { headers });
-           if (pendRes.ok) {
-              const pendData = await pendRes.json();
-              const pendArr = Array.isArray(pendData) ? pendData : (pendData.data || pendData.leaves || []);
-              
-              // Merge to avoid duplicates
-              const existingIds = new Set(leaves.map(l => l.id));
-              pendArr.forEach(p => {
-                if (!existingIds.has(p.id)) leaves.push(p);
-              });
-           }
+          const pendRes = await fetch(`${BASE_URL}/api/leaves/pending`, { headers });
+          if (pendRes.ok) {
+            const pendData = await pendRes.json();
+            const pendArr = Array.isArray(pendData) ? pendData : (pendData.data || pendData.leaves || []);
 
-           // All Leaves (for final approval notifications of team members)
-           const allRes = await fetch(API_ENDPOINTS.ALL_LEAVES, { headers });
-           if (allRes.ok) {
-             const allData = await allRes.json();
-             const allArr = Array.isArray(allData) ? allData : (allData.data || allData.leaves || []);
-             const existingIds = new Set(leaves.map(l => l.id));
-             allArr.forEach(al => {
-                if (!existingIds.has(al.id)) leaves.push(al);
-             });
-           }
+            // Merge to avoid duplicates
+            const existingIds = new Set(leaves.map(l => l.id));
+            pendArr.forEach(p => {
+              if (!existingIds.has(p.id)) leaves.push(p);
+            });
+          }
+
+          // All Leaves (for final approval notifications of team members)
+          const allRes = await fetch(API_ENDPOINTS.ALL_LEAVES, { headers });
+          if (allRes.ok) {
+            const allData = await allRes.json();
+            const allArr = Array.isArray(allData) ? allData : (allData.data || allData.leaves || []);
+            const existingIds = new Set(leaves.map(l => l.id));
+            allArr.forEach(al => {
+              if (!existingIds.has(al.id)) leaves.push(al);
+            });
+          }
         }
       } catch (e) {
         console.error("Leave fetch error in notifications:", e);
@@ -170,11 +170,11 @@ const TaskNotification = ({ onNavigate }) => {
 
       const newIds = new Set();
       const readIds = JSON.parse(localStorage.getItem(`read_management_ids_${uid}`) || '[]');
-      
+
       let hasAnyUnread = false;
       const seenApprovals = JSON.parse(localStorage.getItem(`seen_approvals_${uid}`) || '{}');
       const seenRequests = JSON.parse(localStorage.getItem(`seen_leave_requests_${uid}`) || '[]');
-      
+
       const updatedApprovals = { ...seenApprovals };
       const updatedRequests = [...seenRequests];
 
@@ -186,10 +186,10 @@ const TaskNotification = ({ onNavigate }) => {
         const d = parseDate(rawTs);
         const tid = `task_${t.id}`;
         newIds.add(tid);
-        
+
         const isRead = readIds.includes(tid);
         if (!isRead) hasAnyUnread = true;
- 
+
         mappedTasks.push({
           id: tid,
           type: 'TASK',
@@ -204,33 +204,33 @@ const TaskNotification = ({ onNavigate }) => {
         // 2. Manager Review Notification
         const verifyStatusRaw = String(t.verify || '').trim();
         const isPending = verifyStatusRaw.toLowerCase().includes('pending') || verifyStatusRaw === '';
-        
-        if (verifyStatusRaw && !isPending) {
-           const normStatus = verifyStatusRaw.toLowerCase();
-           const isAppr = normStatus.includes('approv') || normStatus === 'yes' || normStatus === 'verified' || normStatus === 'accepted';
-           const isRej = normStatus.includes('reject') || normStatus === 'no' || normStatus === 'declined';
-           
-           const reviewId = `task_review_${t.id}_${verifyStatusRaw.replace(/\s+/g, '')}`;
-           newIds.add(reviewId);
-           const isReviewRead = readIds.includes(reviewId);
-           if (!isReviewRead) hasAnyUnread = true;
 
-           // Prioritize specific review date columns from payload
-           const rawReviewDate = t.date || t.verify_date || t.verified_at || t.review_date || t.completed_at || t.completedAt || t.updated_at || t.updatedAt || t.created_at || t.createdAt;
-           const baseDate = parseDate(rawReviewDate);
-           // Add 1000ms offset so TASK_REVIEW sorts as newer than the TASK assignment if they share the same time
-           const d = new Date(baseDate.getTime() + 1000);
- 
-           mappedTasks.push({
-             id: reviewId,
-             type: 'TASK_REVIEW',
-             title: `Task ${isAppr ? 'Verified' : isRej ? 'Rejected' : 'Reviewed'} by PM`,
-             description: `PM marked "${t.task_name || t.title || 'Task'}" as ${verifyStatusRaw}. ${t.verify_description || ''}`,
-             formattedTime: formatDate(d, rawReviewDate),
-             isNew: !isReviewRead,
-             rawDate: d,
-             taskId: t.id
-           });
+        if (verifyStatusRaw && !isPending) {
+          const normStatus = verifyStatusRaw.toLowerCase();
+          const isAppr = normStatus.includes('approv') || normStatus === 'yes' || normStatus === 'verified' || normStatus === 'accepted';
+          const isRej = normStatus.includes('reject') || normStatus === 'no' || normStatus === 'declined';
+
+          const reviewId = `task_review_${t.id}_${verifyStatusRaw.replace(/\s+/g, '')}`;
+          newIds.add(reviewId);
+          const isReviewRead = readIds.includes(reviewId);
+          if (!isReviewRead) hasAnyUnread = true;
+
+          // Prioritize specific review date columns from payload
+          const rawReviewDate = t.date || t.verify_date || t.verified_at || t.review_date || t.completed_at || t.completedAt || t.updated_at || t.updatedAt || t.created_at || t.createdAt;
+          const baseDate = parseDate(rawReviewDate);
+          // Add 1000ms offset so TASK_REVIEW sorts as newer than the TASK assignment if they share the same time
+          const d = new Date(baseDate.getTime() + 1000);
+
+          mappedTasks.push({
+            id: reviewId,
+            type: 'TASK_REVIEW',
+            title: `Task ${isAppr ? 'Verified' : isRej ? 'Rejected' : 'Reviewed'} by PM`,
+            description: `PM marked "${t.task_name || t.title || 'Task'}" as ${verifyStatusRaw}. ${t.verify_description || ''}`,
+            formattedTime: formatDate(d, rawReviewDate),
+            isNew: !isReviewRead,
+            rawDate: d,
+            taskId: t.id
+          });
         }
       });
 
@@ -251,12 +251,12 @@ const TaskNotification = ({ onNavigate }) => {
       leaves.forEach(l => {
         const lid = `leave_${l.id}`;
         newIds.add(lid);
-        
+
         const statusRaw = String(l.status || l.rm_status || l.rmStatus || l.leave_status || 'Pending').trim().toUpperCase();
         const rmApp = (l.rm_status || l.rmStatus || (statusRaw === 'PENDING' || statusRaw === 'REQUESTED' ? 'PENDING' : statusRaw)).toUpperCase();
         const hrApp = (l.hr_status || l.hrStatus || 'Pending').toUpperCase();
         const pmApp = (l.pm_status || l.pmStatus || (statusRaw.includes('APPROVED') ? 'APPROVED' : 'PENDING')).toUpperCase();
-        
+
         const requester = allEmp.find(u => Number(u.id || u.employee_id) === Number(l.user_id));
         const rRole = (requester?.role || '').toLowerCase();
         const isLeadSoftware = rRole.includes('lead software') || rRole.includes('leadsoftware');
@@ -275,52 +275,52 @@ const TaskNotification = ({ onNavigate }) => {
         }
 
         if (isFullyApproved && updatedDate > threeDaysAgo) {
-           const aid = lid + '_app';
-           const isRead = readIds.includes(aid);
-           
-           const prevState = seenApprovals[lid] || 'PENDING';
-           const isNewlyFinalized = isFullyApproved && prevState === 'PENDING';
-           
-           if (isNewlyFinalized) {
-              updatedApprovals[lid] = 'APPROVED';
-              if (!isRead) hasAnyUnread = true;
-           }
+          const aid = lid + '_app';
+          const isRead = readIds.includes(aid);
 
-           const ename = l.employeeName || l.user_name || l.name || (Number(l.user_id) === Number(uid) ? 'Your' : 'Team member');
-           mappedLeaves.push({
-             id: aid,
-             type: 'LEAVE',
-             title: 'Leave Fully Approved',
-             description: `${ename} leave request for ${l.leave_type || 'Leave'} is now officially Approved.`,
-             formattedTime: formatDate(updatedDate, l.updated_at || l.created_at),
-             isNew: !isRead,
-             rawDate: updatedDate,
-             leaveId: l.id
-           });
+          const prevState = seenApprovals[lid] || 'PENDING';
+          const isNewlyFinalized = isFullyApproved && prevState === 'PENDING';
+
+          if (isNewlyFinalized) {
+            updatedApprovals[lid] = 'APPROVED';
+            if (!isRead) hasAnyUnread = true;
+          }
+
+          const ename = l.employeeName || l.user_name || l.name || (Number(l.user_id) === Number(uid) ? 'Your' : 'Team member');
+          mappedLeaves.push({
+            id: aid,
+            type: 'LEAVE',
+            title: 'Leave Fully Approved',
+            description: `${ename} leave request for ${l.leave_type || 'Leave'} is now officially Approved.`,
+            formattedTime: formatDate(updatedDate, l.updated_at || l.created_at),
+            isNew: !isRead,
+            rawDate: updatedDate,
+            leaveId: l.id
+          });
         }
 
         // 2. NEW REQUEST NOTIFICATION (For Leaders)
         if (isLeader && Number(l.user_id || l.userId) !== Number(uid)) {
-           // Broaden pending check to capture variations in backend status strings
-           const isPending = rmApp === 'PENDING' || rmApp === 'REQUESTED' || rmApp === 'PENDING APPROVAL' || rmApp === 'IN REVIEW';
-           
-           if (isPending) {
-              const rid = lid + '_new';
-              const isRead = readIds.includes(rid);
-              if (!isRead) hasAnyUnread = true;
+          // Broaden pending check to capture variations in backend status strings
+          const isPending = rmApp === 'PENDING' || rmApp === 'REQUESTED' || rmApp === 'PENDING APPROVAL' || rmApp === 'IN REVIEW';
 
-              const ename = l.employeeName || l.employee_name || l.user_name || l.name || 'A team member';
-              mappedLeaves.push({
-                id: rid,
-                type: 'LEAVE',
-                title: 'New Leave Request',
-                description: `${ename} has requested ${l.leave_type || 'Leave'} from ${l.start_date?.split('T')[0].replace(/-/g, '/') || 'N/A'} to ${l.end_date?.split('T')[0].replace(/-/g, '/') || 'N/A'} (${l.no_of_days || calculateDays(l.start_date, l.end_date)} days).`,
-                formattedTime: formatDate(createdDate, l.created_at || l.applied_on),
-                isNew: !isRead,
-                rawDate: createdDate,
-                leaveId: l.id
-              });
-           }
+          if (isPending) {
+            const rid = lid + '_new';
+            const isRead = readIds.includes(rid);
+            if (!isRead) hasAnyUnread = true;
+
+            const ename = l.employeeName || l.employee_name || l.user_name || l.name || 'A team member';
+            mappedLeaves.push({
+              id: rid,
+              type: 'LEAVE',
+              title: 'New Leave Request',
+              description: `${ename} has requested ${l.leave_type || 'Leave'} from ${l.start_date?.split('T')[0].replace(/-/g, '/') || 'N/A'} to ${l.end_date?.split('T')[0].replace(/-/g, '/') || 'N/A'} (${l.no_of_days || calculateDays(l.start_date, l.end_date)} days).`,
+              formattedTime: formatDate(createdDate, l.created_at || l.applied_on),
+              isNew: !isRead,
+              rawDate: createdDate,
+              leaveId: l.id
+            });
+          }
         }
       });
 
@@ -330,7 +330,7 @@ const TaskNotification = ({ onNavigate }) => {
       if (quizRes.ok) {
         const qData = await quizRes.json();
         const qList = (Array.isArray(qData) ? qData : (qData.data || [])).filter(q => q && !q.has_answered);
-        
+
         qList.forEach(q => {
           const qid = `quiz_${q.id}`;
           newIds.add(qid);
@@ -338,7 +338,7 @@ const TaskNotification = ({ onNavigate }) => {
           if (!isRead) hasAnyUnread = true;
 
           const qDate = parseDate(q.created_at || q.updated_at);
- 
+
           quizNotifs.push({
             id: qid,
             type: 'QUIZ',
@@ -388,7 +388,7 @@ const TaskNotification = ({ onNavigate }) => {
             const nDate = parseDate(n.created_at || n.updated_at || n.timestamp);
             const msg = (n.message || n.description || n.text || '').toLowerCase();
             const ttl = (n.title || '').toLowerCase();
-            
+
             // Smart type normalization for DB records
             let type = n.type || 'SYSTEM';
             if (ttl.includes('leave') || msg.includes('leave')) type = 'LEAVE';
@@ -420,7 +420,7 @@ const TaskNotification = ({ onNavigate }) => {
       // skip the generic database record for that same ID to avoid double-entry.
       const primaryLeaveIds = new Set(mappedLeaves.map(l => l.leaveId).filter(id => id));
       const primaryTaskIds = new Set(mappedTasks.map(t => t.taskId).filter(id => id));
-      
+
       const filteredDbNotifs = dbNotifs.filter(dn => {
         if (dn.type === 'LEAVE' && dn.leaveId && primaryLeaveIds.has(dn.leaveId)) return false;
         if (dn.type === 'TASK' && dn.taskId && primaryTaskIds.has(dn.taskId)) return false;
@@ -456,27 +456,27 @@ const TaskNotification = ({ onNavigate }) => {
     const handleToggle = () => setIsOpen(prev => !prev);
     window.addEventListener('toggle-notifications', handleToggle);
     return () => {
-        clearInterval(poll);
-        window.removeEventListener('toggle-notifications', handleToggle);
+      clearInterval(poll);
+      window.removeEventListener('toggle-notifications', handleToggle);
     };
   }, [user, lastIds.size]);
 
   const isMobile = winWidth < 768;
 
   return (
-    <div style={{ 
-      position: 'fixed', 
-      bottom: isMobile ? '120px' : '100px', 
+    <div style={{
+      position: 'fixed',
+      bottom: isMobile ? '120px' : '100px',
       left: isMobile ? '0' : 'auto',
-      right: isMobile ? '0' : '30px', 
-      zIndex: 2000, 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: isMobile ? 'center' : 'flex-end', 
+      right: isMobile ? '0' : '30px',
+      zIndex: 2000,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: isMobile ? 'center' : 'flex-end',
       gap: '15px',
       pointerEvents: 'none'
     }}>
-      
+
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -501,7 +501,7 @@ const TaskNotification = ({ onNavigate }) => {
                 <Bell size={20} fill="white" />
                 <span style={{ fontWeight: '1000', fontSize: '14px', letterSpacing: '1px' }}>MANAGEMENT ALERTS</span>
               </div>
-              <button 
+              <button
                 onClick={() => setIsOpen(false)}
                 style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', padding: '6px', color: 'white', cursor: 'pointer', display: 'flex' }}
               >
@@ -515,34 +515,34 @@ const TaskNotification = ({ onNavigate }) => {
                   <div style={{ fontSize: '10px', fontWeight: '1000', color: '#94a3b8', marginLeft: '5px', marginBottom: '2px' }}>
                     {notif.formattedTime}
                   </div>
-                  <div 
+                  <div
                     onClick={() => {
                       let path = '/';
                       const lowerTitle = (notif.title || '').toLowerCase();
                       const lowerDesc = (notif.description || '').toLowerCase();
-                      
+
                       // 1. Check explicit link first
                       if (notif.link) {
                         path = notif.link;
-                      } 
+                      }
                       // 2. Fallback to smart type detection & Keyword Analysis
                       else if (
-                        notif.type === 'LEAVE' || 
-                        lowerTitle.includes('leave') || 
+                        notif.type === 'LEAVE' ||
+                        lowerTitle.includes('leave') ||
                         lowerDesc.includes('leave') ||
                         lowerTitle.includes('request') && lowerDesc.includes('leave')
                       ) {
                         path = '/leave';
                       } else if (
-                        notif.type === 'QUIZ' || 
-                        lowerTitle.includes('quiz') || 
+                        notif.type === 'QUIZ' ||
+                        lowerTitle.includes('quiz') ||
                         lowerDesc.includes('quiz') ||
                         lowerTitle.includes('teaser')
                       ) {
                         path = '/fun';
                       } else if (
-                        notif.type === 'AWARD' || 
-                        lowerTitle.includes('award') || 
+                        notif.type === 'AWARD' ||
+                        lowerTitle.includes('award') ||
                         lowerTitle.includes('reward') ||
                         lowerTitle.includes('recognition') ||
                         lowerDesc.includes('award') ||
@@ -550,23 +550,23 @@ const TaskNotification = ({ onNavigate }) => {
                       ) {
                         path = '/awards';
                       } else if (
-                        notif.type === 'TASK' || 
-                        notif.type === 'TASK_REVIEW' || 
-                        lowerTitle.includes('task') || 
+                        notif.type === 'TASK' ||
+                        notif.type === 'TASK_REVIEW' ||
+                        lowerTitle.includes('task') ||
                         lowerDesc.includes('task')
                       ) {
                         path = '/'; // Dashboard for tasks
                       }
 
                       const navState = (notif.type === 'LEAVE' || path === '/leave') ? { requestId: notif.leaveId } : { taskId: notif.taskId };
-                      
+
                       const uid = user?.id || user?.empId || user?.userId || user?.employee_id;
                       const readIds = JSON.parse(localStorage.getItem(`read_management_ids_${uid}`) || '[]');
                       if (!readIds.includes(notif.id)) {
                         readIds.push(notif.id);
                         localStorage.setItem(`read_management_ids_${uid}`, JSON.stringify(readIds));
                       }
-                      
+
                       setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isNew: false } : n));
 
                       onNavigate(path, navState);
@@ -612,22 +612,22 @@ const TaskNotification = ({ onNavigate }) => {
                     </div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <h4 style={{ 
-                        margin: 0, 
-                        fontSize: '14px', 
-                        fontWeight: notif.isNew ? '1000' : '500', 
-                        color: notif.isNew ? '#0B1E3F' : '#64748b', 
+                      <h4 style={{
+                        margin: 0,
+                        fontSize: '14px',
+                        fontWeight: notif.isNew ? '1000' : '500',
+                        color: notif.isNew ? '#0B1E3F' : '#64748b',
                         marginBottom: '2px',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         transition: 'all 0.3s ease'
                       }}>{notif.title}</h4>
-                      <p style={{ 
-                        margin: 0, 
-                        fontSize: '12px', 
-                        color: notif.isNew ? '#3B5998' : '#94a3b8', 
-                        fontWeight: notif.isNew ? '800' : '400', 
+                      <p style={{
+                        margin: 0,
+                        fontSize: '12px',
+                        color: notif.isNew ? '#3B5998' : '#94a3b8',
+                        fontWeight: notif.isNew ? '800' : '400',
                         lineHeight: '1.4',
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
@@ -655,7 +655,7 @@ const TaskNotification = ({ onNavigate }) => {
                 </div>
               )) : (
                 <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8', fontSize: '13px', fontWeight: '700' }}>
-                   No team updates logged.
+                  No team updates logged.
                 </div>
               )}
             </div>
@@ -701,7 +701,7 @@ const TaskNotification = ({ onNavigate }) => {
         {hasUnread && (
           <motion.div
             initial={{ scale: 0 }}
-            animate={{ 
+            animate={{
               scale: [1, 1.4, 1],
               opacity: [1, 0.6, 1]
             }}
