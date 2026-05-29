@@ -132,7 +132,9 @@ const SaturdayRequirementsPopover = () => {
                                 border: '1.5px solid #0B1E3F',
                                 boxShadow: '0 40px 100px rgba(0, 0, 0, 0.4)',
                                 overflow: 'hidden',
-                                position: 'relative'
+                                position: 'relative',
+                                maxHeight: '90vh',
+                                overflowY: 'auto'
                             }}
                         >
                             {/* Header */}

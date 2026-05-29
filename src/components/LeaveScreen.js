@@ -524,8 +524,8 @@ const LeaveScreen = ({ onBack }) => {
     requestBtn: { display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#0B1E3F', color: 'white', padding: isMobile ? '12px 15px' : '12px 25px', borderRadius: '15px', border: 'none', fontWeight: '900', fontSize: isMobile ? '12px' : '14px', cursor: 'pointer', width: isMobile ? '100%' : 'auto', justifyContent: 'center' },
     tabs: { display: 'flex', gap: isMobile ? '10px' : '20px', marginBottom: '30px', borderBottom: 'none', overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? '5px' : '0', paddingLeft: isMobile ? '25px' : '0', paddingRight: isMobile ? '25px' : '0' },
     tab: (active) => ({ padding: '15px 5px', color: active ? '#0B1E3F' : '#64748b', fontWeight: '900', fontSize: isMobile ? '13px' : '15px', cursor: 'pointer', borderBottom: active ? '3px solid #0B1E3F' : 'none', transition: 'all 0.2s', whiteSpace: 'nowrap' }),
-    card: { backgroundColor: 'white', borderRadius: isMobile ? '25px' : '30px', padding: isMobile ? '20px' : '30px', border: '2px solid #0B1E3F', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' },
-    pendingItem: { display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', padding: isMobile ? '15px' : '25px', backgroundColor: '#f8fafc', borderRadius: '25px', marginBottom: '20px', border: '1px solid #f1f5f9', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '15px' : '0' },
+    card: { backgroundColor: 'white', borderRadius: isMobile ? '25px' : '30px', padding: isMobile ? '20px' : '30px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.02)' },
+    pendingItem: { display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', padding: isMobile ? '15px' : '25px', backgroundColor: '#f8fafc', borderRadius: '25px', marginBottom: '20px', border: '1.5px solid #e2e8f0', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '15px' : '0' },
     actionBtn: (type) => ({ backgroundColor: type === 'approve' ? '#22c55e' : '#ef4444', color: 'white', border: 'none', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: `0 4px 10px ${type === 'approve' ? '#22c55e' : '#ef4444'}30` }),
     statusBadge: (status) => {
       const colors = getStatusColors(status);
@@ -864,7 +864,7 @@ const LeaveScreen = ({ onBack }) => {
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                 whileHover={{ scale: 1.01, backgroundColor: '#f8fafc' }}
                 onClick={() => setSelectedRequest(req)}
-                style={{ backgroundColor: '#f8fafc', borderRadius: '25px', padding: '20px 25px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', border: '1px solid rgba(0,0,0,0.02)', transition: 'all 0.3s ease' }}
+                style={{ backgroundColor: '#f8fafc', borderRadius: '25px', padding: '20px 25px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', border: '1.5px solid #e2e8f0', transition: 'all 0.3s ease' }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                   <div style={{ width: isMobile ? '65px' : '50px', height: isMobile ? '65px' : '50px', borderRadius: '50%', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isMobile ? '24px' : '18px', fontWeight: '1000', color: '#0B1E3F', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', flexShrink: 0 }}>
@@ -1152,7 +1152,7 @@ const LeaveScreen = ({ onBack }) => {
         {showForm && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(11, 30, 63, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 1600, padding: '130px 10px 30px 10px' }}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(11, 30, 63, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '40px 10px' }}
             onClick={() => setShowForm(false)}
           >
             <motion.div
@@ -1165,7 +1165,9 @@ const LeaveScreen = ({ onBack }) => {
                 padding: winWidth < 480 ? '20px 16px' : (winWidth < 768 ? '24px' : '35px'), 
                 position: 'relative', 
                 boxShadow: '0 20px 50px rgba(0,0,0,0.2)', 
-                boxSizing: 'border-box' 
+                boxSizing: 'border-box',
+                maxHeight: '80vh',
+                overflowY: 'auto'
               }}
               className="leave-modal-content"
               onClick={e => e.stopPropagation()}
