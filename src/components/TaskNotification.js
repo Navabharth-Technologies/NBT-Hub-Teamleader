@@ -499,7 +499,7 @@ const TaskNotification = ({ onNavigate }) => {
             <div style={{ padding: '20px', background: '#3B5998', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Bell size={20} fill="white" />
-                <span style={{ fontWeight: '1000', fontSize: '14px', letterSpacing: '1px' }}>MANAGEMENT ALERTS</span>
+                <span style={{ fontWeight: '1000', fontSize: '14px', letterSpacing: '1px' }}>Team leader Notification Hub</span>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
@@ -658,10 +658,6 @@ const TaskNotification = ({ onNavigate }) => {
                   No team updates logged.
                 </div>
               )}
-            </div>
-
-            <div style={{ padding: '12px', background: 'white', borderTop: '1px solid #f1f5f9', textAlign: 'center', fontSize: '11px', fontWeight: '1000', color: '#3B5998' }}>
-              TEAM LEADER OVERSIGHT AI
             </div>
           </motion.div>
         )}

@@ -926,7 +926,6 @@ export default function CourseScreen() {
                                     )}
                                     <div style={{ fontSize: '13px', color: '#64748b', display: 'flex', justifyContent: 'space-between', marginBottom: '15px', fontWeight: '700' }}>
                                         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Clock size={16} /> {videoDurations[course.id] || course.duration || '2h 15m'}</span>
-                                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Star size={16} color="#f59e0b" fill="#f59e0b" /> {course.rating || '4.9'}</span>
                                     </div>
                                     <div style={s.progressBar(0)}><div style={s.progressFill(isActuallyComplete ? 100 : progress)} /></div>
                                     <div style={{ fontSize: '11px', color: isActuallyComplete ? '#16a34a' : '#94a3b8', fontWeight: '800', marginBottom: '25px', textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>

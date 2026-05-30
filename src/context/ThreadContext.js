@@ -21,6 +21,30 @@ export const ThreadProvider = ({ children }) => {
     return localStorage.getItem(`lastSeenThreadId_${uid}`) || 0;
   });
 
+  const mutationInFlight = React.useRef(false);
+  const reactionLocks = React.useRef(new Set());
+
+  const NAME_TO_EMOJI = {
+    'heart': '❤️', 'love': '❤️',
+    'thumbsup': '👍', 'thumbs_up': '👍', 'thumb': '👍',
+    'shocked': '😮', 'wow': '😮',
+    'laugh': '😂', 'laughing': '😂', 'haha': '😂',
+    'fire': '🔥', 'lit': '🔥',
+    'clap': '👏', 'clapping': '👏',
+    'cake': '🎂', 'birthday': '🎂',
+    'heart_eyes': '😍'
+  };
+  const EMOJI_TO_NAME = {
+    '❤️': 'heart',
+    '👍': 'thumbsup',
+    '😮': 'shocked',
+    '😂': 'laugh',
+    '🔥': 'fire',
+    '👏': 'clap',
+    '🎂': 'cake',
+    '😍': 'heart_eyes'
+  };
+
   useEffect(() => { 
     if (user) {
       fetchThreads(); 
@@ -30,10 +54,11 @@ export const ThreadProvider = ({ children }) => {
   }, [user]);
 
   const fetchThreads = async (uId = null, isPolling = false) => {
+    if (isPolling && mutationInFlight.current) return;
     if (!isPolling) setLoading(true);
     try {
-      const viewerId = uId || currentUserId;
-      const url = `${API_ENDPOINTS.THREADS}${viewerId ? `?viewerId=${viewerId}&all=true&limit=1000` : '?all=true&limit=1000'}`;
+      const viewerId = uId || user?.id || user?.userId || user?.empId || user?.employee_id || currentUserId;
+      const url = `${API_ENDPOINTS.THREADS}${viewerId ? `?userId=${viewerId}&user_id=${viewerId}&viewerId=${viewerId}&viewer_id=${viewerId}&all=true&limit=1000` : '?all=true&limit=1000'}`;
       const token = localStorage.getItem('token');
       const res = await fetch(url, { 
         cache: 'no-store',
@@ -129,42 +154,124 @@ export const ThreadProvider = ({ children }) => {
   };
 
   const toggleReaction = async (threadId, userId, type = 'like') => {
+    const lockKey = `${threadId}_${type}`;
+    if (reactionLocks.current.has(lockKey)) return;
+    reactionLocks.current.add(lockKey);
+
+    const normType = NAME_TO_EMOJI[type.toLowerCase()] || type;
+    mutationInFlight.current = true;
+
+    // Find if the user has an active reaction on this post
+    const post = threads.find(t => t.id === threadId);
+    let activeEmoji = null;
+    if (post) {
+      if (post.userHasLiked) {
+        activeEmoji = '❤️';
+      } else {
+        activeEmoji = Object.keys(post.userReactions || {}).find(k => post.userReactions[k] === true);
+      }
+    }
+
     setThreads(prev => prev.map(t => {
       if (t.id === threadId) {
         const reactions = { ...(t.reactions || {}) };
-        const currentCount = reactions[type] || (type === 'like' ? t.likeCount : 0) || 0;
-        
-        // Normalization: Ensure symbols and names are treated consistently
-        const emojiMap = { 'heart': '❤️', 'thumbsup': '👍', 'cake': '🎂', 'fire': '🔥', 'clap': '👏' };
-        const normType = emojiMap[type.toLowerCase()] || type;
-        
-        // Dynamic Toggle Logic: Decrement if current state is already active
-        const userState = type === 'like' ? t.userHasLiked : (t.userReactions?.[normType] || t.userReactions?.[type] || false);
-        const newCount = userState ? Math.max(0, currentCount - 1) : currentCount + 1;
+        const userReactions = { ...(t.userReactions || {}) };
+        let likeCount = t.likeCount || 0;
+        let userHasLiked = t.userHasLiked || false;
+
+        // Cleanup text names if they exist in reactions
+        const textName = EMOJI_TO_NAME[normType];
+        if (textName && reactions[textName] !== undefined) {
+          delete reactions[textName];
+        }
+
+        // Toggle logic
+        if (activeEmoji === normType) {
+          // Toggle off the same active reaction
+          if (normType === '❤️' || type === 'like') {
+            userHasLiked = false;
+            likeCount = Math.max(0, likeCount - 1);
+            if (reactions['❤️'] !== undefined) {
+              reactions['❤️'] = Math.max(0, reactions['❤️'] - 1);
+            }
+          } else {
+            userReactions[normType] = false;
+            reactions[normType] = Math.max(0, (reactions[normType] || 0) - 1);
+          }
+        } else {
+          // Toggle off the different active reaction if there was one
+          if (activeEmoji) {
+            if (activeEmoji === '❤️') {
+              userHasLiked = false;
+              likeCount = Math.max(0, likeCount - 1);
+              if (reactions['❤️'] !== undefined) {
+                reactions['❤️'] = Math.max(0, reactions['❤️'] - 1);
+              }
+            } else {
+              userReactions[activeEmoji] = false;
+              reactions[activeEmoji] = Math.max(0, (reactions[activeEmoji] || 0) - 1);
+            }
+          }
+
+          // Toggle on the new reaction
+          if (normType === '❤️' || type === 'like') {
+            userHasLiked = true;
+            likeCount = likeCount + 1;
+            reactions['❤️'] = (reactions['❤️'] || 0) + 1;
+          } else {
+            userReactions[normType] = true;
+            reactions[normType] = (reactions[normType] || 0) + 1;
+          }
+        }
 
         return { 
             ...t, 
-            userHasLiked: type === 'like' ? !userState : t.userHasLiked, 
-            userReactions: { ...(t.userReactions || {}), [normType]: !userState, [type]: !userState },
-            likeCount: type === 'like' ? newCount : (t.likeCount || 0),
-            reactions: { ...reactions, [normType]: newCount, [type]: newCount }
+            userHasLiked, 
+            userReactions,
+            likeCount,
+            reactions
         };
       }
       return t;
     }));
 
     try {
-      const res = await fetch(API_ENDPOINTS.THREAD_REACT(threadId), {
+      const token = localStorage.getItem('token');
+      const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+      if (token && token !== 'undefined') {
+        headers['Authorization'] = `Bearer ${token.trim()}`;
+      }
+
+      // If they had a different active emoji, toggle it off on the backend first
+      if (activeEmoji && activeEmoji !== normType) {
+        const oldType = activeEmoji === '❤️' ? 'like' : (EMOJI_TO_NAME[activeEmoji] || activeEmoji);
+        await fetch(API_ENDPOINTS.THREAD_REACT(threadId), {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ userId: Number(userId), user_id: Number(userId), reactionType: oldType, reaction_type: oldType })
+        });
+      }
+
+      const apiType = type === 'like' ? 'like' : (EMOJI_TO_NAME[normType] || type);
+
+      await fetch(API_ENDPOINTS.THREAD_REACT(threadId), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: Number(userId), user_id: Number(userId), reactionType: type, reaction_type: type })
+        headers,
+        body: JSON.stringify({ userId: Number(userId), user_id: Number(userId), reactionType: apiType, reaction_type: apiType })
       });
-      if (!res.ok) await fetchThreads(userId); 
-    } catch { await fetchThreads(userId); }
+      await new Promise(r => setTimeout(r, 1000));
+      await fetchThreads(userId); 
+    } catch (err) { 
+      console.error("toggleReaction error:", err);
+      await fetchThreads(userId); 
+    } finally {
+      reactionLocks.current.delete(lockKey);
+      mutationInFlight.current = false;
+    }
   };
 
   const toggleBadge = async (threadId, userId) => {
-    // Optimistic Update
+    mutationInFlight.current = true;
     setThreads(prev => prev.map(t => {
       if (t.id === threadId) {
         const badged = !t.userHasBadged;
@@ -180,9 +287,15 @@ export const ThreadProvider = ({ children }) => {
     }));
 
     try {
+       const token = localStorage.getItem('token');
+       const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+       if (token && token !== 'undefined') {
+         headers['Authorization'] = `Bearer ${token.trim()}`;
+       }
+
        const res = await fetch(API_ENDPOINTS.THREAD_REACT(threadId), {
          method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
+         headers,
          body: JSON.stringify({ 
             userId: Number(userId), 
             user_id: Number(userId),
@@ -190,9 +303,12 @@ export const ThreadProvider = ({ children }) => {
             reaction_type: 'badge'
          })
        });
-       if (!res.ok) await fetchThreads(userId); 
+       await new Promise(r => setTimeout(r, 1000));
+       await fetchThreads(userId); 
     } catch {
        await fetchThreads(userId);
+    } finally {
+       mutationInFlight.current = false;
     }
   };
 
@@ -246,7 +362,8 @@ export const ThreadProvider = ({ children }) => {
 
   const fetchSingleThread = async (id) => {
     try {
-        const url = `${API_ENDPOINTS.THREAD_UPDATE(id)}?userId=${currentUserId}&user_id=${currentUserId}`;
+        const viewerId = user?.id || user?.userId || user?.empId || user?.employee_id || currentUserId;
+        const url = `${API_ENDPOINTS.THREAD_UPDATE(id)}?userId=${viewerId}&user_id=${viewerId}&viewerId=${viewerId}&viewer_id=${viewerId}`;
         const res = await fetch(url);
         if (res.ok) return await res.json();
     } catch {}
@@ -255,7 +372,8 @@ export const ThreadProvider = ({ children }) => {
 
   const fetchUserThreads = async (userId) => {
     try {
-        const url = `${API_ENDPOINTS.THREAD_USER(userId)}${currentUserId ? `?viewerId=${currentUserId}&viewer_id=${currentUserId}` : ''}`;
+        const viewerId = user?.id || user?.userId || user?.empId || user?.employee_id || currentUserId;
+        const url = `${API_ENDPOINTS.THREAD_USER(userId)}${viewerId ? `?userId=${viewerId}&user_id=${viewerId}&viewerId=${viewerId}&viewer_id=${viewerId}` : ''}`;
         const res = await fetch(url);
         if (res.ok) return await res.json();
     } catch {}

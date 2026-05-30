@@ -293,7 +293,7 @@ export default function FocusLogs({ onBack }) {
 
 
 
-        <header style={s.header}>
+        <header style={{ ...s.header, display: 'flex', alignItems: 'center', gap: '20px' }}>
           <button
             onClick={handleBack}
             style={{
@@ -308,14 +308,15 @@ export default function FocusLogs({ onBack }) {
               justifyContent: 'center',
               boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
               outline: 'none',
-              width: 'fit-content',
-              marginBottom: '20px'
+              width: 'fit-content'
             }}
           >
             <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
           </button>
-          <h1 style={s.title}>{targetUser ? `${targetUser.name}'s Focus Logs` : 'Daily Report'}</h1>
-          <p style={s.subtitle}>{targetUser ? `Reviewing task reports for ${targetUser.name}.` : 'Personal visibility for task reporting.'}</p>
+          <div>
+            <h1 style={{ ...s.title, marginBottom: '2px' }}>{targetUser ? `${targetUser.name}'s Focus Logs` : 'Daily Report'}</h1>
+            <p style={{ ...s.subtitle, margin: 0 }}>{targetUser ? `Reviewing task reports for ${targetUser.name}.` : 'Personal visibility for task reporting.'}</p>
+          </div>
         </header>
 
         {/* Filter Bar */}
@@ -409,7 +410,6 @@ export default function FocusLogs({ onBack }) {
               <div style={s.emptyState}>
                 <ShieldCheck size={48} color="#f1f5f9" style={{ marginBottom: '20px' }} />
                 <div style={s.emptyTitle}>No logs found for this date range.</div>
-                <button onClick={handleClear} style={s.viewHistory}>View All History</button>
               </div>
             )}
           </div>

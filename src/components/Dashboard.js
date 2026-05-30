@@ -890,10 +890,35 @@ const Dashboard = ({ setActiveTab }) => {
             {/* Internal Grid for Yesterday/Today */}
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '24px' }}>
               <div
-                onClick={() => navigate('/focus-logs')}
-                style={{ padding: '24px', backgroundColor: '#ecfdf5', borderRadius: '24px', border: '1px solid #d1fae5', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}
+                style={{ padding: '24px', backgroundColor: '#ecfdf5', borderRadius: '24px', border: '1px solid #d1fae5', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}
               >
-                <div style={s.focusHeader}><div style={s.focusTitle}><CheckCircle2 size={24} /> Yesterday</div></div>
+                <div style={s.focusHeader}>
+                  <div style={s.focusTitle}><CheckCircle2 size={24} /> Yesterday</div>
+                  <button
+                    onClick={() => navigate('/focus-logs')}
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #a7f3d0',
+                      padding: '8px 18px',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      fontWeight: '1000',
+                      cursor: 'pointer',
+                      color: '#059669',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f0fdf4';
+                      e.currentTarget.style.borderColor = '#34d399';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#ffffff';
+                      e.currentTarget.style.borderColor = '#a7f3d0';
+                    }}
+                  >
+                    View Report
+                  </button>
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {Array.isArray(yesterdayTasks) && yesterdayTasks.length > 0 ? yesterdayTasks.map((t, i) => (
                     <div key={i} style={{ fontSize: '13px', fontWeight: '700', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle2 size={14} /> {t?.text}</div>

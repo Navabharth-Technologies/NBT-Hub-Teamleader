@@ -43,12 +43,18 @@ export default function ThreadScreen() {
     const [reactorModal, setReactorModal] = useState(null); // { postId, emoji, users, count }
     const [loadingReactors, setLoadingReactors] = useState(false);
     const [fullscreenMedia, setFullscreenMedia] = useState(null); // { src, type }
+    const [errorNotif, setErrorNotif] = useState(null); // { message }
 
     const [editMediaFile, setEditMediaFile] = useState(null);
     const [editMediaType, setEditMediaType] = useState(null);
     const [editMediaPreview, setEditMediaPreview] = useState(null);
     const [editRemoveMedia, setEditRemoveMedia] = useState(false);
     const editFileInputRef = useRef(null);
+
+    const showError = (message) => {
+        setErrorNotif({ message });
+        setTimeout(() => setErrorNotif(null), 4000);
+    };
 
     useEffect(() => {
         fetchProfiles();
@@ -216,7 +222,7 @@ export default function ThreadScreen() {
         mainInput: { width: '100%', padding: isMobile ? '12px' : '20px', borderRadius: '20px', border: '1.5px solid #f1f5f9', background: '#f8fafc', fontSize: isMobile ? '13px' : '16px', fontWeight: '600', color: '#0B1E3F', outline: 'none', resize: 'none', minHeight: isMobile ? '80px' : '100px' },
         mediaBtn: { display: 'flex', alignItems: 'center', gap: '8px', padding: isMobile ? '8px 12px' : '10px 18px', borderRadius: '12px', border: '1.5px solid #eef2f6', background: 'white', cursor: 'pointer', fontSize: isMobile ? '10px' : '12px', fontWeight: '800', color: '#64748b' },
         postBtn: { padding: isMobile ? '10px 15px' : '12px 30px', backgroundColor: '#315A9E', color: 'white', border: 'none', borderRadius: '15px', fontWeight: '1000', cursor: 'pointer', fontSize: isMobile ? '10px' : '13px', textTransform: 'uppercase' },
-        threadCard: { backgroundColor: 'white', borderRadius: isMobile ? '25px' : '40px', padding: isMobile ? '15px 20px' : '24px 30px', border: '1px solid #f1f5f9', position: 'relative', boxShadow: '0 10px 40px rgba(0,0,0,0.03)', marginBottom: '20px', transition: 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' },
+        threadCard: { backgroundColor: 'white', borderRadius: isMobile ? '25px' : '40px', padding: isMobile ? '15px 20px' : '24px 30px', border: '1.5px solid #CBD5E1', position: 'relative', boxShadow: '0 10px 40px rgba(0,0,0,0.03)', marginBottom: '20px', transition: 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' },
         taglineBadge: { display: 'inline-block', padding: '4px 10px', borderRadius: '8px', background: '#f0f9ff', color: '#315A9E', fontSize: isMobile ? '8px' : '9px', fontWeight: '900', textTransform: 'uppercase', marginBottom: '12px', border: '1px solid #e0f2fe' },
         postMedia: { marginTop: '20px', borderRadius: '25px', overflow: 'hidden', border: '1.5px solid #f8fafc', maxHeight: isMobile ? '300px' : '380px', maxWidth: '100%', width: 'fit-content', backgroundColor: '#fdfdfd', display: 'flex', justifyContent: 'flex-start', alignItems: 'center' },
         footer: { display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '15px', marginTop: '15px', gap: isMobile ? '5px' : '10px', flexWrap: isMobile ? 'wrap' : 'nowrap' },
@@ -381,6 +387,7 @@ export default function ThreadScreen() {
                 const canManage = isAuthor;
                 const isEditing = editingPostId === post.id;
                 const pLiked = post.userHasLiked || false;
+                const activeReaction = pLiked ? '❤️' : Object.keys(post.userReactions || {}).find(k => post.userReactions[k] === true);
                 const likeCount = post.likeCount || 0;
                 const commentCount = post.commentCount || 0;
 
@@ -576,21 +583,18 @@ export default function ThreadScreen() {
                                 onClick={() => onToggleLike(post.id)}
                                 onMouseEnter={() => setActiveEmojiPicker(post.id)}
                                 onMouseLeave={() => setActiveEmojiPicker(null)}
-                                style={styles.action(pLiked, '#ef4444')}
+                                style={{ ...styles.action(!!activeReaction, '#ef4444'), gap: '6px', minWidth: isMobile ? '44px' : '56px' }}
                             >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Heart size={18} fill={pLiked ? "white" : "none"} stroke={pLiked ? "white" : "#ef4444"} strokeWidth={2.5} />
-                                    {pLiked ? 'LIKED' : 'LIKE'}
-                                    <span
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            openReactorsModal(post, 'like');
-                                        }}
-                                        style={{ marginLeft: '4px', cursor: 'help', textDecoration: 'underline' }}
-                                    >
-                                        ({likeCount})
+                                {activeReaction ? (
+                                    <span style={{ fontSize: isMobile ? '16px' : '18px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        {activeReaction}
                                     </span>
-                                </div>
+                                ) : (
+                                    <Heart size={isMobile ? 16 : 18} fill="none" stroke="#ef4444" strokeWidth={2.5} />
+                                )}
+                                {likeCount > 0 && (
+                                    <span style={{ fontSize: isMobile ? '10px' : '12px', fontWeight: '900' }}>{likeCount}</span>
+                                )}
 
                                 <AnimatePresence>
                                     {activeEmojiPicker === post.id && (
@@ -620,7 +624,7 @@ export default function ThreadScreen() {
                             </div>
                             <div onClick={() => handleOpenComments(post.id)} style={styles.action(activeCommentPost === post.id, '#315A9E')}>
                                 <MessageSquare size={18} strokeWidth={2.5} />
-                                {activeCommentPost === post.id ? 'CLOSE' : 'COMMENT'} ({commentCount})
+                                <span style={{ fontSize: isMobile ? '10px' : '12px', fontWeight: '900' }}>{commentCount}</span>
                             </div>
                         </div>
 
@@ -721,6 +725,48 @@ export default function ThreadScreen() {
                 );
             })}
 
+            {/* ERROR NOTIFICATION POPUP */}
+            <AnimatePresence>
+                {errorNotif && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.85, y: 30 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.85, y: 30 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                        style={{
+                            position: 'fixed',
+                            top: '50%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            zIndex: 99999,
+                            backgroundColor: 'white',
+                            borderRadius: '24px',
+                            padding: '28px 36px',
+                            boxShadow: '0 20px 60px rgba(239,68,68,0.2), 0 4px 20px rgba(0,0,0,0.12)',
+                            border: '1.5px solid #fecaca',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '12px',
+                            maxWidth: '340px',
+                            width: '90%',
+                            textAlign: 'center'
+                        }}
+                    >
+                        <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <span style={{ fontSize: '22px' }}>⚠️</span>
+                        </div>
+                        <div style={{ fontSize: '15px', fontWeight: '900', color: '#0B1E3F' }}>Connection Error</div>
+                        <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', lineHeight: '1.5' }}>{errorNotif.message}</div>
+                        <button
+                            onClick={() => setErrorNotif(null)}
+                            style={{ marginTop: '4px', padding: '8px 24px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '900', fontSize: '12px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                        >
+                            Dismiss
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
             <AnimatePresence>
                 {flyingEmoji && (
                     <motion.div initial={{ left: flyingEmoji.x, top: flyingEmoji.y, opacity: 0 }} animate={{ y: [0, -100, -200], x: [0, 50, -50], opacity: [0, 1, 0], scale: [1, 2, 1] }} transition={{ duration: 2 }} style={{ position: 'fixed', fontSize: '50px', zIndex: 999 }}>{flyingEmoji.emoji}</motion.div>

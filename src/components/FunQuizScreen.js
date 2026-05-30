@@ -39,12 +39,12 @@ const checkIfCorrect = (optObj, currentQ) => {
     return cleaned !== '' && !isNaN(Number(cleaned));
   };
 
-  // Case 3: Match by text containment (only for non-numeric, longer strings)
+  // Case 3: Match by normalized exact equality (only for non-numeric, longer strings)
   if (
     !isNumeric(text) &&
     !isNumeric(correct) &&
     text.length > 2 &&
-    (correct.includes(text) || text.includes(correct))
+    (correct.replace(/[^a-z0-9]/g, '') === text.replace(/[^a-z0-9]/g, ''))
   ) {
     return true;
   }
@@ -63,6 +63,13 @@ const formatCorrectAnswerText = (currentQ) => {
   return String(currentQ.correct_answer).trim();
 };
 
+const cleanNum = (val) => {
+  if (val === undefined || val === null || val === '') return 0;
+  const cleanStr = String(val).replace(/,/g, '').trim();
+  const num = Number(cleanStr);
+  return isNaN(num) ? 0 : num;
+};
+
 const FunQuizScreen = ({ onBack }) => {
   const { user } = useAuth();
 
@@ -72,6 +79,7 @@ const FunQuizScreen = ({ onBack }) => {
   const [isQuestionsLoading, setIsQuestionsLoading] = useState(true);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
+  const [userLifetimeScore, setUserLifetimeScore] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionFeedback, setSubmissionFeedback] = useState({ show: false, points: 0 });
   const [winWidth, setWinWidth] = useState(window.innerWidth);
@@ -225,67 +233,90 @@ const FunQuizScreen = ({ onBack }) => {
       return cleanKey && (cleanSId === cleanKey || cleanSName === cleanKey);
     });
   });
-  const userLifetimeScore = myLeaderboardData ? (myLeaderboardData.quiz_points || myLeaderboardData.quizPoints || 0) : 0;
 
   const fetchScores = async () => {
     try {
       const token = localStorage.getItem('token');
 
       const headers = { 'Authorization': `Bearer ${token?.trim()}` };
-      const [rRes, qRes] = await Promise.all([
-        fetch(`${BASE_URL}/api/rewards/leaderboard`, { headers }).catch(() => null),
-        fetch(`${BASE_URL}/api/quizzes/leaderboard`, { headers }).catch(() => null)
+      // Only fetch quiz leaderboards — reward points are NOT included in quiz overall score
+      const [qRes, fRes] = await Promise.all([
+        fetch(`${BASE_URL}/api/quizzes/leaderboard`, { headers }).catch(() => null),
+        fetch(`${BASE_URL}/api/fun-quizzes/leaderboard`, { headers }).catch(() => null)
       ]);
 
-      const rData = rRes && rRes.ok ? await rRes.json() : [];
       const qData = qRes && qRes.ok ? await qRes.json() : [];
+      const fData = fRes && fRes.ok ? await fRes.json() : [];
 
-      const rList = Array.isArray(rData) ? rData : (rData.data || []);
       const qList = Array.isArray(qData) ? qData : (qData.data || []);
+      const fList = Array.isArray(fData) ? fData : (fData.data || []);
 
       const mergedMap = new Map();
 
-      // Process Quiz points
+      // Process Quiz leaderboard points
       qList.forEach(q => {
         const id = String(q.employee_id || q.user_id || q.id || '');
         if (!id) return;
+        const pts = cleanNum(q.total_score || q.quiz_score || q.total_quiz_points || q.points || q.score || 0);
         mergedMap.set(id, {
           id,
           name: q.name || q.employee_name || `Employee ${id}`,
-          quizPoints: Number(q.total_score || q.quiz_score || q.total_quiz_points || q.points || 0),
-          rewardPoints: 0
+          quizPoints: pts
         });
       });
 
-      // Process Reward points
-      rList.forEach(r => {
-        const id = String(r.employee_id || r.user_id || r.id || '');
+      // Process Fun Quiz leaderboard points (take the max)
+      fList.forEach(f => {
+        const id = String(f.employee_id || f.user_id || f.id || f.userId || '');
         if (!id) return;
-        const existing = mergedMap.get(id) || {
-          id,
-          name: r.name || r.employee_name || `Employee ${id}`,
-          quizPoints: 0,
-          rewardPoints: 0
-        };
-        // In rewards leaderboard, points are usually in 'points' or 'total_points'
-        existing.rewardPoints = Number(r.points || r.total_points || r.reward_points || 0);
-        mergedMap.set(id, existing);
+        const pts = cleanNum(f.total_score || f.quiz_score || f.total_quiz_points || f.points || f.score || 0);
+        const existing = mergedMap.get(id);
+        if (existing) {
+          existing.quizPoints = Math.max(existing.quizPoints, pts);
+        } else {
+          mergedMap.set(id, {
+            id,
+            name: f.name || f.employee_name || `Employee ${id}`,
+            quizPoints: pts
+          });
+        }
       });
 
-      const list = Array.from(mergedMap.values()).map((u, i) => {
-        const total = u.quizPoints + u.rewardPoints;
-        return {
-          id: u.id,
-          name: u.name,
-          score: total,
-          quiz_points: u.quizPoints,
-          reward_points: u.rewardPoints,
-          color: ['#FBBC05', '#EA4335', '#34A853', '#4285F4', '#FBBC05'][i % 5],
-          initial: (u.name || 'U').charAt(0).toUpperCase()
-        };
-      }).sort((a, b) => b.score - a.score).map((u, i) => ({ ...u, rank: i + 1 }));
+      // Build leaderboard — quiz points only, no reward points
+      const list = Array.from(mergedMap.values()).map((u, i) => ({
+        id: u.id,
+        name: u.name,
+        score: u.quizPoints,
+        quiz_points: u.quizPoints,
+        reward_points: 0,
+        color: ['#FBBC05', '#EA4335', '#34A853', '#4285F4', '#FBBC05'][i % 5],
+        initial: (u.name || 'U').charAt(0).toUpperCase()
+      })).sort((a, b) => b.score - a.score).map((u, i) => ({ ...u, rank: i + 1 }));
 
       setLeaderboard(list);
+
+      // Find current user's quiz score from leaderboard
+      const myEntry = list.find(s => {
+        const cleanSId = String(s.id || '').split(':')[0].trim().toLowerCase();
+        const cleanSName = String(s.name || '').split(':')[0].trim().toLowerCase();
+        const possibleUserKeys = [
+          user?.employee_id,
+          user?.userId,
+          user?.id,
+          user?.uid,
+          user?.email,
+          user?.name,
+          user?.employee_name
+        ];
+        return possibleUserKeys.some(key => {
+          const cleanKey = String(key || '').split(':')[0].trim().toLowerCase();
+          return cleanKey && (cleanSId === cleanKey || cleanSName === cleanKey);
+        });
+      });
+
+      // Overall score = quiz points only (no HR/PM reward points)
+      const quizScore = myEntry ? myEntry.quiz_points : 0;
+      setUserLifetimeScore(quizScore);
     } catch (err) {
       console.error("Leaderboard Sync failed:", err);
     } finally {
@@ -307,7 +338,7 @@ const FunQuizScreen = ({ onBack }) => {
 
   useEffect(() => {
     const activeQ = questions[currentIdx];
-    setSelectedOption(activeQ?.user_selected_letter || null);
+    setSelectedOption(activeQ?.has_answered ? (activeQ?.user_selected_letter || null) : null);
   }, [currentIdx, questions]);
 
   const handleSubmit = async () => {
@@ -671,7 +702,6 @@ const FunQuizScreen = ({ onBack }) => {
             <div style={{ textAlign: 'center' }}>
               <h1 style={{ fontSize: '32px', fontWeight: '1000', color: '#0B1E3F', margin: '0 0 8px 0' }}>Success!</h1>
               <p style={{ fontSize: '18px', fontWeight: '800', color: '#15803d', margin: 0 }}>+{submissionFeedback.points} REP Points Stored</p>
-              <div style={{ marginTop: '20px', fontSize: '14px', color: '#64748b', fontWeight: '700' }}>Returning to dashboard...</div>
             </div>
           </motion.div>
         )}
@@ -712,7 +742,7 @@ const FunQuizScreen = ({ onBack }) => {
                       <>
                         <div style={{ backgroundColor: 'rgba(255,255,255,0.7)', padding: '10px 16px', borderRadius: '14px', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                           <div style={{ fontSize: '12px', fontWeight: '900', color: '#1e40af', textTransform: 'uppercase' }}>Overall Score</div>
-                          <div style={{ fontSize: '16px', fontWeight: '1000', color: '#0B1E3F' }}>{userLifetimeScore}</div>
+                          <div style={{ fontSize: '16px', fontWeight: '1000', color: '#0B1E3F' }}>{userLifetimeScore + newSessionPoints}</div>
                         </div>
 
                         <div style={{ backgroundColor: 'rgba(255,255,255,0.7)', padding: '10px 16px', borderRadius: '14px', border: '1px solid #dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>

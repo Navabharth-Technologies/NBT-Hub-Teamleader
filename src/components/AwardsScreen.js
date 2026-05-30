@@ -4,6 +4,13 @@ import { Award, Star, ArrowLeft, Trophy, Calendar, CheckCircle, AlertCircle, Zap
 import { API_ENDPOINTS, BASE_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
 
+const cleanNum = (val) => {
+    if (val === undefined || val === null || val === '') return 0;
+    const cleanStr = String(val).replace(/,/g, '').trim();
+    const num = Number(cleanStr);
+    return isNaN(num) ? 0 : num;
+};
+
 const AwardsScreen = ({ onBack }) => {
     const { user } = useAuth();
     const [rewardData, setRewardData] = useState(null);
@@ -51,7 +58,7 @@ const AwardsScreen = ({ onBack }) => {
         const y = date.getFullYear();
         const m = String(date.getMonth() + 1).padStart(2, '0');
         const d = String(date.getDate()).padStart(2, '0');
-        return `${y}/${m}/${d}`;
+        return `${y}-${m}-${d}`;
     };
 
     const now = new Date();
@@ -193,9 +200,9 @@ const AwardsScreen = ({ onBack }) => {
                     const lbData = await lbRes.json();
                     lbList = (Array.isArray(lbData) ? lbData : (lbData.data || lbData.records || [])).map(u => ({
                         ...u,
-                        total_points: Number(u.total_points || u.total_rep || u.points || 0),
-                        reward_points: Number(u.rewardPoints || 0),
-                        total_quiz_points: Number(u.quizPoints || 0)
+                        total_points: cleanNum(u.total_points || u.total_rep || u.points || 0),
+                        reward_points: cleanNum(u.rewardPoints || 0),
+                        total_quiz_points: cleanNum(u.quizPoints || 0)
                     }));
                     setQuizLeaderboard(lbList);
                 }
@@ -312,7 +319,7 @@ const AwardsScreen = ({ onBack }) => {
 
                 setDesignationMap(degMap);
 
-                const totalRep = allRewards.reduce((sum, r) => sum + (Number(r.points) || Number(r.rep) || 0), 0);
+                const totalRep = allRewards.reduce((sum, r) => sum + (cleanNum(r.points) || cleanNum(r.rep) || 0), 0);
                 const endorsements = allRewards.length;
 
                 let finalRank = "Unranked";
@@ -321,7 +328,7 @@ const AwardsScreen = ({ onBack }) => {
                         const entryId = cleanIdLocal(entry.employee_id || entry.userId || entry.id);
                         const isMe = entryId === uid || (entry.employee_name || entry.name || "").toLowerCase().trim() === (user?.employee_name || user?.name || "").toLowerCase().trim();
                         return { 
-                            points: isMe ? totalRep : Number(entry.points || entry.totalPoints || entry.total_rep || entry.rep || 0)
+                            points: isMe ? totalRep : cleanNum(entry.points || entry.totalPoints || entry.total_rep || entry.rep || 0)
                         };
                     });
                     
@@ -529,7 +536,7 @@ const AwardsScreen = ({ onBack }) => {
         return true;
     });
 
-    const displayPoints = filteredHistory.reduce((sum, item) => sum + (Number(item.points) || Number(item.rep) || 0), 0);
+    const displayPoints = filteredHistory.reduce((sum, item) => sum + (cleanNum(item.points) || cleanNum(item.rep) || 0), 0);
     const displayEndorsements = filteredHistory.length;
 
     const stats = {
@@ -1052,10 +1059,10 @@ const AwardsScreen = ({ onBack }) => {
                                                 if (endFilter && d > new Date(endFilter).getTime() + 86400000) return false;
                                                 return true;
                                             })
-                                            .reduce((sum, log) => sum + (Number(log.points) || Number(log.rep) || 0), 0);
+                                            .reduce((sum, log) => sum + (cleanNum(log.points) || cleanNum(log.rep) || 0), 0);
 
                                         const globalUser = (quizLeaderboard || []).find(p => cleanIdLocal(p.employee_id || p.id || p.userId) === mid);
-                                        const allTimePoints = globalUser ? Number(globalUser.total_points || globalUser.points || 0) : mHistory.reduce((sum, log) => sum + (Number(log.points) || Number(log.rep) || 0), 0);
+                                        const allTimePoints = globalUser ? cleanNum(globalUser.total_points || globalUser.points || 0) : mHistory.reduce((sum, log) => sum + (cleanNum(log.points) || cleanNum(log.rep) || 0), 0);
 
                                         return { ...m, displayPoints: isFiltering ? rewardPeriodPoints : allTimePoints };
                                     })
