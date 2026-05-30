@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Cake, RefreshCcw, ArrowLeft } from 'lucide-react';
+import { Cake, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { API_ENDPOINTS } from '../config';
 
@@ -92,28 +92,27 @@ export default function BirthdaysScreen() {
 
   return (
     <div style={s.container}>
-      <div style={{ maxWidth: '100%', margin: '0 0 20px 0' }}>
+      <main style={{ ...s.main, position: 'relative' }}>
         <button
           onClick={() => navigate(-1)}
           style={{
-            padding: isMobile ? '8px' : '12px',
+            position: 'absolute',
+            top: '20px',
+            left: '20px',
+            padding: '8px',
             borderRadius: '12px',
-            backgroundColor: 'white',
+            backgroundColor: '#f8fafc',
             border: '1.5px solid #e2e8f0',
             cursor: 'pointer',
-            flexShrink: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-            outline: 'none',
-            width: 'fit-content'
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            outline: 'none'
           }}
         >
-          <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
+          <ArrowLeft size={20} color="#0B1E3F" strokeWidth={2.5} />
         </button>
-      </div>
-      <main style={s.main}>
         <style>
           {`
           .custom-scrollbar::-webkit-scrollbar { width: 6px; }
@@ -122,7 +121,6 @@ export default function BirthdaysScreen() {
           .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         `}
         </style>
-        <div style={s.badge}><RefreshCcw size={14} /> Data Synced with NBT Hub Profiles</div>
         <Cake size={72} color="#0B1E3F" style={{ display: 'block', margin: '0 auto' }} />
         <h1 style={s.title}>NBT Birthdays🎂</h1>
         <div style={s.subtitle}></div>
