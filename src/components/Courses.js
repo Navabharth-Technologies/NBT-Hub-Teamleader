@@ -156,6 +156,12 @@ export default function CourseScreen() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    useEffect(() => {
+        if (user?.employee_id || user?.id) {
+            fetchProgress();
+        }
+    }, [user]);
+
     const fetchProgress = async () => {
         try {
             const token = localStorage.getItem('token');
