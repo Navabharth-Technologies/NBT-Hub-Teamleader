@@ -459,7 +459,9 @@ const AwardsScreen = ({ onBack }) => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token?.trim()}`
+                    'Authorization': `Bearer ${token?.trim()}`,
+                    'x-user-role': 'Project Manager',
+                    'x-employee-role': 'Project Manager'
                 },
                 body: JSON.stringify({
                     employee_id: Number(selectedEmployee.id || selectedEmployee.userId || selectedEmployee.employee_id),
@@ -470,6 +472,9 @@ const AwardsScreen = ({ onBack }) => {
                     category: selectedAward.category || "Performance",
                     granted_by: Number(uid),
                     grantor_id: Number(uid),
+                    granted_by_role: 'Project Manager',
+                    giver_role: 'Project Manager',
+                    role: 'Project Manager',
                     reason: String(finalDesc || "Excellence in work"),
                     description: String(finalDesc || "")
                 })
