@@ -981,7 +981,6 @@ const Dashboard = ({ setActiveTab }) => {
                   ) : (
                     <div style={s.statusBadge}>{overallStatus}</div>
                   )}
-                  <div style={s.liveUpdates}>LIVE</div>
                 </div>
               </div>
             </div>

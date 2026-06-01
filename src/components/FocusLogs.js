@@ -29,10 +29,17 @@ export default function FocusLogs({ onBack }) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Default range: Start of month to now
+  // Default range: Start of month to end of month (local timezone-safe)
+  const formatLocalDate = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
   const now = new Date();
-  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-  const lastDay = now.toISOString().split('T')[0];
+  const firstDay = formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1));
+  const lastDay = formatLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
 
   const [startDate, setStartDate] = useState(firstDay);
   const [endDate, setEndDate] = useState(lastDay);

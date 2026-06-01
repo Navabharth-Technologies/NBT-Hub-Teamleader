@@ -38,8 +38,11 @@ const AwardsScreen = ({ onBack }) => {
 
     const cleanIdLocal = (id) => {
         if (!id) return '';
-        let s = String(id).trim();
+        let s = String(id).split(':')[0].trim().toLowerCase();
         if (s.includes(',')) s = s.split(',')[0].trim();
+        if ((s.startsWith('2025') || s.startsWith('2026')) && s.length > 4) {
+            s = s.substring(4);
+        }
         if (s.length >= 9 && s.length % 3 === 0) {
             const partLen = s.length / 3;
             if (s.substring(0, partLen) === s.substring(partLen, partLen * 2)) return s.substring(0, partLen);
@@ -85,7 +88,7 @@ const AwardsScreen = ({ onBack }) => {
             fetchTeam();
             fetchGrantedHistory();
         }
-    }, [user, rankingType]);
+    }, [user, rankingType, startFilter, endFilter]);
 
     useEffect(() => {
         if (activeView === 'AUDIT' && user) {
@@ -175,7 +178,7 @@ const AwardsScreen = ({ onBack }) => {
         fetchSelectedUserRewards();
     }, [selectedEmployee]);
 
-    const fetchMyRewards = async () => {
+    const fetchMyRewards = async (passedTeamHistories) => {
         try {
             const token = localStorage.getItem('token');
             const uid = cleanIdLocal(user?.employee_id || user?.userId || user?.id);
@@ -188,12 +191,41 @@ const AwardsScreen = ({ onBack }) => {
                 const data = await res.json();
                 let allRewards = data.awards || data.history || (Array.isArray(data) ? data : (data.data || data.records || []));
                 
-                const targetLbUrl = rankingType === 'quiz' ? API_ENDPOINTS.QUIZ_USER_POINTS : API_ENDPOINTS.QUIZ_LEADERBOARD;
-                const [lbRes, quizPointsRes, quizCompletionsRes] = await Promise.all([
+                const lbParams = new URLSearchParams();
+                if (startFilter) {
+                    lbParams.append('start_date', startFilter);
+                    lbParams.append('startDate', startFilter);
+                }
+                if (endFilter) {
+                    lbParams.append('end_date', endFilter);
+                    lbParams.append('endDate', endFilter);
+                }
+                const lbQuery = lbParams.toString() ? `?${lbParams.toString()}` : '';
+
+                const targetLbUrl = rankingType === 'quiz' ? (API_ENDPOINTS.QUIZ_LEADERBOARD || `${BASE_URL}/api/quizzes/leaderboard`) : (API_ENDPOINTS.LEADERBOARD_ALL || `${BASE_URL}/api/employees/leaderboard/all`);
+                const [lbRes, quizPointsRes, quizCompletionsRes, historyRes, empRes] = await Promise.all([
                     fetch(targetLbUrl, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
-                    fetch(API_ENDPOINTS.QUIZ_USER_POINTS, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
-                    fetch(`${BASE_URL}/api/quizzes/completions/my`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } })
+                    fetch(API_ENDPOINTS.QUIZ_LEADERBOARD || `${BASE_URL}/api/quizzes/leaderboard`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
+                    fetch(`${BASE_URL}/api/quizzes/completions/my`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
+                    fetch(`${API_ENDPOINTS.REWARDS_HISTORY || `${BASE_URL}/api/admin/rewards/history`}${lbQuery}`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }).catch(() => null),
+                    fetch(API_ENDPOINTS.EMPLOYEES, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }).catch(() => null)
                 ]);
+
+                const masterEmployeeMap = {};
+                if (empRes && empRes.ok) {
+                    try {
+                        const empData = await empRes.json();
+                        const empList = Array.isArray(empData) ? empData : (empData.data || []);
+                        empList.forEach(e => {
+                            const eid = cleanIdLocal(e.employee_id || e.id || e.userId);
+                            if (eid) {
+                                masterEmployeeMap[eid] = e.employee_name || e.name || e.emp_name;
+                            }
+                        });
+                    } catch (e) {
+                        console.warn("Failed parsing master employees list:", e);
+                    }
+                }
 
                 let lbList = [];
                 if (lbRes.ok) {
@@ -204,8 +236,11 @@ const AwardsScreen = ({ onBack }) => {
                         reward_points: cleanNum(u.rewardPoints || 0),
                         total_quiz_points: cleanNum(u.quizPoints || 0)
                     }));
-                    setQuizLeaderboard(lbList);
                 }
+
+                // Keep backend all-time leaderboard totals directly to avoid inconsistent date-filtered recalculation.
+
+                setQuizLeaderboard(lbList);
 
                 let quizOnlyList = [];
                 let quizHistory = [];
@@ -217,7 +252,6 @@ const AwardsScreen = ({ onBack }) => {
                     quizHistory = await quizCompletionsRes.json();
                 }
 
-                // Add quiz completions to rewards if they aren't already represented in HR history
                 quizHistory.forEach(comp => {
                     const compDate = new Date(comp.completion_date || comp.created_at).toLocaleDateString();
                     const alreadyExists = allRewards.some(r => {
@@ -240,7 +274,6 @@ const AwardsScreen = ({ onBack }) => {
 
                 allRewards.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
 
-                // Synthesis of Legacy/Total Quiz entries
                 const totalPointsInHistory = quizHistory.reduce((sum, c) => sum + Number(c.total_points || 0), 0);
                 const myOverallQuiz = quizOnlyList.find(s => cleanIdLocal(s.employee_id || s.user_id || s.id) === uid);
                 const overallPoints = Number(myOverallQuiz?.total_quiz_points || myOverallQuiz?.points || 0);
@@ -253,7 +286,7 @@ const AwardsScreen = ({ onBack }) => {
                         points: legacyPoints,
                         rep: legacyPoints,
                         category: 'QUIZ',
-                        date: new Date(2025, 0, 1).toISOString(), // Represent as historical
+                        date: new Date(2025, 0, 1).toISOString(),
                         note: 'Historical points earned before session tracking'
                     });
                 }
@@ -324,16 +357,24 @@ const AwardsScreen = ({ onBack }) => {
 
                 let finalRank = "Unranked";
                 if (lbList.length > 0) {
-                    const virtualLB = lbList.map(entry => {
-                        const entryId = cleanIdLocal(entry.employee_id || entry.userId || entry.id);
-                        const isMe = entryId === uid || (entry.employee_name || entry.name || "").toLowerCase().trim() === (user?.employee_name || user?.name || "").toLowerCase().trim();
-                        return { 
-                            points: isMe ? totalRep : cleanNum(entry.points || entry.totalPoints || entry.total_rep || entry.rep || 0)
-                        };
+                    // Find user's entry in the filtered lbList using ID or name match
+                    const myEntry = lbList.find(entry => {
+                        const entryId = cleanIdLocal(entry.employee_id || entry.userId || entry.id || entry.user_id || entry.empId);
+                        if (entryId && entryId === uid) return true;
+                        const entryName = (entry.employee_name || entry.name || '').toLowerCase().trim();
+                        const myName = (user?.employee_name || user?.name || '').toLowerCase().trim();
+                        return myName && entryName && entryName === myName;
                     });
-                    
-                    virtualLB.sort((a, b) => b.points - a.points);
-                    const myIdx = virtualLB.findIndex(v => v.points === totalRep);
+                    const myPoints = myEntry ? cleanNum(myEntry.total_points) : 0;
+                    // Sequential rank: count how many have strictly more points, +1
+                    const sorted = [...lbList].sort((a, b) => cleanNum(b.total_points) - cleanNum(a.total_points));
+                    const myIdx = sorted.findIndex(entry => {
+                        const entryId = cleanIdLocal(entry.employee_id || entry.userId || entry.id || entry.user_id || entry.empId);
+                        if (entryId && entryId === uid) return true;
+                        const entryName = (entry.employee_name || entry.name || '').toLowerCase().trim();
+                        const myName = (user?.employee_name || user?.name || '').toLowerCase().trim();
+                        return myName && entryName && entryName === myName;
+                    });
                     if (myIdx !== -1) {
                         finalRank = `#${myIdx + 1}`;
                     }
@@ -406,6 +447,7 @@ const AwardsScreen = ({ onBack }) => {
                 }
             }));
             setTeamHistories(historyMap);
+            fetchMyRewards(historyMap);
         } catch { }
     };
 
@@ -541,14 +583,7 @@ const AwardsScreen = ({ onBack }) => {
         return true;
     });
 
-    const displayPoints = filteredHistory.reduce((sum, item) => sum + (cleanNum(item.points) || cleanNum(item.rep) || 0), 0);
-    const displayEndorsements = filteredHistory.length;
-
-    const stats = {
-        ...rawStats,
-        points: displayPoints,
-        endorsements: displayEndorsements
-    };
+    const stats = rawStats;
 
     return (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ padding: isMobile ? '16px 20px' : (isTablet ? '30px 30px' : '40px 100px'), width: '100%', boxSizing: 'border-box', position: 'relative' }}>
@@ -970,6 +1005,7 @@ const AwardsScreen = ({ onBack }) => {
                                     <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '15px', fontWeight: '800' }}>Overall ranking of all employees</p>
                                 </div>
                             </div>
+
                         </div>
 
                         <div style={{ 
@@ -977,13 +1013,15 @@ const AwardsScreen = ({ onBack }) => {
                             boxShadow: '0 4px 15px rgba(0,0,0,0.02)', marginBottom: '30px'
                         }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {quizLeaderboard.length > 0 ? (
-                                    [...quizLeaderboard].sort((a, b) => b.total_points - a.total_points).map((p, i) => (
+                                {quizLeaderboard.length > 0 ? (() => {
+                                    const sorted = [...quizLeaderboard].sort((a, b) => b.total_points - a.total_points);
+                                    // Sequential rank: each person gets a unique rank 1, 2, 3...
+                                    return sorted.map((p, i) => (
                                         <motion.div 
                                             key={i} 
                                             whileHover={{ scale: 1.01, boxShadow: '0 10px 25px rgba(59, 130, 246, 0.15)', borderColor: '#bfdbfe', backgroundColor: '#f8fafc', zIndex: 10 }}
                                             transition={{ duration: 0.2 }}
-                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', backgroundColor: 'white', borderRadius: '15px', border: '1px solid #f1f5f9', cursor: 'pointer' }}
+                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', backgroundColor: 'white', borderRadius: '15px', border: '1px solid #f1f5f9' }}
                                         >
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                 <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '900', color: '#3B5998' }}>
@@ -991,13 +1029,13 @@ const AwardsScreen = ({ onBack }) => {
                                                 </div>
                                                 <div>
                                                     <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>{p.name || p.employee_name}</div>
-                                                    <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>Rank #{i+1}</div>
+                                                    <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>Rank #{i + 1}</div>
                                                 </div>
                                             </div>
                                             <div style={{ fontSize: '15px', fontWeight: '1000', color: '#0B1E3F' }}>{p.total_points} <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>REP</span></div>
                                         </motion.div>
-                                    ))
-                                ) : (
+                                    ));
+                                })() : (
                                     <div style={{ textAlign: 'center', padding: '20px', fontSize: '13px', color: '#94a3b8', fontWeight: '800' }}>No leaderboard data available.</div>
                                 )}
                             </div>

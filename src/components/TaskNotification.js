@@ -459,7 +459,7 @@ const TaskNotification = ({ onNavigate }) => {
       clearInterval(poll);
       window.removeEventListener('toggle-notifications', handleToggle);
     };
-  }, [user, lastIds.size]);
+  }, [user]);
 
   const isMobile = winWidth < 768;
 
@@ -669,9 +669,18 @@ const TaskNotification = ({ onNavigate }) => {
         animate={isVibrating ? { rotate: [0, -15, 15, -15, 15, -10, 10, 0], scale: [1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1] } : { rotate: 0, scale: 1 }}
         transition={isVibrating ? { duration: 0.6, ease: "easeInOut" } : { duration: 0.2 }}
         onClick={() => {
-          setIsOpen(!isOpen);
-          if (!isOpen && notifications.length > 0) {
+          const willOpen = !isOpen;
+          setIsOpen(willOpen);
+          if (willOpen && notifications.length > 0) {
             const uid = user?.id || user?.empId || user?.userId || user?.employee_id;
+            // Mark ALL currently visible notifications as read in localStorage
+            const readIds = JSON.parse(localStorage.getItem(`read_management_ids_${uid}`) || '[]');
+            const readSet = new Set(readIds);
+            notifications.forEach(n => readSet.add(n.id));
+            localStorage.setItem(`read_management_ids_${uid}`, JSON.stringify([...readSet]));
+            // Update state so dots disappear immediately
+            setNotifications(prev => prev.map(n => ({ ...n, isNew: false })));
+            setHasUnread(false);
             localStorage.setItem(`last_seen_task_${uid}`, String(notifications[0].id));
           }
         }}

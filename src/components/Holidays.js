@@ -136,17 +136,17 @@ export default function HolidaysScreen() {
 
   return (
     <div style={s.container}>
-      <div style={s.main}>
-        <button 
-          onClick={() => navigate('/')}
-          style={s.backBtn}
-          onMouseEnter={e => e.currentTarget.style.transform = 'translateX(-5px)'}
-          onMouseLeave={e => e.currentTarget.style.transform = 'translateX(0)'}
-        >
-          <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
-        </button>
-
-        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} style={s.headerCard}>
+        <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} style={{ ...s.headerCard, position: 'relative' }}>
+          <div style={{ position: 'absolute', top: winWidth < 768 ? '20px' : '30px', left: winWidth < 768 ? '20px' : '30px', zIndex: 10 }}>
+            <button 
+              onClick={() => navigate('/')}
+              style={{ ...s.backBtn, marginBottom: 0 }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'translateX(-5px)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'translateX(0)'}
+            >
+              <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
+            </button>
+          </div>
           <div style={s.iconBox}>
             <CalendarIcon size={40} strokeWidth={1.5} />
           </div>
@@ -184,7 +184,6 @@ export default function HolidaysScreen() {
             </div>
           )}
         </motion.div>
-      </div>
     </div>
   );
 }

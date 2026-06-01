@@ -115,6 +115,8 @@ export const API_ENDPOINTS = {
   REWARDS_MY: `${BASE_URL}/api/rewards/my`,
   REWARDS_GIVE: `${BASE_URL}/api/rewards`,
   REWARDS_LEADERBOARD: `${BASE_URL}/api/rewards/leaderboard`,
+  REWARDS_HISTORY: `${BASE_URL}/api/admin/rewards/history`,
+  LEADERBOARD_ALL: `${BASE_URL}/api/employees/leaderboard/all`,
   USER_SEARCH: (q) => `${BASE_URL}/api/users/search?q=${q}`,
   REWARDS_GIVEN: (userId) => `${BASE_URL}/api/rewards/given?userId=${cleanId(userId)}`,
   REWARDS_USER: (employeeId) => `${BASE_URL}/api/rewards/user/${cleanId(employeeId)}`,

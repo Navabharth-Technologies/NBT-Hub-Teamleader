@@ -133,6 +133,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
   const [reportingManager, setReportingManager] = useState({ name: 'Loading...', id: '' });
   const fileInputRef = useRef(null);
+  const aboutTextAreaRef = useRef(null);
   const [teamReports, setTeamReports] = useState([]);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
@@ -158,6 +159,15 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     }
     return () => clearInterval(timer);
   }, [otpRequested, countdown, otpVerified]);
+
+  useEffect(() => {
+    if (isEditingAbout && aboutTextAreaRef.current) {
+      const el = aboutTextAreaRef.current;
+      el.focus();
+      const len = el.value.length;
+      el.setSelectionRange(len, len);
+    }
+  }, [isEditingAbout]);
 
   useEffect(() => {
     if (user) {
@@ -1006,6 +1016,11 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                 if (isEditingAbout) {
                   const result = await updateProfile('about_me', aboutMe);
                   if (!result.success) alert('Update Failed: ' + result.error);
+                } else {
+                  // Entering edit mode!
+                  if (aboutMe === 'Write a short introduction about yourself') {
+                    setAboutMe('');
+                  }
                 }
                 setIsEditingAbout(!isEditingAbout);
               }}
@@ -1017,6 +1032,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           <div style={styles.aboutContent}>
             {isEditingAbout ? (
               <textarea
+                ref={aboutTextAreaRef}
                 autoFocus
                 style={{ width: '100%', minHeight: '100px', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '15px', fontSize: '18px', color: '#000000', outline: 'none', fontFamily: 'inherit', fontWeight: '600' }}
                 value={aboutMe}
@@ -1024,7 +1040,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
               />
             ) : (
               <>
-                <div style={styles.aboutPlaceholder}>{aboutMe}</div>
+                <div style={styles.aboutPlaceholder}>{aboutMe || 'Write a short introduction about yourself'}</div>
               </>
             )}
           </div>
