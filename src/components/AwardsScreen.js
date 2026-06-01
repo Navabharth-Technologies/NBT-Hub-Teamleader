@@ -238,9 +238,69 @@ const AwardsScreen = ({ onBack }) => {
                     }));
                 }
 
-                // Keep backend all-time leaderboard totals directly to avoid inconsistent date-filtered recalculation.
+                let allHistoryLogs = [];
+                if (historyRes && historyRes.ok) {
+                    try {
+                        const histData = await historyRes.json();
+                        allHistoryLogs = Array.isArray(histData) ? histData : (histData.data || []);
+                    } catch (e) {
+                        console.warn("Failed to parse history data:", e);
+                    }
+                }
 
-                setQuizLeaderboard(lbList);
+                let activeLeaderboard = lbList;
+                const isFiltering = !!(startFilter || endFilter);
+
+                if (isFiltering) {
+                    const mergedMap = new Map();
+                    lbList.forEach(u => {
+                        const uidStr = String(u.id || u.employee_id || u.userId);
+                        mergedMap.set(uidStr, {
+                            id: u.id,
+                            name: u.name || u.employee_name,
+                            role: u.role,
+                            team: u.team,
+                            profile_picture: u.profile_picture,
+                            rewardPoints: 0,
+                            quizPoints: cleanNum(u.total_quiz_points || u.quizPoints || 0),
+                            total_points: cleanNum(u.total_quiz_points || u.quizPoints || 0)
+                        });
+                    });
+
+                    allHistoryLogs.forEach(r => {
+                        const recipientId = String(r.employee_id || r.userId || r.id);
+                        const rDate = new Date(r.created_at || r.date).getTime();
+                        if (startFilter && rDate < new Date(startFilter).getTime()) return;
+                        if (endFilter && rDate > new Date(endFilter).getTime() + 86400000) return;
+
+                        if (!mergedMap.has(recipientId)) {
+                            const name = r.employee_name || masterEmployeeMap[recipientId] || 'Team Member';
+                            mergedMap.set(recipientId, {
+                                id: isNaN(recipientId) ? recipientId : Number(recipientId),
+                                name: name,
+                                role: 'Team Member',
+                                team: 'Bytes Blasters✨',
+                                profile_picture: null,
+                                rewardPoints: 0,
+                                quizPoints: 0,
+                                total_points: 0
+                            });
+                        }
+
+                        const entry = mergedMap.get(recipientId);
+                        entry.rewardPoints += cleanNum(r.points || r.rep || 0);
+                    });
+
+                    activeLeaderboard = Array.from(mergedMap.values())
+                        .map(item => ({
+                            ...item,
+                            total_points: item.rewardPoints + item.quizPoints
+                        }))
+                        .filter(item => item.total_points > 0)
+                        .sort((a, b) => b.total_points - a.total_points);
+                }
+
+                setQuizLeaderboard(activeLeaderboard);
 
                 let quizOnlyList = [];
                 let quizHistory = [];
@@ -352,22 +412,19 @@ const AwardsScreen = ({ onBack }) => {
 
                 setDesignationMap(degMap);
 
-                const totalRep = allRewards.reduce((sum, r) => sum + (cleanNum(r.points) || cleanNum(r.rep) || 0), 0);
-                const endorsements = allRewards.length;
+                const filteredAllRewards = allRewards.filter(aw => {
+                    const d = new Date(aw.created_at || aw.date).getTime();
+                    if (startFilter && d < new Date(startFilter).getTime()) return false;
+                    if (endFilter && d > new Date(endFilter).getTime() + 86400000) return false;
+                    return true;
+                });
+                const totalRep = filteredAllRewards.reduce((sum, r) => sum + (cleanNum(r.points) || cleanNum(r.rep) || 0), 0);
+                const endorsements = filteredAllRewards.length;
 
                 let finalRank = "Unranked";
-                if (lbList.length > 0) {
-                    // Find user's entry in the filtered lbList using ID or name match
-                    const myEntry = lbList.find(entry => {
-                        const entryId = cleanIdLocal(entry.employee_id || entry.userId || entry.id || entry.user_id || entry.empId);
-                        if (entryId && entryId === uid) return true;
-                        const entryName = (entry.employee_name || entry.name || '').toLowerCase().trim();
-                        const myName = (user?.employee_name || user?.name || '').toLowerCase().trim();
-                        return myName && entryName && entryName === myName;
-                    });
-                    const myPoints = myEntry ? cleanNum(myEntry.total_points) : 0;
-                    // Sequential rank: count how many have strictly more points, +1
-                    const sorted = [...lbList].sort((a, b) => cleanNum(b.total_points) - cleanNum(a.total_points));
+                const targetRankList = isFiltering ? quizLeaderboard : lbList;
+                if (targetRankList.length > 0) {
+                    const sorted = [...targetRankList].sort((a, b) => cleanNum(b.total_points) - cleanNum(a.total_points));
                     const myIdx = sorted.findIndex(entry => {
                         const entryId = cleanIdLocal(entry.employee_id || entry.userId || entry.id || entry.user_id || entry.empId);
                         if (entryId && entryId === uid) return true;
@@ -1005,7 +1062,19 @@ const AwardsScreen = ({ onBack }) => {
                                     <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '15px', fontWeight: '800' }}>Overall ranking of all employees</p>
                                 </div>
                             </div>
-
+                            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: isTablet ? 'wrap' : 'nowrap', width: isTablet ? '100%' : 'auto' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'white', padding: '10px 16px', borderRadius: '14px', border: '1.5px solid #e2e8f0' }}>
+                                    <span style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8' }}>FROM</span>
+                                    <input type="date" value={startFilter} onChange={(e) => setStartFilter(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: '13px', fontWeight: '700', color: '#0B1E3F' }} />
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'white', padding: '10px 16px', borderRadius: '14px', border: '1.5px solid #e2e8f0' }}>
+                                    <span style={{ fontSize: '10px', fontWeight: '900', color: '#94a3b8' }}>TO</span>
+                                    <input type="date" value={endFilter} onChange={(e) => setEndFilter(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: '13px', fontWeight: '700', color: '#0B1E3F' }} />
+                                </div>
+                                {(startFilter || endFilter) && (
+                                    <button onClick={() => { setStartFilter(''); setEndFilter(''); }} style={{ backgroundColor: '#fee2e2', color: '#ef4444', border: 'none', padding: '12px 20px', borderRadius: '14px', fontSize: '12px', fontWeight: '900', cursor: 'pointer' }}>Clear Filters</button>
+                                )}
+                            </div>
                         </div>
 
                         <div style={{ 
