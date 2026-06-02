@@ -105,277 +105,13 @@ const TaskNotification = ({ onNavigate }) => {
       const token = localStorage.getItem('token');
       const headers = { 'Authorization': `Bearer ${token?.trim()}` };
 
-      // 1. Fetch Assigned Tasks
-      const taskRes = await fetch(API_ENDPOINTS.TASKS_ASSIGNED(uid), { headers });
-      let tasks = [];
-      if (taskRes.ok) {
-        const data = await taskRes.json();
-        tasks = Array.isArray(data) ? data : (data.value || data.data || []);
-      }
-
-      // 2. Fetch Leaves (Personal + Team if leader)
-      let leaves = [];
-      const userRole = (user?.role || '').toLowerCase();
-      const isLeader = userRole.includes('lead') || userRole === 'tl' || userRole === 'manager' || userRole.includes('project manager');
-
-      try {
-        // My Leaves
-        const myRes = await fetch(`${BASE_URL}/api/leaves/my`, { headers });
-        if (myRes.ok) {
-          const myData = await myRes.json();
-          const myArr = Array.isArray(myData) ? myData : (myData.data || myData.leaves || []);
-          leaves = [...myArr];
-        }
-
-        // Team Pending (For Leader Notifications)
-        if (isLeader) {
-          const pendRes = await fetch(`${BASE_URL}/api/leaves/pending`, { headers });
-          if (pendRes.ok) {
-            const pendData = await pendRes.json();
-            const pendArr = Array.isArray(pendData) ? pendData : (pendData.data || pendData.leaves || []);
-
-            // Merge to avoid duplicates
-            const existingIds = new Set(leaves.map(l => l.id));
-            pendArr.forEach(p => {
-              if (!existingIds.has(p.id)) leaves.push(p);
-            });
-          }
-
-          // All Leaves (for final approval notifications of team members)
-          const allRes = await fetch(API_ENDPOINTS.ALL_LEAVES, { headers });
-          if (allRes.ok) {
-            const allData = await allRes.json();
-            const allArr = Array.isArray(allData) ? allData : (allData.data || allData.leaves || []);
-            const existingIds = new Set(leaves.map(l => l.id));
-            allArr.forEach(al => {
-              if (!existingIds.has(al.id)) leaves.push(al);
-            });
-          }
-        }
-      } catch (e) {
-        console.error("Leave fetch error in notifications:", e);
-      }
-
-      // 3. Fetch Rewards (Recognition from HR/PM)
-      let rewards = [];
-      try {
-        const rewardRes = await fetch(API_ENDPOINTS.REWARDS_MY, { headers });
-        if (rewardRes.ok) {
-          const rData = await rewardRes.json();
-          rewards = Array.isArray(rData) ? rData : (rData.data || rData.rewards || []);
-        }
-      } catch (e) {
-        console.error("Reward fetch error in notifications:", e);
-      }
-
       const newIds = new Set();
       const readIds = JSON.parse(localStorage.getItem(`read_management_ids_${uid}`) || '[]');
-
       let hasAnyUnread = false;
-      const seenApprovals = JSON.parse(localStorage.getItem(`seen_approvals_${uid}`) || '{}');
-      const seenRequests = JSON.parse(localStorage.getItem(`seen_leave_requests_${uid}`) || '[]');
 
-      const updatedApprovals = { ...seenApprovals };
-      const updatedRequests = [...seenRequests];
-
-      // Map Tasks & Reviews
-      const mappedTasks = [];
-      tasks.forEach(t => {
-        // 1. Assignment Notification
-        const rawTs = t.assigned_at || t.created_at || t.createdAt || t.timestamp || t.deadline;
-        const d = parseDate(rawTs);
-        const tid = `task_${t.id}`;
-        newIds.add(tid);
-
-        const isRead = readIds.includes(tid);
-        if (!isRead) hasAnyUnread = true;
-
-        mappedTasks.push({
-          id: tid,
-          type: 'TASK',
-          title: t.task_name || t.projectName || t.title || 'New Task Assigned',
-          description: t.task_text || t.projectDescription || t.description || 'New leadership directive.',
-          formattedTime: formatDate(d, rawTs),
-          isNew: !isRead,
-          rawDate: d,
-          taskId: t.id
-        });
-
-        // 2. Manager Review Notification
-        const verifyStatusRaw = String(t.verify || '').trim();
-        const isPending = verifyStatusRaw.toLowerCase().includes('pending') || verifyStatusRaw === '';
-
-        if (verifyStatusRaw && !isPending) {
-          const normStatus = verifyStatusRaw.toLowerCase();
-          const isAppr = normStatus.includes('approv') || normStatus === 'yes' || normStatus === 'verified' || normStatus === 'accepted';
-          const isRej = normStatus.includes('reject') || normStatus === 'no' || normStatus === 'declined';
-
-          const reviewId = `task_review_${t.id}_${verifyStatusRaw.replace(/\s+/g, '')}`;
-          newIds.add(reviewId);
-          const isReviewRead = readIds.includes(reviewId);
-          if (!isReviewRead) hasAnyUnread = true;
-
-          // Prioritize specific review date columns from payload
-          const rawReviewDate = t.date || t.verify_date || t.verified_at || t.review_date || t.completed_at || t.completedAt || t.updated_at || t.updatedAt || t.created_at || t.createdAt;
-          const baseDate = parseDate(rawReviewDate);
-          // Add 1000ms offset so TASK_REVIEW sorts as newer than the TASK assignment if they share the same time
-          const d = new Date(baseDate.getTime() + 1000);
-
-          mappedTasks.push({
-            id: reviewId,
-            type: 'TASK_REVIEW',
-            title: `Task ${isAppr ? 'Verified' : isRej ? 'Rejected' : 'Reviewed'} by PM`,
-            description: `PM marked "${t.task_name || t.title || 'Task'}" as ${verifyStatusRaw}. ${t.verify_description || ''}`,
-            formattedTime: formatDate(d, rawReviewDate),
-            isNew: !isReviewRead,
-            rawDate: d,
-            taskId: t.id
-          });
-        }
-      });
-
-      // Map Leaves
-      const mappedLeaves = [];
-      const threeDaysAgo = new Date();
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-
-      // Fetch all users for role checks
-      let allEmp = [];
-      try {
-        const uRes = await fetch(API_ENDPOINTS.USERS, { headers });
-        if (uRes.ok) allEmp = await uRes.json();
-      } catch (e) {
-        console.error("User fetch error in notifications:", e);
-      }
-
-      leaves.forEach(l => {
-        const lid = `leave_${l.id}`;
-        newIds.add(lid);
-
-        const statusRaw = String(l.status || l.rm_status || l.rmStatus || l.leave_status || 'Pending').trim().toUpperCase();
-        const rmApp = (l.rm_status || l.rmStatus || (statusRaw === 'PENDING' || statusRaw === 'REQUESTED' ? 'PENDING' : statusRaw)).toUpperCase();
-        const hrApp = (l.hr_status || l.hrStatus || 'Pending').toUpperCase();
-        const pmApp = (l.pm_status || l.pmStatus || (statusRaw.includes('APPROVED') ? 'APPROVED' : 'PENDING')).toUpperCase();
-
-        const requester = allEmp.find(u => Number(u.id || u.employee_id) === Number(l.user_id));
-        const rRole = (requester?.role || '').toLowerCase();
-        const isLeadSoftware = rRole.includes('lead software') || rRole.includes('leadsoftware');
-
-        const createdDate = parseDate(l.created_at || l.applied_on);
-        const updatedDate = parseDate(l.updated_at || l.created_at);
-
-        // 1. FINAL APPROVAL NOTIFICATION
-        let isFullyApproved = false;
-        if (isLeadSoftware) {
-          // Unified RM/PM + HR = FULL for Lead Software
-          isFullyApproved = (rmApp === 'APPROVED' || pmApp === 'APPROVED') && hrApp === 'APPROVED';
-        } else {
-          // RM + PM + HR = FULL for others
-          isFullyApproved = rmApp === 'APPROVED' && hrApp === 'APPROVED' && pmApp === 'APPROVED';
-        }
-
-        if (isFullyApproved && updatedDate > threeDaysAgo) {
-          const aid = lid + '_app';
-          const isRead = readIds.includes(aid);
-
-          const prevState = seenApprovals[lid] || 'PENDING';
-          const isNewlyFinalized = isFullyApproved && prevState === 'PENDING';
-
-          if (isNewlyFinalized) {
-            updatedApprovals[lid] = 'APPROVED';
-            if (!isRead) hasAnyUnread = true;
-          }
-
-          const ename = l.employeeName || l.user_name || l.name || (Number(l.user_id) === Number(uid) ? 'Your' : 'Team member');
-          mappedLeaves.push({
-            id: aid,
-            type: 'LEAVE',
-            title: 'Leave Fully Approved',
-            description: `${ename} leave request for ${l.leave_type || 'Leave'} is now officially Approved.`,
-            formattedTime: formatDate(updatedDate, l.updated_at || l.created_at),
-            isNew: !isRead,
-            rawDate: updatedDate,
-            leaveId: l.id
-          });
-        }
-
-        // 2. NEW REQUEST NOTIFICATION (For Leaders)
-        if (isLeader && Number(l.user_id || l.userId) !== Number(uid)) {
-          // Broaden pending check to capture variations in backend status strings
-          const isPending = rmApp === 'PENDING' || rmApp === 'REQUESTED' || rmApp === 'PENDING APPROVAL' || rmApp === 'IN REVIEW';
-
-          if (isPending) {
-            const rid = lid + '_new';
-            const isRead = readIds.includes(rid);
-            if (!isRead) hasAnyUnread = true;
-
-            const ename = l.employeeName || l.employee_name || l.user_name || l.name || 'A team member';
-            mappedLeaves.push({
-              id: rid,
-              type: 'LEAVE',
-              title: 'New Leave Request',
-              description: `${ename} has requested ${l.leave_type || 'Leave'} from ${l.start_date?.split('T')[0].replace(/-/g, '/') || 'N/A'} to ${l.end_date?.split('T')[0].replace(/-/g, '/') || 'N/A'} (${l.no_of_days || calculateDays(l.start_date, l.end_date)} days).`,
-              formattedTime: formatDate(createdDate, l.created_at || l.applied_on),
-              isNew: !isRead,
-              rawDate: createdDate,
-              leaveId: l.id
-            });
-          }
-        }
-      });
-
-      // 3. Fetch New Quizzes (Individual Notifications)
-      const quizRes = await fetch(`${BASE_URL}/api/fun-quizzes`, { headers });
-      let quizNotifs = [];
-      if (quizRes.ok) {
-        const qData = await quizRes.json();
-        const qList = (Array.isArray(qData) ? qData : (qData.data || [])).filter(q => q && !q.has_answered);
-
-        qList.forEach(q => {
-          const qid = `quiz_${q.id}`;
-          newIds.add(qid);
-          const isRead = readIds.includes(qid);
-          if (!isRead) hasAnyUnread = true;
-
-          const qDate = parseDate(q.created_at || q.updated_at);
-
-          quizNotifs.push({
-            id: qid,
-            type: 'QUIZ',
-            title: 'New Brain Teaser!',
-            description: `${q.question?.substring(0, 60)}${q.question?.length > 60 ? '...' : ''} (Earn ${q.points_reward} REP)`,
-            formattedTime: formatDate(qDate, q.created_at || q.updated_at),
-            isNew: !isRead,
-            rawDate: qDate,
-            quizId: q.id
-          });
-        });
-      }
-
-      // Map Rewards
-      const mappedRewards = rewards.map(r => {
-        const rid = `reward_${r.id}`;
-        newIds.add(rid);
-        const isRead = readIds.includes(rid);
-        if (!isRead) hasAnyUnread = true;
-
-        const d = parseDate(r.created_at || r.timestamp || r.date);
-        return {
-          id: rid,
-          type: 'AWARD',
-          title: `New Reward from ${r.given_by || 'HR/PM'}`,
-          description: `Congratulations! You received "${r.reason || r.reward_name || 'Recognition'}" for your excellence.`,
-          formattedTime: formatDate(d, r.created_at || r.timestamp),
-          isNew: !isRead,
-          rawDate: d,
-          rewardId: r.id
-        };
-      });
-
-      // 4. Fetch Central Database Notifications for Updated Timings
       let dbNotifs = [];
       try {
-        const dbRes = await fetch(`${API_ENDPOINTS.NOTIFICATIONS}?userId=${uid}`, { headers });
+        const dbRes = await fetch(`${API_ENDPOINTS.NOTIFICATIONS || `${BASE_URL}/api/notifications`}?userId=${uid}`, { headers });
         if (dbRes.ok) {
           const dbData = await dbRes.json();
           const dbList = Array.isArray(dbData) ? dbData : (dbData.data || []);
@@ -389,11 +125,11 @@ const TaskNotification = ({ onNavigate }) => {
             const msg = (n.message || n.description || n.text || '').toLowerCase();
             const ttl = (n.title || '').toLowerCase();
 
-            // Smart type normalization for DB records
             let type = n.type || 'SYSTEM';
             if (ttl.includes('leave') || msg.includes('leave')) type = 'LEAVE';
             else if (ttl.includes('quiz') || msg.includes('quiz')) type = 'QUIZ';
             else if (ttl.includes('task') || msg.includes('task')) type = 'TASK';
+            else if (ttl.includes('award') || ttl.includes('reward') || msg.includes('award')) type = 'AWARD';
 
             dbNotifs.push({
               id: nid,
@@ -404,8 +140,8 @@ const TaskNotification = ({ onNavigate }) => {
               isNew: !isRead,
               rawDate: nDate,
               link: n.link,
-              leaveId: n.leave_id || n.id,
-              taskId: n.task_id || n.id
+              leaveId: n.leaveId || n.leave_id || n.relatedId || n.related_id || n.id,
+              taskId: n.taskId || n.task_id || n.relatedId || n.related_id || n.id
             });
           });
         }
@@ -413,30 +149,10 @@ const TaskNotification = ({ onNavigate }) => {
         console.error("Central notification fetch failed:", e);
       }
 
-      localStorage.setItem(`seen_approvals_${uid}`, JSON.stringify(updatedApprovals));
-      localStorage.setItem(`seen_leave_requests_${uid}`, JSON.stringify(updatedRequests));
-
-      // Deduplicate: If we already have a specialized notification for a leave or task,
-      // skip the generic database record for that same ID to avoid double-entry.
-      const primaryLeaveIds = new Set(mappedLeaves.map(l => l.leaveId).filter(id => id));
-      const primaryTaskIds = new Set(mappedTasks.map(t => t.taskId).filter(id => id));
-
-      const filteredDbNotifs = dbNotifs.filter(dn => {
-        if (dn.type === 'LEAVE' && dn.leaveId && primaryLeaveIds.has(dn.leaveId)) return false;
-        if (dn.type === 'TASK' && dn.taskId && primaryTaskIds.has(dn.taskId)) return false;
-        return true;
-      });
-
-      const merged = [...mappedTasks, ...mappedLeaves, ...mappedRewards, ...quizNotifs, ...filteredDbNotifs].sort((a, b) => {
+      const merged = dbNotifs.sort((a, b) => {
         const dateA = a.rawDate instanceof Date ? a.rawDate.getTime() : 0;
         const dateB = b.rawDate instanceof Date ? b.rawDate.getTime() : 0;
-        if (dateB !== dateA) {
-          return dateB - dateA;
-        }
-        // If timestamps are exactly equal, TASK_REVIEW should be placed before TASK (i.e. newer/higher)
-        if (a.type === 'TASK_REVIEW' && b.type === 'TASK') return -1;
-        if (a.type === 'TASK' && b.type === 'TASK_REVIEW') return 1;
-        return 0;
+        return dateB - dateA;
       });
       setNotifications(merged);
 
@@ -558,7 +274,9 @@ const TaskNotification = ({ onNavigate }) => {
                         path = '/'; // Dashboard for tasks
                       }
 
-                      const navState = (notif.type === 'LEAVE' || path === '/leave') ? { requestId: notif.leaveId } : { taskId: notif.taskId };
+                      const navState = (notif.type === 'LEAVE' || path === '/leave') 
+                        ? { requestId: notif.leaveId, notificationDesc: notif.description, notificationTitle: notif.title } 
+                        : { taskId: notif.taskId, notificationDesc: notif.description, notificationTitle: notif.title };
 
                       const uid = user?.id || user?.empId || user?.userId || user?.employee_id;
                       const readIds = JSON.parse(localStorage.getItem(`read_management_ids_${uid}`) || '[]');
@@ -669,20 +387,7 @@ const TaskNotification = ({ onNavigate }) => {
         animate={isVibrating ? { rotate: [0, -15, 15, -15, 15, -10, 10, 0], scale: [1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1] } : { rotate: 0, scale: 1 }}
         transition={isVibrating ? { duration: 0.6, ease: "easeInOut" } : { duration: 0.2 }}
         onClick={() => {
-          const willOpen = !isOpen;
-          setIsOpen(willOpen);
-          if (willOpen && notifications.length > 0) {
-            const uid = user?.id || user?.empId || user?.userId || user?.employee_id;
-            // Mark ALL currently visible notifications as read in localStorage
-            const readIds = JSON.parse(localStorage.getItem(`read_management_ids_${uid}`) || '[]');
-            const readSet = new Set(readIds);
-            notifications.forEach(n => readSet.add(n.id));
-            localStorage.setItem(`read_management_ids_${uid}`, JSON.stringify([...readSet]));
-            // Update state so dots disappear immediately
-            setNotifications(prev => prev.map(n => ({ ...n, isNew: false })));
-            setHasUnread(false);
-            localStorage.setItem(`last_seen_task_${uid}`, String(notifications[0].id));
-          }
+          setIsOpen(!isOpen);
         }}
         style={{
           pointerEvents: 'auto',

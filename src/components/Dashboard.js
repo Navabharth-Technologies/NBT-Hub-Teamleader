@@ -105,7 +105,7 @@ const Dashboard = ({ setActiveTab }) => {
             if (verifyInfo && typeof verifyInfo === 'object') {
               detail = {
                 ...detail,
-                verify: verifyInfo.verify || verifyInfo.status || verifyInfo.verifyStatus || detail.verify,
+                verify: verifyInfo.verify || verifyInfo.verifyStatus || detail.verify,
                 task_review: verifyInfo.task_review || verifyInfo.review || verifyInfo.taskReview || verifyInfo.verify_description || detail.task_review,
                 verify_description: verifyInfo.verify_description || verifyInfo.description || detail.verify_description
               };
@@ -120,11 +120,11 @@ const Dashboard = ({ setActiveTab }) => {
     } catch { }
   }, []);
 
-  const fetchDashboardData = useCallback(async () => {
+  const fetchDashboardData = useCallback(async (silent = false) => {
     if (!user) return;
     const uid = user.id || user.userId || user.empId || user.employee_id;
     if (!uid) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
 
     const sanitizeTasks = (tasks) => {
       return (Array.isArray(tasks) ? tasks : []).map((t, i) => {
@@ -323,7 +323,7 @@ const Dashboard = ({ setActiveTab }) => {
     } catch (err) {
       console.error("Dashboard Load Error:", err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [user, fetchTaskDetail]);
 
@@ -418,7 +418,17 @@ const Dashboard = ({ setActiveTab }) => {
     window.addEventListener('resize', handleResize);
     fetchDashboardData();
     fetchSecondaryData();
-    return () => window.removeEventListener('resize', handleResize);
+    
+    // Background polling for live updates every 15 seconds
+    const intervalId = setInterval(() => {
+      fetchDashboardData(true);
+      fetchSecondaryData();
+    }, 15000);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearInterval(intervalId);
+    };
   }, [fetchDashboardData, fetchSecondaryData]);
 
   const handleViewPDF = (data, name) => {
@@ -690,12 +700,13 @@ const Dashboard = ({ setActiveTab }) => {
                       const isSameDay = diffDays === 0;
                       const isNear = diffDays > 0 && diffDays <= 2;
 
-                      const verifyStatusRaw = td.verify || task.verify || '';
-                      const reviewText = td.task_review || task.task_review || td.verify_description || task.verify_description || '';
+                      const verifyStatusRaw = task.verify || td.verify || '';
+                      const reviewText = task.task_review || task.verify_description || td.task_review || td.verify_description || '';
 
                       const normStatus = String(verifyStatusRaw).toLowerCase().trim();
-                      const isApproved = normStatus.includes('approv') || normStatus === 'yes' || normStatus === 'verified' || normStatus === 'accepted';
-                      const isRejected = normStatus.includes('reject') || normStatus === 'no' || normStatus === 'declined';
+                      const isRejected = normStatus.includes('reject') || normStatus === 'no' || normStatus === 'declined' || normStatus.includes('not approv') || normStatus === 'unapproved';
+                      const isPending = normStatus.includes('pending') || normStatus.includes('need');
+                      const isApproved = !isRejected && !isPending && (normStatus.includes('approv') || normStatus === 'yes' || normStatus === 'verified' || normStatus === 'accepted');
 
                       let badgeColor = isApproved ? '#16a34a' : isRejected ? '#ef4444' : '#f59e0b';
                       let badgeBg = isApproved ? '#f0fdf4' : isRejected ? '#fef2f2' : '#fffbeb';

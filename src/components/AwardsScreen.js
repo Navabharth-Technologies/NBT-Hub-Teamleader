@@ -11,6 +11,47 @@ const cleanNum = (val) => {
     return isNaN(num) ? 0 : num;
 };
 
+const parseDateLocal = (dateInput) => {
+    if (!dateInput) return 0;
+    let dObj;
+    if (dateInput instanceof Date) {
+        dObj = dateInput;
+    } else {
+        const str = String(dateInput).trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+            dObj = new Date(str.replace(/-/g, '/'));
+        } else if (str.includes('T')) {
+            dObj = new Date(str);
+        } else {
+            dObj = new Date(str.replace(/-/g, '/'));
+        }
+    }
+    return isNaN(dObj.getTime()) ? 0 : dObj.getTime();
+};
+
+const getQuizPointsForPeriod = (qList, start, end) => {
+    if (!qList || !Array.isArray(qList)) return 0;
+    const startTime = parseDateLocal(start);
+    const endTime = parseDateLocal(end);
+    
+    return qList
+        .map(q => {
+            const rawDate = q.created_at || q.completion_date || q.date || q.timestamp || q.createdAt || q.updatedAt;
+            return {
+                ...q,
+                points: Number(q.points || q.score || q.total_score || q.total_points || q.quiz_score || q.points_reward || 0),
+                rawDateParsed: parseDateLocal(rawDate)
+            };
+        })
+        .filter(q => {
+            const d = q.rawDateParsed;
+            if (start && d < startTime) return false;
+            if (end && d > endTime + 86400000) return false;
+            return true;
+        })
+        .reduce((sum, q) => sum + q.points, 0);
+};
+
 const AwardsScreen = ({ onBack }) => {
     const { user } = useAuth();
     const [rewardData, setRewardData] = useState(null);
@@ -127,37 +168,7 @@ const AwardsScreen = ({ onBack }) => {
                     mainHistory = data.history || data.awards || (Array.isArray(data) ? data : (data.data || []));
                     mainTotal = Number(data.totalPoints || 0);
                     
-                    const hasQuiz = mainHistory.some(r => {
-                        const cat = String(r.category || '').toUpperCase();
-                        const name = String(r.title || r.award_name || '').toUpperCase();
-                        return cat === 'QUIZ' || cat === 'FUN QUIZ GAME' || name.includes('QUIZ');
-                    });
 
-                    if (!hasQuiz) {
-                        try {
-                            const qRes = await fetch(`${BASE_URL}/api/fun-quizzes/leaderboard`, {
-                                headers: { 'Authorization': `Bearer ${token?.trim()}` }
-                            });
-                            if (qRes.ok) {
-                                const qData = await qRes.json();
-                                const qList = Array.isArray(qData) ? qData : (qData.data || []);
-                                const qEntry = qList.find(s => cleanIdLocal(s.employee_id || s.user_id || s.id) === eid);
-                                if (qEntry && Number(qEntry.total_score || 0) > 0) {
-                                    const synthesized = {
-                                        id: 'quiz-fallback-sel',
-                                        title: 'Points Earned by Quiz',
-                                        points: Number(qEntry.total_score || 0),
-                                        rep: Number(qEntry.total_score || 0),
-                                        category: 'QUIZ',
-                                        date: new Date().toISOString(),
-                                        description: 'Historical accumulated points'
-                                    };
-                                    mainHistory = [...mainHistory, synthesized];
-                                    mainTotal += synthesized.points;
-                                }
-                            }
-                        } catch (qErr) { console.warn("Fallback quiz fetch failed:", qErr); }
-                    }
 
                     if (!mainTotal && mainHistory.length > 0) {
                         mainTotal = mainHistory.reduce((sum, r) => sum + (Number(r.points) || Number(r.rep) || 0), 0);
@@ -203,15 +214,17 @@ const AwardsScreen = ({ onBack }) => {
                 const lbQuery = lbParams.toString() ? `?${lbParams.toString()}` : '';
 
                 const targetLbUrl = rankingType === 'quiz' ? (API_ENDPOINTS.QUIZ_LEADERBOARD || `${BASE_URL}/api/quizzes/leaderboard`) : (API_ENDPOINTS.LEADERBOARD_ALL || `${BASE_URL}/api/employees/leaderboard/all`);
-                const [lbRes, quizPointsRes, quizCompletionsRes, historyRes, empRes] = await Promise.all([
-                    fetch(targetLbUrl, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
-                    fetch(API_ENDPOINTS.QUIZ_LEADERBOARD || `${BASE_URL}/api/quizzes/leaderboard`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
+                const [lbRes, quizPointsRes, quizCompletionsRes, quizUserPointsRes, historyRes, empRes] = await Promise.all([
+                    fetch(`${targetLbUrl}${lbQuery}`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
+                    fetch(`${API_ENDPOINTS.QUIZ_LEADERBOARD || `${BASE_URL}/api/quizzes/leaderboard`}${lbQuery}`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
                     fetch(`${BASE_URL}/api/quizzes/completions/my`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
+                    fetch(`${API_ENDPOINTS.QUIZ_USER_POINTS || `${BASE_URL}/api/quizzes/user-points`}${lbQuery}`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }),
                     fetch(`${API_ENDPOINTS.REWARDS_HISTORY || `${BASE_URL}/api/admin/rewards/history`}${lbQuery}`, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }).catch(() => null),
                     fetch(API_ENDPOINTS.EMPLOYEES, { headers: { 'Authorization': `Bearer ${token?.trim()}` } }).catch(() => null)
                 ]);
 
                 const masterEmployeeMap = {};
+                const allEmployeeIds = [];
                 if (empRes && empRes.ok) {
                     try {
                         const empData = await empRes.json();
@@ -220,6 +233,7 @@ const AwardsScreen = ({ onBack }) => {
                             const eid = cleanIdLocal(e.employee_id || e.id || e.userId);
                             if (eid) {
                                 masterEmployeeMap[eid] = e.employee_name || e.name || e.emp_name;
+                                allEmployeeIds.push(eid);
                             }
                         });
                     } catch (e) {
@@ -227,15 +241,72 @@ const AwardsScreen = ({ onBack }) => {
                     }
                 }
 
+                let quizOnlyList = [];
+                let quizHistory = [];
+                let quizUserPointsList = [];
+                if (quizPointsRes.ok) {
+                    const qData = await quizPointsRes.json();
+                    quizOnlyList = Array.isArray(qData) ? qData : (qData.data || []);
+                }
+                if (quizUserPointsRes.ok) {
+                    const quData = await quizUserPointsRes.json();
+                    quizUserPointsList = Array.isArray(quData) ? quData : (quData.data || []);
+                }
+                if (quizCompletionsRes.ok) {
+                    quizHistory = await quizCompletionsRes.json();
+                }
+
+                // Fetch quiz histories in parallel for all employees
+                const allQuizHistories = {};
+                if (allEmployeeIds.length > 0) {
+                    await Promise.all(allEmployeeIds.map(async (eid) => {
+                        try {
+                            const qRes = await fetch(`${BASE_URL}/api/quizzes/history?userId=${eid}`, {
+                                headers: { 'Authorization': `Bearer ${token?.trim()}` }
+                            });
+                            if (qRes.ok) {
+                                const qData = await qRes.json();
+                                const qList = Array.isArray(qData) ? qData : (qData.data || qData.history || qData.attempts || qData.completions || []);
+                                allQuizHistories[eid] = qList;
+                            }
+                        } catch (err) {
+                            console.warn(`Failed fetching quiz history for employee ${eid}:`, err);
+                        }
+                    }));
+                }
+                if (quizHistory && quizHistory.length > 0) {
+                    allQuizHistories[uid] = quizHistory;
+                }
+
                 let lbList = [];
                 if (lbRes.ok) {
                     const lbData = await lbRes.json();
-                    lbList = (Array.isArray(lbData) ? lbData : (lbData.data || lbData.records || [])).map(u => ({
-                        ...u,
-                        total_points: cleanNum(u.total_points || u.total_rep || u.points || 0),
-                        reward_points: cleanNum(u.rewardPoints || 0),
-                        total_quiz_points: cleanNum(u.quizPoints || 0)
-                    }));
+                    lbList = (Array.isArray(lbData) ? lbData : (lbData.data || lbData.records || [])).map(u => {
+                        const uId = cleanIdLocal(u.id || u.employee_id || u.userId);
+                        const isFilteringActive = !!(startFilter || endFilter);
+                        
+                        let quizPts = 0;
+                        if (isFilteringActive) {
+                            quizPts = getQuizPointsForPeriod(allQuizHistories[uId], startFilter, endFilter);
+                        } else {
+                            let userQuizData = quizOnlyList.find(q => cleanIdLocal(q.employee_id || q.user_id || q.id) === uId);
+                            if (!userQuizData) {
+                                userQuizData = quizUserPointsList.find(q => cleanIdLocal(q.employee_id || q.user_id || q.id) === uId);
+                            }
+                            quizPts = userQuizData ? cleanNum(userQuizData.total_quiz_points || userQuizData.points || userQuizData.quizPoints || 0) : cleanNum(u.quizPoints || u.total_quiz_points || 0);
+                        }
+                        
+                        const rewardPts = cleanNum(u.rewardPoints || u.reward_points || u.points || 0);
+                        
+                        return {
+                            ...u,
+                            total_points: rewardPts + quizPts,
+                            rewardPoints: rewardPts,
+                            reward_points: rewardPts,
+                            quizPoints: quizPts,
+                            total_quiz_points: quizPts
+                        };
+                    });
                 }
 
                 let allHistoryLogs = [];
@@ -269,9 +340,9 @@ const AwardsScreen = ({ onBack }) => {
 
                     allHistoryLogs.forEach(r => {
                         const recipientId = String(r.employee_id || r.userId || r.id);
-                        const rDate = new Date(r.created_at || r.date).getTime();
-                        if (startFilter && rDate < new Date(startFilter).getTime()) return;
-                        if (endFilter && rDate > new Date(endFilter).getTime() + 86400000) return;
+                        const rDate = parseDateLocal(r.created_at || r.date);
+                        if (startFilter && rDate < parseDateLocal(startFilter)) return;
+                        if (endFilter && rDate > parseDateLocal(endFilter) + 86400000) return;
 
                         if (!mergedMap.has(recipientId)) {
                             const name = r.employee_name || masterEmployeeMap[recipientId] || 'Team Member';
@@ -282,7 +353,7 @@ const AwardsScreen = ({ onBack }) => {
                                 team: 'Bytes Blasters✨',
                                 profile_picture: null,
                                 rewardPoints: 0,
-                                quizPoints: 0,
+                                quizPoints: getQuizPointsForPeriod(allQuizHistories[cleanIdLocal(recipientId)], startFilter, endFilter),
                                 total_points: 0
                             });
                         }
@@ -302,15 +373,6 @@ const AwardsScreen = ({ onBack }) => {
 
                 setQuizLeaderboard(activeLeaderboard);
 
-                let quizOnlyList = [];
-                let quizHistory = [];
-                if (quizPointsRes.ok) {
-                    const qData = await quizPointsRes.json();
-                    quizOnlyList = Array.isArray(qData) ? qData : (qData.data || []);
-                }
-                if (quizCompletionsRes.ok) {
-                    quizHistory = await quizCompletionsRes.json();
-                }
 
                 quizHistory.forEach(comp => {
                     const compDate = new Date(comp.completion_date || comp.created_at).toLocaleDateString();
@@ -413,9 +475,9 @@ const AwardsScreen = ({ onBack }) => {
                 setDesignationMap(degMap);
 
                 const filteredAllRewards = allRewards.filter(aw => {
-                    const d = new Date(aw.created_at || aw.date).getTime();
-                    if (startFilter && d < new Date(startFilter).getTime()) return false;
-                    if (endFilter && d > new Date(endFilter).getTime() + 86400000) return false;
+                    const d = parseDateLocal(aw.created_at || aw.date);
+                    if (startFilter && d < parseDateLocal(startFilter)) return false;
+                    if (endFilter && d > parseDateLocal(endFilter) + 86400000) return false;
                     return true;
                 });
                 const totalRep = filteredAllRewards.reduce((sum, r) => sum + (cleanNum(r.points) || cleanNum(r.rep) || 0), 0);
@@ -634,9 +696,9 @@ const AwardsScreen = ({ onBack }) => {
 
     const allHistory = [...(history.pm || []), ...(history.hr || [])];
     const filteredHistory = allHistory.filter(aw => {
-        const d = new Date(aw.created_at || aw.date).getTime();
-        if (startFilter && d < new Date(startFilter).getTime()) return false;
-        if (endFilter && d > new Date(endFilter).getTime() + 86400000) return false;
+        const d = parseDateLocal(aw.created_at || aw.date);
+        if (startFilter && d < parseDateLocal(startFilter)) return false;
+        if (endFilter && d > parseDateLocal(endFilter) + 86400000) return false;
         return true;
     });
 
@@ -949,9 +1011,9 @@ const AwardsScreen = ({ onBack }) => {
                                     {history.pm?.length > 0 ? (
                                         history.pm
                                             .filter(aw => {
-                                                const d = new Date(aw.created_at || aw.date).getTime();
-                                                if (startFilter && d < new Date(startFilter).getTime()) return false;
-                                                if (endFilter && d > new Date(endFilter).getTime() + 86400000) return false;
+                                                const d = parseDateLocal(aw.created_at || aw.date);
+                                                if (startFilter && d < parseDateLocal(startFilter)) return false;
+                                                if (endFilter && d > parseDateLocal(endFilter) + 86400000) return false;
                                                 if (String(aw.category).toUpperCase() === 'QUIZ') return false;
                                                 return true;
                                             })
@@ -988,13 +1050,20 @@ const AwardsScreen = ({ onBack }) => {
                                     <div style={{ padding: '4px 10px', backgroundColor: '#fef3c7', borderRadius: '10px', border: '1px solid #fde68a', fontSize: '10px', fontWeight: '1000', color: '#d97706', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                         <Trophy size={12} />
                                         {(() => {
-                                            const totalHrPoints = (history.hr || []).reduce((sum, aw) => {
-                                                const rawTitle = String(aw.title || aw.award_name || aw.reward_name || aw.awardName || '').trim().toLowerCase();
-                                                const cat = String(aw.category || '').toUpperCase();
-                                                const isQuiz = cat === 'FUN QUIZ GAME' || cat === 'QUIZ' || rawTitle.includes('quiz') || rawTitle.includes('brain teaser');
-                                                if (isQuiz) return sum + (Number(aw.points) || Number(aw.rep) || 0);
-                                                return sum;
-                                            }, 0);
+                                            const totalHrPoints = (history.hr || [])
+                                                .filter(aw => {
+                                                    const d = parseDateLocal(aw.created_at || aw.date);
+                                                    if (startFilter && d < parseDateLocal(startFilter)) return false;
+                                                    if (endFilter && d > parseDateLocal(endFilter) + 86400000) return false;
+                                                    return true;
+                                                })
+                                                .reduce((sum, aw) => {
+                                                    const rawTitle = String(aw.title || aw.award_name || aw.reward_name || aw.awardName || '').trim().toLowerCase();
+                                                    const cat = String(aw.category || '').toUpperCase();
+                                                    const isQuiz = cat === 'FUN QUIZ GAME' || cat === 'QUIZ' || rawTitle.includes('quiz') || rawTitle.includes('brain teaser');
+                                                    if (isQuiz) return sum + (Number(aw.points) || Number(aw.rep) || 0);
+                                                    return sum;
+                                                }, 0);
                                             return `${totalHrPoints} REP TOTAL`;
                                         })()}
                                     </div>
@@ -1003,9 +1072,9 @@ const AwardsScreen = ({ onBack }) => {
                                     {history.hr?.length > 0 ? (
                                         history.hr
                                             .filter(aw => {
-                                                const d = new Date(aw.created_at || aw.date).getTime();
-                                                if (startFilter && d < new Date(startFilter).getTime()) return false;
-                                                if (endFilter && d > new Date(endFilter).getTime() + 86400000) return false;
+                                                const d = parseDateLocal(aw.created_at || aw.date);
+                                                if (startFilter && d < parseDateLocal(startFilter)) return false;
+                                                if (endFilter && d > parseDateLocal(endFilter) + 86400000) return false;
                                                 return true;
                                             })
                                             .map((aw, i) => {
@@ -1101,7 +1170,10 @@ const AwardsScreen = ({ onBack }) => {
                                                     <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>Rank #{i + 1}</div>
                                                 </div>
                                             </div>
-                                            <div style={{ fontSize: '15px', fontWeight: '1000', color: '#0B1E3F' }}>{p.total_points} <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>REP</span></div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                                                <div style={{ fontSize: '15px', fontWeight: '1000', color: '#0B1E3F' }}>{p.total_points} <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>REP</span></div>
+                                                <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>Quiz: {p.quizPoints || p.total_quiz_points || 0} | Awards: {p.rewardPoints || p.reward_points || 0}</div>
+                                            </div>
                                         </motion.div>
                                     ));
                                 })() : (
@@ -1166,17 +1238,22 @@ const AwardsScreen = ({ onBack }) => {
                                         const mHistory = teamHistories[mid] || [];
                                         const rewardPeriodPoints = mHistory
                                             .filter(log => {
-                                                const d = new Date(log.date || log.created_at).getTime();
-                                                if (startFilter && d < new Date(startFilter).getTime()) return false;
-                                                if (endFilter && d > new Date(endFilter).getTime() + 86400000) return false;
+                                                const d = parseDateLocal(log.date || log.created_at);
+                                                if (startFilter && d < parseDateLocal(startFilter)) return false;
+                                                if (endFilter && d > parseDateLocal(endFilter) + 86400000) return false;
                                                 return true;
                                             })
                                             .reduce((sum, log) => sum + (cleanNum(log.points) || cleanNum(log.rep) || 0), 0);
 
                                         const globalUser = (quizLeaderboard || []).find(p => cleanIdLocal(p.employee_id || p.id || p.userId) === mid);
-                                        const allTimePoints = globalUser ? cleanNum(globalUser.total_points || globalUser.points || 0) : mHistory.reduce((sum, log) => sum + (cleanNum(log.points) || cleanNum(log.rep) || 0), 0);
+                                        const quizPts = globalUser ? cleanNum(globalUser.quizPoints || globalUser.total_quiz_points || 0) : 0;
+                                        const allTimeRewards = globalUser ? cleanNum(globalUser.rewardPoints || globalUser.reward_points || 0) : mHistory.reduce((sum, log) => sum + (cleanNum(log.points) || cleanNum(log.rep) || 0), 0);
+                                        
+                                        const displayQuiz = quizPts;
+                                        const displayRewards = isFiltering ? rewardPeriodPoints : allTimeRewards;
+                                        const finalPoints = displayQuiz + displayRewards;
 
-                                        return { ...m, displayPoints: isFiltering ? rewardPeriodPoints : allTimePoints };
+                                        return { ...m, displayPoints: finalPoints, quizPoints: displayQuiz, rewardPoints: displayRewards };
                                     })
                                     .sort((a, b) => b.displayPoints - a.displayPoints)
                                     .map((m, i) => (
@@ -1190,7 +1267,10 @@ const AwardsScreen = ({ onBack }) => {
                                                     <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>#{i+1} in {isFiltering ? 'Period' : 'Team'} Leaderboard</div>
                                                 </div>
                                             </div>
-                                            <div style={{ fontSize: '15px', fontWeight: '1000', color: '#0B1E3F' }}>{m.displayPoints} <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>REP</span></div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                                                <div style={{ fontSize: '15px', fontWeight: '1000', color: '#0B1E3F' }}>{m.displayPoints} <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>REP</span></div>
+                                                <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>Quiz: {m.quizPoints || 0} | Awards: {m.rewardPoints || 0}</div>
+                                            </div>
                                         </div>
                                     ));
                                 })() : (
@@ -1213,9 +1293,9 @@ const AwardsScreen = ({ onBack }) => {
                                 ) : grantedHistory.length > 0 ? (
                                     grantedHistory
                                         .filter(log => {
-                                            const d = new Date(log.date || log.created_at).getTime();
-                                            if (startFilter && d < new Date(startFilter).getTime()) return false;
-                                            if (endFilter && d > new Date(endFilter).getTime() + 86400000) return false;
+                                            const d = parseDateLocal(log.date || log.created_at);
+                                            if (startFilter && d < parseDateLocal(startFilter)) return false;
+                                            if (endFilter && d > parseDateLocal(endFilter) + 86400000) return false;
                                             return true;
                                         })
                                         .map((log, i) => {

@@ -85,11 +85,52 @@ const LeaveScreen = ({ onBack }) => {
 
   // Deep Link Logic
   useEffect(() => {
-    if (location.state?.requestId && !loading) {
-      const rid = Number(location.state.requestId);
-      // ✅ UPDATED: Combined includes myLeaves + teamHistory (approved) + pendingRequests
+    if (location.state && !loading) {
+      const { requestId, notificationDesc, notificationTitle } = location.state;
       const combined = [...myLeaves, ...pendingRequests, ...teamHistory];
-      const found = combined.find(r => Number(r.id) === rid);
+      
+      let found = null;
+      if (requestId) {
+        const potentialMatch = combined.find(r => Number(r.id) === Number(requestId));
+        
+        // If we found a match by ID, but we also have notification text, we should validate it!
+        // This prevents the bug where a notification ID accidentally matches a random old leave request.
+        if (potentialMatch && (notificationTitle || notificationDesc)) {
+          const reqName = (potentialMatch.employeeName || potentialMatch.employee_name || potentialMatch.user_name || potentialMatch.name || '').toLowerCase();
+          const title = (notificationTitle || '').toLowerCase();
+          const desc = (notificationDesc || '').toLowerCase();
+          
+          if (reqName && reqName.length > 3 && (title.includes(reqName) || desc.includes(reqName))) {
+            found = potentialMatch; // Validated by name
+          } else if (potentialMatch.start_date && desc.includes(potentialMatch.start_date.split('T')[0])) {
+            found = potentialMatch; // Validated by date
+          } else {
+            // It's a false positive! (The ID matched, but it's the wrong person/date).
+            found = null;
+          }
+        } else {
+          found = potentialMatch;
+        }
+      }
+
+      // If strict ID match failed (or was a false positive), fallback to fuzzy matching
+      if (!found && (notificationTitle || notificationDesc)) {
+        const title = (notificationTitle || '').toLowerCase();
+        const desc = (notificationDesc || '').toLowerCase();
+        
+        found = combined.find(r => {
+          const reqName = (r.employeeName || r.employee_name || r.user_name || r.name || '').toLowerCase();
+          
+          if (reqName && reqName.length > 3 && (title.includes(reqName) || desc.includes(reqName))) {
+            return true;
+          }
+          if (r.start_date && desc.includes(r.start_date.split('T')[0])) {
+            return true;
+          }
+          return false;
+        });
+      }
+
       if (found) {
         setSelectedRequest(found);
       }
