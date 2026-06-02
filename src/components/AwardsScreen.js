@@ -224,16 +224,17 @@ const AwardsScreen = ({ onBack }) => {
                 ]);
 
                 const masterEmployeeMap = {};
-                const allEmployeeIds = [];
+                const allEmployeesList = [];
                 if (empRes && empRes.ok) {
                     try {
                         const empData = await empRes.json();
                         const empList = Array.isArray(empData) ? empData : (empData.data || []);
                         empList.forEach(e => {
-                            const eid = cleanIdLocal(e.employee_id || e.id || e.userId);
-                            if (eid) {
-                                masterEmployeeMap[eid] = e.employee_name || e.name || e.emp_name;
-                                allEmployeeIds.push(eid);
+                            const rawId = String(e.employee_id || e.id || e.userId || '').trim();
+                            const cleanId = cleanIdLocal(rawId);
+                            if (cleanId && rawId) {
+                                masterEmployeeMap[cleanId] = e.employee_name || e.name || e.emp_name;
+                                allEmployeesList.push({ cleanId, rawId });
                             }
                         });
                     } catch (e) {
@@ -256,21 +257,21 @@ const AwardsScreen = ({ onBack }) => {
                     quizHistory = await quizCompletionsRes.json();
                 }
 
-                // Fetch quiz histories in parallel for all employees
+                // Fetch quiz histories in parallel for all employees using raw database IDs
                 const allQuizHistories = {};
-                if (allEmployeeIds.length > 0) {
-                    await Promise.all(allEmployeeIds.map(async (eid) => {
+                if (allEmployeesList.length > 0) {
+                    await Promise.all(allEmployeesList.map(async (emp) => {
                         try {
-                            const qRes = await fetch(`${BASE_URL}/api/quizzes/history?userId=${eid}`, {
+                            const qRes = await fetch(`${BASE_URL}/api/quizzes/history?userId=${emp.rawId}`, {
                                 headers: { 'Authorization': `Bearer ${token?.trim()}` }
                             });
                             if (qRes.ok) {
                                 const qData = await qRes.json();
                                 const qList = Array.isArray(qData) ? qData : (qData.data || qData.history || qData.attempts || qData.completions || []);
-                                allQuizHistories[eid] = qList;
+                                allQuizHistories[emp.cleanId] = qList;
                             }
                         } catch (err) {
-                            console.warn(`Failed fetching quiz history for employee ${eid}:`, err);
+                            console.warn(`Failed fetching quiz history for employee ${emp.rawId}:`, err);
                         }
                     }));
                 }
