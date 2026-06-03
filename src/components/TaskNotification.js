@@ -285,11 +285,15 @@ const TaskNotification = ({ onNavigate }) => {
                         localStorage.setItem(`read_management_ids_${uid}`, JSON.stringify(readIds));
                       }
 
-                      setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isNew: false } : n));
+                      setNotifications(prev => {
+                        const updated = prev.map(n => n.id === notif.id ? { ...n, isNew: false } : n);
+                        // Recalculate unread badge based on remaining unread notifications
+                        setHasUnread(updated.some(n => n.isNew));
+                        return updated;
+                      });
 
                       onNavigate(path, navState);
                       setIsOpen(false);
-                      setHasUnread(false);
                     }}
                     style={{
                       background: notif.isNew ? '#f0f7ff' : '#ffffff',
