@@ -599,7 +599,7 @@ export default function CourseScreen() {
                                     {/* 3. Date (Positioned after 'DATE:') */}
                                     <div style={{
                                         position: 'absolute',
-                                        top: '82.2%',
+                                        top: '82.5%',
                                         left: '28.5%',
                                         transform: 'translateY(-50%)',
                                         fontSize: '15px',
@@ -607,7 +607,12 @@ export default function CourseScreen() {
                                         color: '#0B1E3F',
                                         fontFamily: "'Inter', sans-serif"
                                     }}>
-                                        {new Date().toLocaleDateString('en-GB')}
+                                        {(() => {
+                                            const rawDate = currentCourseProgress.completion_date || currentCourseProgress.completed_at || currentCourseProgress.completed_date;
+                                            if (!rawDate) return new Date().toLocaleDateString('en-GB');
+                                            const d = new Date(rawDate);
+                                            return isNaN(d.getTime()) ? rawDate : d.toLocaleDateString('en-GB');
+                                        })()}
                                     </div>
                                 </motion.div>
                             </div>
