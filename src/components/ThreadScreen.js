@@ -335,7 +335,6 @@ export default function ThreadScreen() {
         <div style={styles.container}>
             {/* CREATE THREAD */}
             <div style={{ ...styles.card, borderTop: '5px solid #FDB913' }}>
-                <input id="thread-tagline-input" style={styles.tagInput} placeholder="Add a tagline..." value={tagline} onChange={e => setTagline(e.target.value)} />
                 <textarea id="thread-content-input" style={styles.mainInput} placeholder="Share an update with the team..." value={newPost} onChange={e => setNewPost(e.target.value)} />
 
                 <input type="file" ref={fileInputRef} onChange={handleFileSelect} hidden accept="image/*,video/*" />
@@ -449,12 +448,6 @@ export default function ThreadScreen() {
                         <div style={{ marginTop: '14px', fontSize: isMobile ? '13px' : '15px', color: '#0B1E3F', lineHeight: '1.6', fontWeight: '600', whiteSpace: 'pre-wrap' }}>
                             {isEditing ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                    <input
-                                        style={{ ...styles.tagInput, marginBottom: '0' }}
-                                        placeholder="Add a tagline..."
-                                        value={editTagline}
-                                        onChange={(e) => setEditTagline(e.target.value)}
-                                    />
                                     <textarea
                                         id={`thread-edit-content-input-${post.id}`}
                                         autoFocus
