@@ -393,6 +393,8 @@ const LeaveScreen = ({ onBack }) => {
         reason: formData.reason,
         is_half_day: formData.is_half_day ? 1 : 0,
         isHalfDay: formData.is_half_day,
+        no_of_days: formData.is_half_day ? 0.5 : days,
+        total_days: formData.is_half_day ? 0.5 : days,
         half_day_slot: formData.is_half_day ? formData.half_day_slot : null,
         halfDaySlot: formData.is_half_day ? formData.half_day_slot : null,
         team: user?.team || user?.department || 'Operations',
@@ -435,8 +437,33 @@ const LeaveScreen = ({ onBack }) => {
     if (!start || !end) return 0;
     const sDate = new Date(start);
     const eDate = new Date(end);
-    const diffTime = Math.abs(eDate - sDate);
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    if (isNaN(sDate.getTime()) || isNaN(eDate.getTime())) return 0;
+
+    // Standardize to YYYY-MM-DD Set for holidays
+    const holidayDates = new Set((holidays || []).map(h => {
+      if (!h.date) return '';
+      const d = new Date(h.date);
+      if (isNaN(d.getTime())) return '';
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }).filter(Boolean));
+
+    let count = 0;
+    const current = new Date(sDate);
+    const target = new Date(eDate);
+    current.setHours(12, 0, 0, 0);
+    target.setHours(12, 0, 0, 0);
+
+    while (current <= target) {
+      const isSunday = current.getDay() === 0;
+      const formattedDate = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+      const isHoliday = holidayDates.has(formattedDate);
+
+      if (!isSunday && !isHoliday) {
+        count++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    return count;
   };
 
   const applyMonthFilter = (list) => {
