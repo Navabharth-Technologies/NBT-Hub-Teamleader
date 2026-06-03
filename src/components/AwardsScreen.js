@@ -496,7 +496,9 @@ const AwardsScreen = ({ onBack }) => {
                         return myName && entryName && entryName === myName;
                     });
                     if (myIdx !== -1) {
-                        finalRank = `#${myIdx + 1}`;
+                        const myPoints = cleanNum(sorted[myIdx].total_points);
+                        const uniqueScores = [...new Set(sorted.map(e => cleanNum(e.total_points)))].sort((a, b) => b - a);
+                        finalRank = `#${uniqueScores.indexOf(myPoints) + 1}`;
                     }
                 }
 
@@ -1154,8 +1156,11 @@ const AwardsScreen = ({ onBack }) => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                 {quizLeaderboard.length > 0 ? (() => {
                                     const sorted = [...quizLeaderboard].sort((a, b) => b.total_points - a.total_points);
-                                    // Sequential rank: each person gets a unique rank 1, 2, 3...
-                                    return sorted.map((p, i) => (
+                                    // Dense ranking for tied scores
+                                    const uniqueScores = [...new Set(sorted.map(e => e.total_points))].sort((a, b) => b - a);
+                                    return sorted.map((p, i) => {
+                                        const rank = uniqueScores.indexOf(p.total_points) + 1;
+                                        return (
                                         <motion.div 
                                             key={i} 
                                             whileHover={{ scale: 1.01, boxShadow: '0 10px 25px rgba(59, 130, 246, 0.15)', borderColor: '#bfdbfe', backgroundColor: '#f8fafc', zIndex: 10 }}
@@ -1168,7 +1173,7 @@ const AwardsScreen = ({ onBack }) => {
                                                 </div>
                                                 <div>
                                                     <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>{p.name || p.employee_name}</div>
-                                                    <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>Rank #{i + 1}</div>
+                                                    <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>Rank #{rank}</div>
                                                 </div>
                                             </div>
                                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
@@ -1176,7 +1181,8 @@ const AwardsScreen = ({ onBack }) => {
                                                 <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>Quiz: {p.quizPoints || p.total_quiz_points || 0} | Awards: {p.rewardPoints || p.reward_points || 0}</div>
                                             </div>
                                         </motion.div>
-                                    ));
+                                        );
+                                    });
                                 })() : (
                                     <div style={{ textAlign: 'center', padding: '20px', fontSize: '13px', color: '#94a3b8', fontWeight: '800' }}>No leaderboard data available.</div>
                                 )}
@@ -1257,7 +1263,10 @@ const AwardsScreen = ({ onBack }) => {
                                         return { ...m, displayPoints: finalPoints, quizPoints: displayQuiz, rewardPoints: displayRewards };
                                     })
                                     .sort((a, b) => b.displayPoints - a.displayPoints)
-                                    .map((m, i) => (
+                                    .map((m, i, arr) => {
+                                        const uniqueScores = [...new Set(arr.map(e => e.displayPoints))].sort((a, b) => b - a);
+                                        const rank = uniqueScores.indexOf(m.displayPoints) + 1;
+                                        return (
                                         <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', backgroundColor: 'white', borderRadius: '15px', border: '1px solid #f1f5f9' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                                 <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '900', color: '#3B5998' }}>
@@ -1265,7 +1274,7 @@ const AwardsScreen = ({ onBack }) => {
                                                 </div>
                                                 <div>
                                                     <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>{m.employee_name || m.name}</div>
-                                                    <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>#{i+1} in {isFiltering ? 'Period' : 'Team'} Leaderboard</div>
+                                                    <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>#{rank} in {isFiltering ? 'Period' : 'Team'} Leaderboard</div>
                                                 </div>
                                             </div>
                                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
@@ -1273,7 +1282,8 @@ const AwardsScreen = ({ onBack }) => {
                                                 <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>Quiz: {m.quizPoints || 0} | Awards: {m.rewardPoints || 0}</div>
                                             </div>
                                         </div>
-                                    ));
+                                        );
+                                    });
                                 })() : (
                                     <div style={{ textAlign: 'center', padding: '20px', fontSize: '13px', color: '#94a3b8', fontWeight: '800' }}>No subordinates registered for auditing.</div>
                                 )}
