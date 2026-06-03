@@ -37,9 +37,16 @@ const getQuizPointsForPeriod = (qList, start, end) => {
     return qList
         .map(q => {
             const rawDate = q.created_at || q.completion_date || q.date || q.timestamp || q.createdAt || q.updatedAt;
+            let pts = 0;
+            if (q.is_correct !== undefined && q.is_correct !== null) {
+                const isCorrect = q.is_correct === 1 || q.is_correct === true || String(q.is_correct) === '1' || String(q.is_correct).toLowerCase() === 'true';
+                pts = isCorrect ? Number(q.points || q.earned_points || q.points_reward || 0) : 0;
+            } else {
+                pts = Number(q.points || q.score || q.total_score || q.total_points || q.quiz_score || 0);
+            }
             return {
                 ...q,
-                points: Number(q.points || q.score || q.total_score || q.total_points || q.quiz_score || q.points_reward || 0),
+                points: pts,
                 rawDateParsed: parseDateLocal(rawDate)
             };
         })
