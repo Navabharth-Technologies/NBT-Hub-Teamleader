@@ -81,9 +81,6 @@ const AwardsScreen = ({ onBack }) => {
         if (!id) return '';
         let s = String(id).split(':')[0].trim().toLowerCase();
         if (s.includes(',')) s = s.split(',')[0].trim();
-        if ((s.startsWith('2025') || s.startsWith('2026')) && s.length > 4) {
-            s = s.substring(4);
-        }
         if (s.length >= 9 && s.length % 3 === 0) {
             const partLen = s.length / 3;
             if (s.substring(0, partLen) === s.substring(partLen, partLen * 2)) return s.substring(0, partLen);
@@ -326,7 +323,7 @@ const AwardsScreen = ({ onBack }) => {
                 if (isFiltering) {
                     const mergedMap = new Map();
                     lbList.forEach(u => {
-                        const uidStr = String(u.id || u.employee_id || u.userId);
+                        const uidStr = cleanIdLocal(u.id || u.employee_id || u.userId);
                         mergedMap.set(uidStr, {
                             id: u.id,
                             name: u.name || u.employee_name,
@@ -340,7 +337,7 @@ const AwardsScreen = ({ onBack }) => {
                     });
 
                     allHistoryLogs.forEach(r => {
-                        const recipientId = String(r.employee_id || r.userId || r.id);
+                        const recipientId = cleanIdLocal(r.employee_id || r.userId || r.id);
                         const rDate = parseDateLocal(r.created_at || r.date);
                         if (startFilter && rDate < parseDateLocal(startFilter)) return;
                         if (endFilter && rDate > parseDateLocal(endFilter) + 86400000) return;
@@ -354,7 +351,7 @@ const AwardsScreen = ({ onBack }) => {
                                 team: 'Bytes Blasters✨',
                                 profile_picture: null,
                                 rewardPoints: 0,
-                                quizPoints: getQuizPointsForPeriod(allQuizHistories[cleanIdLocal(recipientId)], startFilter, endFilter),
+                                quizPoints: getQuizPointsForPeriod(allQuizHistories[recipientId], startFilter, endFilter),
                                 total_points: 0
                             });
                         }

@@ -35,6 +35,7 @@ export default function ThreadScreen() {
     const [loadingComments, setLoadingComments] = useState({});
     const [editingPostId, setEditingPostId] = useState(null);
     const [editContent, setEditContent] = useState('');
+    const [editTagline, setEditTagline] = useState('');
     const [editingCommentId, setEditingCommentId] = useState(null);
     const [editCommentContent, setEditCommentContent] = useState('');
     const [winWidth, setWinWidth] = useState(window.innerWidth);
@@ -424,6 +425,7 @@ export default function ThreadScreen() {
                                         onClick={() => {
                                             setEditingPostId(post.id);
                                             setEditContent(post.content);
+                                            setEditTagline(post.tagline || '');
                                             setEditMediaFile(null);
                                             setEditMediaPreview(null);
                                             setEditRemoveMedia(false);
@@ -447,6 +449,12 @@ export default function ThreadScreen() {
                         <div style={{ marginTop: '14px', fontSize: isMobile ? '13px' : '15px', color: '#0B1E3F', lineHeight: '1.6', fontWeight: '600', whiteSpace: 'pre-wrap' }}>
                             {isEditing ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <input
+                                        style={{ ...styles.tagInput, marginBottom: '0' }}
+                                        placeholder="Add a tagline..."
+                                        value={editTagline}
+                                        onChange={(e) => setEditTagline(e.target.value)}
+                                    />
                                     <textarea
                                         id={`thread-edit-content-input-${post.id}`}
                                         autoFocus
@@ -500,12 +508,14 @@ export default function ThreadScreen() {
                                             onClick={async () => {
                                                 const success = await updatePost(post.id, {
                                                     content: editContent,
+                                                    tagline: editTagline,
                                                     file: editMediaFile,
                                                     mediaType: editMediaType,
                                                     removeMedia: editRemoveMedia
                                                 });
                                                 if (success) {
                                                     setEditingPostId(null);
+                                                    setEditTagline('');
                                                     setEditMediaFile(null);
                                                     setEditMediaPreview(null);
                                                     setEditRemoveMedia(false);
@@ -518,6 +528,7 @@ export default function ThreadScreen() {
                                         <button
                                             onClick={() => {
                                                 setEditingPostId(null);
+                                                setEditTagline('');
                                                 setEditMediaFile(null);
                                                 setEditMediaPreview(null);
                                                 setEditRemoveMedia(false);

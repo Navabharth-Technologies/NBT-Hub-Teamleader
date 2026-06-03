@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   CheckCircle2, TrendingUp, Clock, Calendar,
-  FileText, Users, BarChart3, Gift, ChevronRight, ChevronLeft, AlertCircle, Trophy, Star
+  FileText, Users, BarChart3, Gift, ChevronRight, ChevronLeft, AlertCircle, Trophy, Star, Pencil
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_ENDPOINTS, BASE_URL, cleanId } from '../config';
@@ -531,7 +531,7 @@ const Dashboard = ({ setActiveTab }) => {
     liveUpdates: { fontSize: isMobile ? '9px' : '10px', fontWeight: '1000', color: '#94a3b8', textTransform: 'uppercase' },
     editBtn: { background: '#f8fafc', border: '1px solid #e2e8f0', padding: '8px 18px', borderRadius: '12px', fontSize: '11px', fontWeight: '1000', cursor: 'pointer', color: '#3B5998' },
     input: { width: '100%', padding: '12px 18px', borderRadius: '12px', border: '1.5px solid #e2e8f0', fontSize: '13px', fontWeight: '600', outline: 'none' },
-    statusBadge: { fontSize: '9px', fontWeight: '1000', padding: '6px 14px', borderRadius: '10px', background: '#f1f5f9', color: '#0B1E3F', textTransform: 'uppercase' },
+    statusBadge: { fontSize: '9px', fontWeight: '1000', padding: '6px 14px', borderRadius: '10px', background: '#f1f5f9', color: '#0B1E3F', textTransform: 'uppercase', border: '1.5px solid #cbd5e1' },
     attachBtn: {
       marginTop: '12px',
       display: 'flex',
@@ -701,7 +701,15 @@ const Dashboard = ({ setActiveTab }) => {
                       const isNear = diffDays > 0 && diffDays <= 2;
 
                       const verifyStatusRaw = task.verify || td.verify || '';
-                      const reviewText = task.task_review || task.verify_description || td.task_review || td.verify_description || '';
+                      const rawReviewText = task.task_review || task.verify_description || td.task_review || td.verify_description || '';
+                      // Only show reviewText if it is a genuine reviewer comment —
+                      // not the task title or description echoed back by the backend
+                      const normalise = (s) => (s || '').trim().toLowerCase();
+                      const reviewText = (
+                        rawReviewText &&
+                        normalise(rawReviewText) !== normalise(pName) &&
+                        normalise(rawReviewText) !== normalise(pDesc)
+                      ) ? rawReviewText : '';
 
                       const normStatus = String(verifyStatusRaw).toLowerCase().trim();
                       const isRejected = normStatus.includes('reject') || normStatus === 'no' || normStatus === 'declined' || normStatus.includes('not approv') || normStatus === 'unapproved';
@@ -916,7 +924,10 @@ const Dashboard = ({ setActiveTab }) => {
                       fontWeight: '1000',
                       cursor: 'pointer',
                       color: '#059669',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = '#f0fdf4';
@@ -927,13 +938,13 @@ const Dashboard = ({ setActiveTab }) => {
                       e.currentTarget.style.borderColor = '#a7f3d0';
                     }}
                   >
-                    View Report
+                    View Report <ChevronRight size={14} />
                   </button>
                 </div>
                 <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '5px' }}>
                   {Array.isArray(yesterdayTasks) && yesterdayTasks.length > 0 ? yesterdayTasks.map((t, i) => (
-                    <div key={i} style={{ fontSize: '13px', fontWeight: '700', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle2 size={14} /> {t?.text}</div>
-                  )) : <div style={{ color: '#64748b', fontSize: '13px' }}>No log found.</div>}
+                    <div key={i} style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle2 size={14} color="#16a34a" /> {t?.text}</div>
+                  )) : <div style={{ color: '#64748b', fontSize: '13px', textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No log found.</div>}
                 </div>
                 <div style={{ marginTop: 'auto', paddingTop: '15px' }}>
                   <div style={{ ...s.statusBadge, display: 'inline-block' }}>{yesterdayStatus}</div>
@@ -943,7 +954,12 @@ const Dashboard = ({ setActiveTab }) => {
               <div style={{ padding: '24px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', height: '240px', display: 'flex', flexDirection: 'column' }}>
                 <div style={s.focusHeader}>
                   <div style={{ ...s.focusTitle, display: 'flex', alignItems: 'center', gap: '12px' }}><TrendingUp size={24} /> Today</div>
-                  <button style={s.editBtn} onClick={(e) => { e.stopPropagation(); isEditingToday ? handleSave() : setIsEditingToday(true); }}>{isEditingToday ? "Save" : "Edit"}</button>
+                  <button
+                    style={{ ...s.editBtn, display: 'flex', alignItems: 'center', gap: '6px' }}
+                    onClick={(e) => { e.stopPropagation(); isEditingToday ? handleSave() : setIsEditingToday(true); }}
+                  >
+                    {isEditingToday ? 'Save' : <><Pencil size={12} /> Edit</>}
+                  </button>
                 </div>
                 <div style={{ flex: 1, overflowY: 'auto', paddingRight: '5px' }}>
                 {!isEditingToday ? (

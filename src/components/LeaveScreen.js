@@ -457,14 +457,14 @@ const LeaveScreen = ({ onBack }) => {
     });
   };
 
-  // ✅ MY_HISTORY = strictly TL's own leaves only
-  const displayedMyLeaves = myLeaves;
+  // ✅ MY_HISTORY = strictly TL's own leaves only (filtered by month)
+  const displayedMyLeaves = applyMonthFilter(myLeaves);
 
-  // ✅ TEAM_HISTORY = Only team member requests that have been resolved/acted upon
-  const displayedTeamHistory = teamHistory.filter(req => !pendingRequests.some(p => p.id === req.id));
+  // ✅ TEAM_HISTORY = Only team member requests that have been resolved/acted upon (filtered by month)
+  const displayedTeamHistory = applyMonthFilter(teamHistory.filter(req => !pendingRequests.some(p => p.id === req.id)));
 
-  // ✅ TEAM_PENDING = only PENDING team requests
-  const displayedPending = pendingRequests;
+  // ✅ TEAM_PENDING = only PENDING team requests (filtered by month)
+  const displayedPending = applyMonthFilter(pendingRequests);
 
   const getEffectiveStatus = (req) => {
     if (!req) return 'PENDING';
@@ -803,7 +803,7 @@ const LeaveScreen = ({ onBack }) => {
                   </div>
                 </div>
               </motion.div>
-            )) : <p style={{ textAlign: 'center', padding: '40px', color: '#64748b', fontWeight: '800' }}>No pending requests found!</p>}
+            )) : <p style={{ textAlign: 'center', padding: '40px', color: '#64748b', fontWeight: '800' }}>{filterMonth && filterMonth !== 'all' ? 'No pending requests for the selected month.' : 'No pending requests found!'}</p>}
           </div>
         )}
 
@@ -855,7 +855,7 @@ const LeaveScreen = ({ onBack }) => {
                 {/* ✅ Show actual status badge (Desktop Only) */}
                 {!isMobile && <div style={s.statusBadge(getEffectiveStatus(req))}>{getEffectiveStatus(req).toUpperCase()}</div>}
               </motion.div>
-            )) : <p style={{ textAlign: 'center', padding: '40px', color: '#64748b', fontWeight: '800' }}>No team leave records found.</p>}
+            )) : <p style={{ textAlign: 'center', padding: '40px', color: '#64748b', fontWeight: '800' }}>{filterMonth && filterMonth !== 'all' ? 'No team leave records for the selected month.' : 'No team leave records found.'}</p>}
           </div>
         )}
 
@@ -946,7 +946,7 @@ const LeaveScreen = ({ onBack }) => {
             )) : (
               <div style={{ textAlign: 'center', padding: '80px 20px', backgroundColor: '#fff', borderRadius: '30px', border: '2px dashed #f1f5f9' }}>
                 <Activity size={40} style={{ opacity: 0.2, marginBottom: '15px', color: '#64748b' }} />
-                <p style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#94a3b8' }}>You have no leave history yet.</p>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#94a3b8' }}>{filterMonth && filterMonth !== 'all' ? 'No leave history for the selected month.' : 'You have no leave history yet.'}</p>
               </div>
             )}
           </div>

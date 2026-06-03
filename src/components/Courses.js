@@ -562,11 +562,14 @@ export default function CourseScreen() {
                                         transform: 'translate(-50%, -50%)',
                                         width: '80%',
                                         textAlign: 'center',
-                                        fontSize: '46px',
+                                        fontSize: (user?.name || '').length > 20 ? '32px' : '46px',
                                         fontWeight: '900',
                                         color: '#0B1E3F',
                                         fontFamily: "'Playfair Display', serif, 'Georgia', 'Times New Roman'",
-                                        letterSpacing: '1px'
+                                        letterSpacing: '1px',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis'
                                     }}>
                                         {user?.name || 'VALUED EMPLOYEE'}
                                     </div>
@@ -579,12 +582,16 @@ export default function CourseScreen() {
                                         transform: 'translate(-50%, -50%)',
                                         width: '85%',
                                         textAlign: 'center',
-                                        fontSize: '24px',
+                                        fontSize: (selectedCourse?.title || '').length > 40 ? '16px' : '24px',
                                         fontWeight: '1000',
                                         color: '#1e40af',
                                         fontFamily: "'Inter', sans-serif",
                                         letterSpacing: '0.8px',
-                                        lineHeight: '1.2'
+                                        lineHeight: '1.3',
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden'
                                     }}>
                                         {(selectedCourse?.title || 'PROFESSIONAL COURSE').toUpperCase()}
                                     </div>
@@ -889,7 +896,6 @@ export default function CourseScreen() {
                                 </div>
                                 <div style={s.courseContent}>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px', alignItems: 'center' }}>
-                                        <div style={s.levelBadge}>{course.level || 'Expert'}</div>
                                         {/* Completion Date Badge from backend user_courses table */}
                                         {isActuallyComplete && completionDate && (
                                             <div style={{

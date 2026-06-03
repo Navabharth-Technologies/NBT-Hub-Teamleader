@@ -87,6 +87,8 @@ export const API_ENDPOINTS = {
   SUBORDINATES: (userId) => `${BASE_URL}/api/subordinates/${userId}`,
 
   NOTIFICATIONS: `${BASE_URL}/api/notifications`,
+  NOTIFICATIONS_READ: (id) => `${BASE_URL}/api/notifications/${cleanId(id)}/read`,
+  NOTIFICATIONS_READ_ALL: (userId) => userId ? `${BASE_URL}/api/notifications/read-all/${cleanId(userId)}` : `${BASE_URL}/api/notifications/read-all`,
   SUPPORT_TICKETS: `${BASE_URL}/api/support-tickets`,
   UPDATE_TICKET: (id) => `${BASE_URL}/api/support-tickets/${cleanId(id)}`,
   SUPPORT_AGENTS: `${BASE_URL}/api/support-agents`,

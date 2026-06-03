@@ -96,6 +96,55 @@ const TaskNotification = ({ onNavigate }) => {
     return Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
   };
 
+  // Derives a human-friendly notification title from message content
+  const getSmartTitle = (rawTitle, msg, ttl, type) => {
+    const t = (rawTitle || '').toLowerCase().trim();
+    const m = (msg || '').toLowerCase();
+    const l = (ttl || '').toLowerCase();
+    const combined = `${t} ${m} ${l}`;
+
+    // Only override if the title is generic
+    const isGeneric = !rawTitle || ['system update', 'system', 'update', 'notification', ''].includes(t);
+    if (!isGeneric) return rawTitle;
+
+    // --- Task titles ---
+    if (combined.includes('task assigned to you')) return '🆕 New Task Assigned';
+    if (combined.includes('task assigned by') || combined.includes('assigned a task')) return '📋 Task Assigned';
+    if (combined.includes('task completed') || combined.includes('marked as complete')) return '✅ Task Completed';
+    if (combined.includes('task submitted') || combined.includes('submitted the task')) return '📤 Task Submitted';
+    if (combined.includes('task reviewed') || combined.includes('review task')) return '🔍 Task Reviewed';
+    if (combined.includes('task approved')) return '✅ Task Approved';
+    if (combined.includes('task rejected')) return '❌ Task Rejected';
+    if (combined.includes('task updated') || combined.includes('task has been updated')) return '✏️ Task Updated';
+    if (combined.includes('task reassigned') || combined.includes('reassigned')) return '🔄 Task Reassigned';
+    if (combined.includes('task deadline') || combined.includes('due date')) return '⏰ Task Deadline Alert';
+    if (combined.includes('task created') || combined.includes('new task')) return '🆕 New Task Created';
+    if (combined.includes('task')) return '📋 Task Update';
+
+    // --- Leave titles ---
+    if (combined.includes('leave approved')) return '✅ Leave Approved';
+    if (combined.includes('leave rejected') || combined.includes('leave denied')) return '❌ Leave Rejected';
+    if (combined.includes('leave request') || combined.includes('applied for leave')) return '📝 Leave Requested';
+    if (combined.includes('leave cancelled')) return '🚫 Leave Cancelled';
+    if (combined.includes('leave')) return '🌴 Leave Update';
+
+    // --- Award titles ---
+    if (combined.includes('award') || combined.includes('reward') || combined.includes('recognition')) return '🏆 Award Received';
+
+    // --- Quiz titles ---
+    if (combined.includes('quiz') || combined.includes('teaser')) return '⚡ Quiz Available';
+
+    // --- Attendance titles ---
+    if (combined.includes('attendance') || combined.includes('check-in') || combined.includes('check in')) return '🕐 Attendance Update';
+
+    // --- General fallback by type ---
+    if (type === 'TASK') return '📋 Task Update';
+    if (type === 'LEAVE') return '🌴 Leave Update';
+    if (type === 'QUIZ') return '⚡ Quiz Update';
+    if (type === 'AWARD') return '🏆 Award Update';
+    return '🔔 New Notification';
+  };
+
   const fetchNotifications = async () => {
     const uid = user?.id || user?.empId || user?.userId || user?.employee_id;
     // Guard: Don't fetch if no UID or if it's a placeholder '1'
@@ -106,8 +155,8 @@ const TaskNotification = ({ onNavigate }) => {
       const headers = { 'Authorization': `Bearer ${token?.trim()}` };
 
       const newIds = new Set();
-      const readIds = JSON.parse(localStorage.getItem(`read_management_ids_${uid}`) || '[]');
-      let hasAnyUnread = false;
+      // Only used as a short-term optimistic cache for clicks in current session
+      const optimisticReadIds = JSON.parse(localStorage.getItem(`read_management_ids_${uid}`) || '[]');
 
       let dbNotifs = [];
       try {
@@ -118,8 +167,13 @@ const TaskNotification = ({ onNavigate }) => {
           dbList.forEach(n => {
             const nid = `db_${n.id}`;
             newIds.add(nid);
-            const isRead = readIds.includes(nid);
-            if (!isRead) hasAnyUnread = true;
+
+            // ✅ ONLY trust backend is_read as the source of truth
+            // optimisticReadIds is only used for clicks made THIS session
+            // before the next polling fetch returns updated data
+            const backendRead = n.is_read === 1 || n.is_read === true || n.read === 1 || n.read === true;
+            const optimisticRead = optimisticReadIds.includes(nid);
+            const isRead = backendRead || optimisticRead;
 
             const nDate = parseDate(n.created_at || n.updated_at || n.timestamp);
             const msg = (n.message || n.description || n.text || '').toLowerCase();
@@ -131,11 +185,13 @@ const TaskNotification = ({ onNavigate }) => {
             else if (ttl.includes('task') || msg.includes('task')) type = 'TASK';
             else if (ttl.includes('award') || ttl.includes('reward') || msg.includes('award')) type = 'AWARD';
 
+            const rawMsg = n.message || n.description || n.text || '';
             dbNotifs.push({
               id: nid,
+              rawId: n.id,
               type: type,
-              title: n.title || (type === 'LEAVE' ? 'Leave Update' : type === 'QUIZ' ? 'Quiz Update' : 'System Update'),
-              description: n.message || n.description || n.text || '',
+              title: getSmartTitle(n.title, rawMsg, n.title, type),
+              description: rawMsg,
               formattedTime: formatDate(nDate, n.created_at || n.updated_at || n.timestamp),
               isNew: !isRead,
               rawDate: nDate,
@@ -144,16 +200,35 @@ const TaskNotification = ({ onNavigate }) => {
               taskId: n.taskId || n.task_id || n.relatedId || n.related_id || n.id
             });
           });
+
+          // Once backend returns updated read state, clear optimistic cache
+          // (keeps only IDs that backend still says are unread — in case API call was slow)
+          const stillPendingOptimistic = optimisticReadIds.filter(id =>
+            dbNotifs.some(n => n.id === id && n.isNew)
+          );
+          localStorage.setItem(`read_management_ids_${uid}`, JSON.stringify(stillPendingOptimistic));
         }
       } catch (e) {
         console.error("Central notification fetch failed:", e);
       }
 
-      const merged = dbNotifs.sort((a, b) => {
+      const sorted = dbNotifs.sort((a, b) => {
         const dateA = a.rawDate instanceof Date ? a.rawDate.getTime() : 0;
         const dateB = b.rawDate instanceof Date ? b.rawDate.getTime() : 0;
         return dateB - dateA;
       });
+
+      // Deduplicate: remove entries with the same description + timestamp (within 1 second)
+      // Backend sometimes creates 2 rows for the same event — keep the one with the lowest rawId
+      const seen = new Set();
+      const merged = sorted.filter(n => {
+        const ts = n.rawDate instanceof Date ? Math.floor(n.rawDate.getTime() / 1000) : 0;
+        const key = `${(n.description || '').trim().toLowerCase()}__${ts}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
       setNotifications(merged);
 
       // Final Unread Check: Scan all merged notifications
@@ -167,6 +242,11 @@ const TaskNotification = ({ onNavigate }) => {
   };
 
   useEffect(() => {
+    // Clear any stale optimistic cache on mount — backend is source of truth
+    const uid = user?.id || user?.empId || user?.userId || user?.employee_id;
+    if (uid) {
+      localStorage.removeItem(`read_management_ids_${uid}`);
+    }
     fetchNotifications();
     const poll = setInterval(fetchNotifications, 20000);
     const handleToggle = () => setIsOpen(prev => !prev);
@@ -279,6 +359,21 @@ const TaskNotification = ({ onNavigate }) => {
                         : { taskId: notif.taskId, notificationDesc: notif.description, notificationTitle: notif.title };
 
                       const uid = user?.id || user?.empId || user?.userId || user?.employee_id;
+
+                      // ✅ Mark as read on BACKEND first, then update localStorage cache
+                      if (notif.isNew && notif.rawId) {
+                        const token = localStorage.getItem('token');
+                        fetch(API_ENDPOINTS.NOTIFICATIONS_READ(notif.rawId), {
+                          method: 'PUT',
+                          headers: {
+                            'Authorization': `Bearer ${token?.trim()}`,
+                            'Content-Type': 'application/json'
+                          },
+                          body: JSON.stringify({ userId: uid })
+                        }).catch(e => console.warn('Could not mark notification as read on server:', e));
+                      }
+
+                      // Update localStorage cache
                       const readIds = JSON.parse(localStorage.getItem(`read_management_ids_${uid}`) || '[]');
                       if (!readIds.includes(notif.id)) {
                         readIds.push(notif.id);
@@ -287,7 +382,6 @@ const TaskNotification = ({ onNavigate }) => {
 
                       setNotifications(prev => {
                         const updated = prev.map(n => n.id === notif.id ? { ...n, isNew: false } : n);
-                        // Recalculate unread badge based on remaining unread notifications
                         setHasUnread(updated.some(n => n.isNew));
                         return updated;
                       });

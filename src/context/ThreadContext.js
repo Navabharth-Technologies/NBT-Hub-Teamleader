@@ -431,6 +431,7 @@ export const ThreadProvider = ({ children }) => {
         
         const body = { 
             content: payload.content,
+            tagline: payload.tagline !== undefined ? payload.tagline : '',
             userId: currentUserId,
             user_id: currentUserId
         };
