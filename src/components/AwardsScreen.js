@@ -485,7 +485,7 @@ const AwardsScreen = ({ onBack }) => {
                 const endorsements = filteredAllRewards.length;
 
                 let finalRank = "Unranked";
-                const targetRankList = isFiltering ? quizLeaderboard : lbList;
+                const targetRankList = isFiltering ? activeLeaderboard : lbList;
                 if (targetRankList.length > 0) {
                     const sorted = [...targetRankList].sort((a, b) => cleanNum(b.total_points) - cleanNum(a.total_points));
                     const myIdx = sorted.findIndex(entry => {

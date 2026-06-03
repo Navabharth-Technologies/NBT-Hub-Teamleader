@@ -901,7 +901,7 @@ const Dashboard = ({ setActiveTab }) => {
             {/* Internal Grid for Yesterday/Today */}
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '24px' }}>
               <div
-                style={{ padding: '24px', backgroundColor: '#ecfdf5', borderRadius: '24px', border: '1px solid #d1fae5', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}
+                style={{ padding: '24px', backgroundColor: '#ecfdf5', borderRadius: '24px', border: '1px solid #d1fae5', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', height: '240px', display: 'flex', flexDirection: 'column' }}
               >
                 <div style={s.focusHeader}>
                   <div style={s.focusTitle}><CheckCircle2 size={24} /> Yesterday</div>
@@ -930,19 +930,22 @@ const Dashboard = ({ setActiveTab }) => {
                     View Report
                   </button>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '5px' }}>
                   {Array.isArray(yesterdayTasks) && yesterdayTasks.length > 0 ? yesterdayTasks.map((t, i) => (
                     <div key={i} style={{ fontSize: '13px', fontWeight: '700', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle2 size={14} /> {t?.text}</div>
                   )) : <div style={{ color: '#64748b', fontSize: '13px' }}>No log found.</div>}
                 </div>
-                <div style={{ ...s.statusBadge, marginTop: '15px' }}>{yesterdayStatus}</div>
+                <div style={{ marginTop: 'auto', paddingTop: '15px' }}>
+                  <div style={{ ...s.statusBadge, display: 'inline-block' }}>{yesterdayStatus}</div>
+                </div>
               </div>
 
-              <div style={{ padding: '24px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
+              <div style={{ padding: '24px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', height: '240px', display: 'flex', flexDirection: 'column' }}>
                 <div style={s.focusHeader}>
                   <div style={{ ...s.focusTitle, display: 'flex', alignItems: 'center', gap: '12px' }}><TrendingUp size={24} /> Today</div>
                   <button style={s.editBtn} onClick={(e) => { e.stopPropagation(); isEditingToday ? handleSave() : setIsEditingToday(true); }}>{isEditingToday ? "Save" : "Edit"}</button>
                 </div>
+                <div style={{ flex: 1, overflowY: 'auto', paddingRight: '5px' }}>
                 {!isEditingToday ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {(Array.isArray(todayTasks) ? todayTasks : []).filter(t => t && t.text && t.text.trim()).map((t, i) => (
@@ -970,6 +973,7 @@ const Dashboard = ({ setActiveTab }) => {
                     <button onClick={() => setTodayTasks([...todayTasks, { id: Date.now(), text: '' }])} style={{ background: 'none', border: 'none', color: '#3B5998', fontWeight: '900', fontSize: '11px', cursor: 'pointer' }}>+ ADD TASK</button>
                   </div>
                 )}
+                </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
                   {isEditingToday ? (
                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -1085,12 +1089,12 @@ const Dashboard = ({ setActiveTab }) => {
                         key={i}
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        whileHover={{ scale: 1.05, x: 5 }}
+                        whileHover={{ y: -2, boxShadow: '0 8px 20px rgba(0,0,0,0.06)' }}
                         transition={{ delay: i * 0.1 }}
                         style={{
                           padding: '20px',
                           backgroundColor: '#f8fafc',
-                          borderRadius: '8px',
+                          borderRadius: '16px',
                           borderLeft: '5px solid #3B5998',
                           border: '1px solid #eef2f6',
                           borderLeftStyle: 'solid',

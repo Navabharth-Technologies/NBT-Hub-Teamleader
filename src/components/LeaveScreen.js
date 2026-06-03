@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Palmtree, ArrowLeft, Calendar, Info, Clock, CheckCircle, XCircle, Plus, Filter, Search, Users, Activity, Umbrella, CreditCard, UserCheck, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Palmtree, ArrowLeft, Calendar, Info, Clock, CheckCircle, XCircle, Plus, Filter, Search, Users, Activity, Umbrella, CreditCard, UserCheck, MessageSquare, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getTheme } from '../constants/Theme';
 import { API_ENDPOINTS, BASE_URL, cleanId } from '../config';
@@ -63,7 +63,7 @@ const LeaveScreen = ({ onBack }) => {
   const [filterMonth, setFilterMonth] = useState('all');
 
   const [formData, setFormData] = useState({
-    type: 'Casual Leave',
+    type: '',
     to: '',
     cc: '',
     reason: '',
@@ -1216,12 +1216,18 @@ const LeaveScreen = ({ onBack }) => {
               <h2 style={{ margin: winWidth < 480 ? '10px 0 25px 0' : '15px 0 35px 0', fontSize: winWidth < 480 ? '20px' : '24px', fontWeight: '1000', color: '#0B1E3F' }}>Request Time Off</h2>
               <form id="leave-request-form" onSubmit={handleSubmitRequest} style={{ marginTop: '30px', display: 'block' }}>
                 <div style={{ marginBottom: winWidth < 480 ? '12px' : '18px' }}>
-                  <label style={{ fontSize: winWidth < 480 ? '11px' : '13px', fontWeight: '900', color: '#64748b', marginBottom: '8px', display: 'block' }}>LEAVE TYPE</label>
-                  <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })} style={{ width: '100%', padding: winWidth < 480 ? '10px 12px' : '14px 16px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: winWidth < 480 ? '14px' : '15px', fontWeight: '700' }}>
-                    <option>Casual Leave</option>
-                    <option>LOP</option>
-                    <option>Earned Leaves</option>
-                  </select>
+                  <label style={{ fontSize: winWidth < 480 ? '11px' : '13px', fontWeight: '900', color: '#64748b', marginBottom: '8px', display: 'block' }}>LEAVE CATEGORY</label>
+                  <div style={{ position: 'relative' }}>
+                    <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })} style={{ width: '100%', padding: winWidth < 480 ? '10px 12px' : '14px 16px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: winWidth < 480 ? '14px' : '15px', fontWeight: '700', appearance: 'none', backgroundColor: '#fff', color: '#0B1E3F' }} required>
+                      <option value="" disabled>Select Leave Category</option>
+                      <option value="Casual Leave">Casual Leave</option>
+                      <option value="LOP">LOP</option>
+                      <option value="Earned Leaves">Earned Leaves</option>
+                    </select>
+                    <div style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                      <ChevronDown size={18} color="#0B1E3F" />
+                    </div>
+                  </div>
                 </div>
 
                 <div style={{ marginBottom: winWidth < 480 ? '12px' : '18px', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1232,11 +1238,16 @@ const LeaveScreen = ({ onBack }) => {
                 {formData.is_half_day && (
                   <div style={{ marginBottom: winWidth < 480 ? '12px' : '18px' }}>
                     <label style={{ fontSize: winWidth < 480 ? '11px' : '13px', fontWeight: '900', color: '#64748b', marginBottom: '8px', display: 'block' }}>HALF DAY SLOT <span style={{ color: '#ef4444' }}>*</span></label>
-                    <select value={formData.half_day_slot} onChange={e => setFormData({ ...formData, half_day_slot: e.target.value })} style={{ width: '100%', padding: winWidth < 480 ? '10px 12px' : '14px 16px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: winWidth < 480 ? '14px' : '15px', fontWeight: '700' }} required>
-                      <option value="">Select Slot</option>
-                      <option value="First Half (9:30 - 2:30)">First Half (9:30 - 2:30)</option>
-                      <option value="Second Half (1:30 - 6:00 pm)">Second Half (1:30 - 6:00 pm)</option>
-                    </select>
+                    <div style={{ position: 'relative' }}>
+                      <select value={formData.half_day_slot} onChange={e => setFormData({ ...formData, half_day_slot: e.target.value })} style={{ width: '100%', padding: winWidth < 480 ? '10px 12px' : '14px 16px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: winWidth < 480 ? '14px' : '15px', fontWeight: '700', appearance: 'none', backgroundColor: '#fff', color: '#0B1E3F' }} required>
+                        <option value="">Select Slot</option>
+                        <option value="First Half (9:30 - 2:30)">First Half (9:30 - 2:30)</option>
+                        <option value="Second Half (1:30 - 6:00 pm)">Second Half (1:30 - 6:00 pm)</option>
+                      </select>
+                      <div style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                        <ChevronDown size={18} color="#0B1E3F" />
+                      </div>
+                    </div>
                   </div>
                 )}
 
