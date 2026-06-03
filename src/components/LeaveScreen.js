@@ -369,14 +369,32 @@ const LeaveScreen = ({ onBack }) => {
 
     try {
       const days = calculateDays(formData.start_date, formData.end_date);
+      const requestedDays = formData.is_half_day ? 0.5 : days;
 
-      if (formData.type === 'Casual Leave' && leaveBalance <= 0) {
-        setModalConfig({
-          show: true,
-          message: "Your Casual Leave balance is 0. You cannot apply for more. Please select LOP or contact HR.",
-          type: 'error'
+      if (formData.type === 'Casual Leave' || formData.type === 'Earned Leaves') {
+        const pendingLeaves = myLeaves.filter(req => {
+          const reqType = (req.leave_type || req.leaveType || '');
+          if (reqType !== formData.type) return false;
+          return getEffectiveStatus(req) === 'PENDING';
         });
-        return;
+
+        const pendingDays = pendingLeaves.reduce((sum, req) => {
+          const daysCount = (req.isHalfDay || req.is_half_day || Number(req.no_of_days) === 0.5)
+            ? 0.5
+            : (Number(req.no_of_days) || calculateDays(req.start_date, req.end_date));
+          return sum + daysCount;
+        }, 0);
+
+        const remainingBalance = leaveBalance - pendingDays;
+
+        if (requestedDays > remainingBalance) {
+          setModalConfig({
+            show: true,
+            message: `Your available balance is ${leaveBalance} days, but you have ${pendingDays} days already pending approval. Remaining: ${remainingBalance} days. You requested ${requestedDays} days.`,
+            type: 'error'
+          });
+          return;
+        }
       }
 
       const payload = {
