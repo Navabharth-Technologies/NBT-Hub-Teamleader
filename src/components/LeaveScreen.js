@@ -88,18 +88,18 @@ const LeaveScreen = ({ onBack }) => {
     if (location.state && !loading) {
       const { requestId, notificationDesc, notificationTitle } = location.state;
       const combined = [...myLeaves, ...pendingRequests, ...teamHistory];
-      
+
       let found = null;
       if (requestId) {
         const potentialMatch = combined.find(r => Number(r.id) === Number(requestId));
-        
+
         // If we found a match by ID, but we also have notification text, we should validate it!
         // This prevents the bug where a notification ID accidentally matches a random old leave request.
         if (potentialMatch && (notificationTitle || notificationDesc)) {
           const reqName = (potentialMatch.employeeName || potentialMatch.employee_name || potentialMatch.user_name || potentialMatch.name || '').toLowerCase();
           const title = (notificationTitle || '').toLowerCase();
           const desc = (notificationDesc || '').toLowerCase();
-          
+
           if (reqName && reqName.length > 3 && (title.includes(reqName) || desc.includes(reqName))) {
             found = potentialMatch; // Validated by name
           } else if (potentialMatch.start_date && desc.includes(potentialMatch.start_date.split('T')[0])) {
@@ -117,10 +117,10 @@ const LeaveScreen = ({ onBack }) => {
       if (!found && (notificationTitle || notificationDesc)) {
         const title = (notificationTitle || '').toLowerCase();
         const desc = (notificationDesc || '').toLowerCase();
-        
+
         found = combined.find(r => {
           const reqName = (r.employeeName || r.employee_name || r.user_name || r.name || '').toLowerCase();
-          
+
           if (reqName && reqName.length > 3 && (title.includes(reqName) || desc.includes(reqName))) {
             return true;
           }
@@ -267,7 +267,7 @@ const LeaveScreen = ({ onBack }) => {
           const allRes = await fetch(API_ENDPOINTS.TEAM_LEAVES, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
-          
+
           if (allRes.ok) {
             const rawData = await allRes.json();
             const allLeaves = Array.isArray(rawData) ? rawData : (rawData.data || rawData.leaves || rawData.history || []);
@@ -349,7 +349,7 @@ const LeaveScreen = ({ onBack }) => {
 
         setFeedback('');
         setModalConfig({ show: true, message: `Leave Request ${status} successfully.`, type: 'success' });
-        
+
         // Removed fetchData() to prevent backend restrictions from wiping the optimistic UI update
         fetchUserBalance();
         fetchMonthlyStats();
@@ -516,7 +516,7 @@ const LeaveScreen = ({ onBack }) => {
 
     const rm = String(req.rm_status || req.rmStatus || 'Pending').trim().toUpperCase();
     const hr = String(req.hr_status || req.hrStatus || 'Pending').trim().toUpperCase();
-    
+
     // Improved PM status logic: check if 'status' contains 'PENDING' case-insensitively
     const legacyStatus = String(req.status || '').toUpperCase();
     const pm = String(req.pm_status || req.pmStatus || (legacyStatus.includes('PENDING') ? 'Pending' : (legacyStatus === '' ? 'Pending' : 'Approved'))).trim().toUpperCase();
@@ -527,7 +527,7 @@ const LeaveScreen = ({ onBack }) => {
     );
     const rRole = (requester?.role || '').toLowerCase();
     const isLeadSoftware = rRole.includes('lead software') || rRole.includes('leadsoftware');
-    
+
     // Check if it's a personal request by the logged-in user
     const currentUid = cleanId(user?.id || user?.employee_id || user?.empId || user?.userId);
     const isPersonal = requesterId === currentUid;
@@ -1243,14 +1243,14 @@ const LeaveScreen = ({ onBack }) => {
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-              style={{ 
-                backgroundColor: 'white', 
-                width: '95%', 
-                maxWidth: '500px', 
-                borderRadius: winWidth < 480 ? '24px' : '30px', 
-                padding: winWidth < 480 ? '20px 16px' : (winWidth < 768 ? '24px' : '35px'), 
-                position: 'relative', 
-                boxShadow: '0 20px 50px rgba(0,0,0,0.2)', 
+              style={{
+                backgroundColor: 'white',
+                width: '95%',
+                maxWidth: '500px',
+                borderRadius: winWidth < 480 ? '24px' : '30px',
+                padding: winWidth < 480 ? '20px 16px' : (winWidth < 768 ? '24px' : '35px'),
+                position: 'relative',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
                 boxSizing: 'border-box',
                 maxHeight: '80vh',
                 overflowY: 'auto'
@@ -1327,7 +1327,7 @@ const LeaveScreen = ({ onBack }) => {
         {modalConfig.show && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(11, 30, 63, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}
+            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(11, 30, 63, 0.4)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000 }}
             onClick={() => setModalConfig({ ...modalConfig, show: false })}
           >
             <motion.div

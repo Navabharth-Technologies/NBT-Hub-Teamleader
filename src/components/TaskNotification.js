@@ -263,12 +263,11 @@ const TaskNotification = ({ onNavigate }) => {
     <div style={{
       position: 'fixed',
       bottom: isMobile ? '120px' : '100px',
-      left: isMobile ? '0' : 'auto',
-      right: isMobile ? '0' : '30px',
-      zIndex: 2000,
+      right: isMobile ? '15px' : '30px',
+      zIndex: 10001,
       display: 'flex',
       flexDirection: 'column',
-      alignItems: isMobile ? 'center' : 'flex-end',
+      alignItems: 'flex-end',
       gap: '15px',
       pointerEvents: 'none'
     }}>
@@ -354,8 +353,8 @@ const TaskNotification = ({ onNavigate }) => {
                         path = '/'; // Dashboard for tasks
                       }
 
-                      const navState = (notif.type === 'LEAVE' || path === '/leave') 
-                        ? { requestId: notif.leaveId, notificationDesc: notif.description, notificationTitle: notif.title } 
+                      const navState = (notif.type === 'LEAVE' || path === '/leave')
+                        ? { requestId: notif.leaveId, notificationDesc: notif.description, notificationTitle: notif.title }
                         : { taskId: notif.taskId, notificationDesc: notif.description, notificationTitle: notif.title };
 
                       const uid = user?.id || user?.empId || user?.userId || user?.employee_id;
