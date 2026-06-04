@@ -558,6 +558,17 @@ export default function DocumentsScreen({ onBack }) {
     } else if (numericFields.includes(key)) {
       if (/[^0-9]/.test(value)) error = 'Digits only';
       else {
+        if (key === 'edu_completion_year') {
+          if (value.length !== 4) {
+            error = 'Year must be exactly 4 digits';
+          } else {
+            const numYear = parseInt(value, 10);
+            const currentYear = new Date().getFullYear();
+            if (isNaN(numYear) || numYear < 1900 || numYear > currentYear) {
+              error = `Year must be between 1900 and ${currentYear}`;
+            }
+          }
+        }
         if (key === 'contact_no' || key === 'emergency_contact_no') {
           if (!/^[6-9]/.test(value)) {
             error = 'Contact number must start only with 6, 7, 8, or 9';
@@ -569,8 +580,31 @@ export default function DocumentsScreen({ onBack }) {
         if (key === 'age' && (Number(value) < 18 || Number(value) > 100)) error = 'Invalid age range (18-100)';
       }
     } else if (percentageFields.includes(key)) {
-      if (/[^0-9.]/.test(value)) error = 'Numeric value only';
-      else if (Number(value) > 100) error = 'Cannot exceed 100%';
+      if (/[^0-9.]/.test(value)) {
+        error = 'Only numbers and a single decimal point are allowed';
+      } else if ((value.match(/\./g) || []).length > 1) {
+        error = 'Only a single decimal point is allowed';
+      } else if (value.includes('-') || parseFloat(value) < 0) {
+        error = 'Negative numbers are not allowed';
+      } else {
+        const num = parseFloat(value);
+        if (isNaN(num)) {
+          error = 'Enter a valid percentage';
+        } else if (num > 100) {
+          error = 'Percentage cannot exceed 100%';
+        } else if (key === 'ug_pg_percentage') {
+          if (num > 10 && num < 35) {
+            error = 'CGPA cannot exceed 10. If this is a percentage, it must be between 35% and 100%';
+          }
+        }
+        
+        if (!error) {
+          const parts = String(value).split('.');
+          if (parts[1] && parts[1].length > 2) {
+            error = 'Maximum 2 decimal places allowed';
+          }
+        }
+      }
     } else if (key === 'pan_number') {
       const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
       if (!panRegex.test(String(value).toUpperCase())) error = 'Use ABCDE1234F format (10 chars)';
@@ -632,8 +666,7 @@ export default function DocumentsScreen({ onBack }) {
         return;
       }
     } else if (percentageFields.includes(key)) {
-      // Allow only numbers and one decimal point
-      cleanValue = value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+      cleanValue = value;
     } else if (key.includes('email')) {
       // Remove spaces and any characters not typically allowed in emails
       cleanValue = value.replace(/[^a-zA-Z0-9@._-]/g, '');
