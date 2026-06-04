@@ -21,6 +21,22 @@ const LOCKED_FIELDS = [
   'has_mobile', 'has_camera', 'has_headphone', 'has_tablet'
 ];
 
+const REQUIRED_FIELDS = [
+  // Primary Profile
+  'emp_name', 'gender', 'dob', 'age', 'religion', 'blood_group', 'marital_status', 'nationality', 'father_husband_name', 'category', 'pan_number', 'pancard_photo', 'aadhar_number', 'adharcard_photo',
+  // Organizational Hierarchy
+  'designation', 'department', 'process', 'supervisor_l1', 'supervisor_l2', 'doj', 'ft_pt', 'status', 'place', 'moved', 'official_email_id',
+  // Contact & Geography
+  'contact_no', 'emergency_contact_no', 'personal_email_id', 'present_address', 'permanent_address', 'state',
+  // Academic & Career
+  'qualification', 'edu_completion_year', 'college', 'university', 'languages_known', 'sslc_percentage', 'puc_percentage', 'sslc_markscard', 'puc_markscard', 'ug_pg_percentage', 'ug_pg_markscard', 'source',
+  // Banking & Finance
+  'bank_name', 'bank_account_no', 'ifsc_code', 'bank_branch', 'gross_salary_a', 'salary', 'pt', 'passbook_photo',
+  // Compliance & Docs
+  'bgv_status', 'appointment_letter', 'approved_by_ceo', 'onboarding_doc_completed', 'id_card', 'onboarding_link'
+];
+
+
 const SECTIONS = [
   {
     id: 'primary',
@@ -30,7 +46,7 @@ const SECTIONS = [
     fields: [
       { key: 'emp_name', label: 'Employee Name', placeholder: 'Full Name', type: 'text' },
       { key: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female', 'Other'] },
-      { key: 'dob', label: 'Date of Birth', type: 'text', placeholder: 'DD/MM/YYYY' },
+      { key: 'dob', label: 'Date of Birth', type: 'date', placeholder: 'DD/MM/YYYY' },
       { key: 'age', label: 'Age', type: 'text', placeholder: 'Years' },
       { key: 'religion', label: 'Religion', type: 'text' },
       { key: 'blood_group', label: 'Blood Group', type: 'text' },
@@ -506,8 +522,7 @@ export default function DocumentsScreen({ onBack }) {
     let error = null;
 
     // REQUIRED FIELDS CHECK
-    const required = ['emp_name', 'dob', 'pan_number', 'aadhar_number', 'contact_no', 'designation', 'department', 'official_email_id', 'personal_email_id', 'emergency_contact_no', 'present_address', 'pancard_photo', 'adharcard_photo', 'bank_name', 'bank_account_no', 'ifsc_code', 'bank_branch', 'passbook_photo', 'previous_organization', 'previous_experience', 'total_experience', 'experience_letter_photo', 'separation', 'attrition_bucket', 'reason', 'previous_company_payslip'];
-    if (required.includes(key) && (!value || String(value).trim() === '')) {
+    if (REQUIRED_FIELDS.includes(key) && (!value || String(value).trim() === '')) {
       return `${key.replace(/_/g, ' ').toUpperCase()} is required`;
     }
 
@@ -517,7 +532,27 @@ export default function DocumentsScreen({ onBack }) {
     const numericFields = ['contact_no', 'emergency_contact_no', 'aadhar_number', 'bank_account_no', 'age', 'edu_completion_year', 'previous_experience', 'total_experience'];
     const percentageFields = ['sslc_percentage', 'puc_percentage', 'ug_pg_percentage'];
 
-    if (nameFields.includes(key)) {
+    if (key === 'dob') {
+      if (value && value !== 'Not Provided' && value !== 'Add Date of Birth') {
+        if (!/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+          error = 'Format must be DD/MM/YYYY (e.g., 08/09/2002)';
+        } else {
+          const parts = value.split('/');
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10);
+          const year = parseInt(parts[2], 10);
+          const d = new Date(year, month - 1, day);
+          if (isNaN(d.getTime()) || d.getDate() !== day || d.getMonth() + 1 !== month || d.getFullYear() !== year) {
+            error = 'Invalid Date';
+          } else {
+            const today = new Date();
+            if (d > today) {
+              error = 'Date of Birth cannot be in the future';
+            }
+          }
+        }
+      }
+    } else if (nameFields.includes(key)) {
       if (/[0-9]/.test(value)) error = 'Numbers are not allowed here';
       else if (/[^a-zA-Z\s.]/.test(value)) error = 'Only alphabets, spaces and dots allowed';
     } else if (numericFields.includes(key)) {
@@ -574,6 +609,12 @@ export default function DocumentsScreen({ onBack }) {
   };
 
   const handleChange = (key, value) => {
+    // If the value is selected from calendar (YYYY-MM-DD format), convert to DD/MM/YYYY
+    if (['dob', 'doj', 'separation', 'lwd'].includes(key) && value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const parts = value.split('-');
+      value = `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+
     let cleanValue = value;
 
     // 1. Immediate Sanitization (Input Restrictions)
@@ -1208,7 +1249,7 @@ export default function DocumentsScreen({ onBack }) {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '120px' }}>
                       <label style={{ fontSize: isMobile ? '11px' : '12px', fontWeight: '900', color: '#000000', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-                        {field.label} {['emp_name', 'dob', 'pan_number', 'aadhar_number', 'contact_no', 'designation', 'department', 'official_email_id', 'personal_email_id', 'emergency_contact_no', 'present_address', 'pancard_photo', 'adharcard_photo', 'bank_name', 'bank_account_no', 'ifsc_code', 'bank_branch', 'passbook_photo', 'previous_organization', 'previous_experience', 'total_experience', 'experience_letter_photo', 'separation', 'attrition_bucket', 'reason', 'previous_company_payslip'].includes(field.key) && <span style={{ color: '#ef4444' }}>*</span>}
+                        {field.label} {REQUIRED_FIELDS.includes(field.key) && <span style={{ color: '#ef4444' }}>*</span>}
                       </label>
                       {isLockedForRole && <Shield size={10} color="#000000" />}
                     </div>
@@ -1418,20 +1459,51 @@ export default function DocumentsScreen({ onBack }) {
                     ) : (
                       <div style={{ position: 'relative', width: '100%' }}>
                         <input
-                          type="text"
+                          type={field.type === 'date' ? 'date' : 'text'}
+                          max={field.key === 'dob' ? new Date().toISOString().split('T')[0] : undefined}
                           value={(() => {
                             let val = (form[field.key] && typeof form[field.key] === 'string' && form[field.key].includes('T') && form[field.key].length > 15) ? form[field.key].split('T')[0] : (form[field.key] || '');
                             if (['dob', 'doj', 'separation', 'lwd'].includes(field.key) && typeof val === 'string') {
                               if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(val)) {
                                 const parts = val.substring(0, 10).split(/[-/]/);
-                                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                                val = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                              } else {
+                                val = val.replace(/-/g, '/');
                               }
-                              return val.replace(/-/g, '/');
+                            }
+                            if (field.type === 'date' && val) {
+                              if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) {
+                                const parts = val.split('/');
+                                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                              }
+                              if (/^\d{2}-\d{2}-\d{4}$/.test(val)) {
+                                const parts = val.split('-');
+                                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                              }
                             }
                             return val;
                           })()}
                           readOnly={isDisabled || field.key === 'age'}
                           onChange={e => handleChange(field.key, e.target.value)}
+                          onKeyDown={e => {
+                            if (field.key === 'dob') {
+                              e.preventDefault();
+                            }
+                          }}
+                          onPaste={e => {
+                            if (field.key === 'dob') {
+                              e.preventDefault();
+                            }
+                          }}
+                          onClick={e => {
+                            if (field.type === 'date' && !isDisabled) {
+                              try {
+                                e.target.showPicker?.();
+                              } catch (err) {
+                                console.error("showPicker failed:", err);
+                              }
+                            }
+                          }}
                           placeholder={isEditing ? (field.placeholder || `Enter ${field.label}`) : 'Not Provided'}
                           style={{
                             width: '100%', padding: isMobile ? '12px' : '16px 20px',
