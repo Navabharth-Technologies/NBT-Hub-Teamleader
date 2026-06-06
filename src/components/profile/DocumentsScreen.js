@@ -23,9 +23,9 @@ const LOCKED_FIELDS = [
 
 const REQUIRED_FIELDS = [
   // Primary Profile
-  'emp_name', 'gender', 'dob', 'age', 'religion', 'blood_group', 'marital_status', 'nationality', 'father_husband_name', 'category', 'pan_number', 'pancard_photo', 'aadhar_number', 'adharcard_photo',
+  'emp_name', 'gender', 'dob', 'age', 'blood_group', 'marital_status', 'father_husband_name', 'pan_number', 'pancard_photo', 'aadhar_number', 'adharcard_photo',
   // Organizational Hierarchy
-  'designation', 'department', 'process', 'supervisor_l1', 'supervisor_l2', 'doj', 'ft_pt', 'status', 'place', 'moved', 'official_email_id',
+  'designation', 'supervisor_l1', 'supervisor_l2', 'doj', 'ft_pt', 'status', 'place', 'moved', 'official_email_id',
   // Contact & Geography
   'contact_no', 'emergency_contact_no', 'personal_email_id', 'present_address', 'permanent_address', 'state',
   // Academic & Career
@@ -46,20 +46,15 @@ const SECTIONS = [
     fields: [
       { key: 'emp_name', label: 'Employee Name', placeholder: 'Full Name', type: 'text' },
       { key: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female', 'Other'] },
-      { key: 'dob', label: 'Date of Birth', type: 'date', placeholder: 'DD/MM/YYYY' },
+      { key: 'dob', label: 'Date of Birth', type: 'text', placeholder: 'DD/MM/YYYY' },
       { key: 'age', label: 'Age', type: 'text', placeholder: 'Years' },
-      { key: 'religion', label: 'Religion', type: 'text' },
       { key: 'blood_group', label: 'Blood Group', type: 'text' },
-      { key: 'marital_status', label: 'Marital Status', type: 'select', options: ['Single', 'Married', 'Divorced', 'Widowed'] },
-      { key: 'nationality', label: 'Nationality', type: 'text', placeholder: 'e.g. Indian' },
+      { key: 'marital_status', label: 'Marital Status', type: 'select', options: ['Single', 'Married'] },
       { key: 'father_husband_name', label: "Father/Husband's Name", type: 'text' },
-      { key: 'category', label: 'Category', type: 'select', options: ['General', 'OBC', 'SC', 'ST', 'Other'] },
       { key: 'pan_number', label: 'PAN Number', type: 'text', placeholder: 'ABCDE1234F' },
       { key: 'aadhar_number', label: 'Aadhar Number', type: 'text', placeholder: '1234 5678 9012' },
       { key: 'pancard_photo', label: 'PAN Card Proof', type: 'file', onlyImages: true },
       { key: 'adharcard_photo', label: 'Aadhar Card Proof', type: 'file', onlyImages: true },
-      { key: 'voter_id', label: 'Voter ID Number', type: 'text' },
-      { key: 'voter_id_photo', label: 'Voter ID Proof', type: 'file', onlyImages: true },
     ]
   },
   {
@@ -69,8 +64,6 @@ const SECTIONS = [
     color: '#8b5cf6',
     fields: [
       { key: 'designation', label: 'Designation', type: 'text' },
-      { key: 'department', label: 'Department', type: 'text' },
-      { key: 'process', label: 'Process', type: 'text' },
       { key: 'supervisor_l1', label: 'Supervisor L1 (Reporting Person)', type: 'text' },
       { key: 'supervisor_l2', label: 'Supervisor L2', type: 'text' },
       { key: 'doj', label: 'Date of Joining', type: 'text', placeholder: 'DD/MM/YYYY' },
@@ -523,7 +516,11 @@ export default function DocumentsScreen({ onBack }) {
 
     // REQUIRED FIELDS CHECK
     if (REQUIRED_FIELDS.includes(key) && (!value || String(value).trim() === '')) {
-      return `${key.replace(/_/g, ' ').toUpperCase()} is required`;
+      let displayLabel = key.replace(/_/g, ' ').toUpperCase();
+      if (key === 'father_husband_name') {
+        displayLabel = form.marital_status === 'Married' ? "Spouse Name" : "Father's Name";
+      }
+      return `${displayLabel.toUpperCase()} is required`;
     }
 
     if (!value) return null;
@@ -813,6 +810,12 @@ export default function DocumentsScreen({ onBack }) {
         if (key.startsWith('has_')) {
           val = (val === 'Yes');
         }
+        // Skip file fields to prevent request entity too large errors (synced on upload)
+        const currentSectionConfig = SECTIONS.find(s => s.id === activeSection);
+        const fieldConfig = currentSectionConfig?.fields?.find(f => f.key === key);
+        if (fieldConfig?.type === 'file') {
+          return;
+        }
         sanitizedForm[key] = val;
       });
 
@@ -868,7 +871,6 @@ export default function DocumentsScreen({ onBack }) {
               // SEND EVERY POSSIBLE KEY
               syncBody.date_of_birth = dobForUsers;
               syncBody.dateOfBirth = dobForUsers;
-              syncBody.dob = dobForUsers;
               
               console.log(`[SYNC DEBUG] Target Email: ${targetEmail}`);
               console.log(`[SYNC DEBUG] Target DOB: ${dobForUsers}`);
@@ -1267,6 +1269,105 @@ export default function DocumentsScreen({ onBack }) {
                     </div>
                   );
                 }
+                if (field.key === 'father_husband_name') {
+                  return null;
+                }
+
+                if (field.key === 'marital_status') {
+                  const fatherField = currentSection.fields.find(f => f.key === 'father_husband_name');
+                  const isLockedMS = LOCKED_FIELDS.includes('marital_status') && !isAdmin;
+                  const isDisabledMS = (activeSection === 'assets') || !isEditing || isLockedMS;
+                  const isLockedFather = fatherField && LOCKED_FIELDS.includes('father_husband_name') && !isAdmin;
+                  const isDisabledFather = (activeSection === 'assets') || !isEditing || isLockedFather;
+                  const fatherLabel = form.marital_status === 'Married' ? "Spouse Name" : "Father's Name";
+
+                  return (
+                    <div key="marital_status_row" style={{
+                      gridColumn: '1 / -1',
+                      display: 'grid',
+                      gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+                      gap: isMobile ? '24px' : '40px',
+                      padding: '12px 0'
+                    }}>
+                      {/* Marital Status */}
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'flex-start',
+                        alignItems: 'stretch',
+                        gap: '12px',
+                        opacity: isLockedMS ? 0.7 : 1,
+                        alignSelf: 'start'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '120px' }}>
+                          <label style={{ fontSize: isMobile ? '11px' : '12px', fontWeight: '900', color: '#000000', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                            {field.label} {REQUIRED_FIELDS.includes(field.key) && <span style={{ color: '#ef4444' }}>*</span>}
+                          </label>
+                          {isLockedMS && <Shield size={10} color="#000000" />}
+                        </div>
+                        <div style={{ position: 'relative', width: '100%' }}>
+                          <select
+                            value={form.marital_status}
+                            disabled={isDisabledMS}
+                            onChange={e => handleChange('marital_status', e.target.value)}
+                            style={{
+                              width: '100%', padding: isMobile ? '14px 40px 14px 16px' : '16px 45px 16px 20px', borderRadius: isMobile ? '12px' : '16px', fontSize: isMobile ? '14px' : '16px',
+                              fontWeight: '700', color: '#000000', backgroundColor: isDisabledMS ? '#f1f5f9' : '#f8fafc',
+                              border: !isDisabledMS ? '2px solid #315A9E' : '2px solid #e2e8f0', outline: 'none', cursor: isDisabledMS ? 'default' : 'pointer', appearance: 'none', boxSizing: 'border-box',
+                              transition: 'all 0.2s', opacity: isDisabledMS ? 0.8 : 1
+                            }}
+                          >
+                            {field.options.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                          <div style={{ position: 'absolute', right: isMobile ? '14px' : '18px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: isDisabledMS ? '#cbd5e1' : '#315A9E' }}>
+                            <ChevronDown size={isMobile ? 16 : 18} strokeWidth={3} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Father / Spouse Name */}
+                      {fatherField && (
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'flex-start',
+                          alignItems: 'stretch',
+                          gap: '12px',
+                          opacity: isLockedFather ? 0.7 : 1,
+                          alignSelf: 'start'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '120px' }}>
+                            <label style={{ fontSize: isMobile ? '11px' : '12px', fontWeight: '900', color: '#000000', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                              {fatherLabel} {REQUIRED_FIELDS.includes('father_husband_name') && <span style={{ color: '#ef4444' }}>*</span>}
+                            </label>
+                            {isLockedFather && <Shield size={10} color="#000000" />}
+                          </div>
+                          <input
+                            type="text"
+                            value={form.father_husband_name}
+                            readOnly={isDisabledFather}
+                            onChange={e => handleChange('father_husband_name', e.target.value)}
+                            placeholder={isEditing ? `Enter ${fatherLabel}` : 'Not Provided'}
+                            style={{
+                              width: '100%', padding: isMobile ? '14px 16px' : '16px 20px', borderRadius: isMobile ? '12px' : '16px', fontSize: isMobile ? '14px' : '16px',
+                              fontWeight: '800', color: '#000000', backgroundColor: isDisabledFather ? '#f1f5f9' : '#f8fafc',
+                              border: errors.father_husband_name ? '2px solid #ef4444' : (!isDisabledFather ? '2px solid #315A9E' : '2px solid #e2e8f0'),
+                              outline: 'none', boxSizing: 'border-box',
+                              transition: 'all 0.2s', cursor: isDisabledFather ? 'default' : 'text',
+                              opacity: isDisabledFather ? 0.8 : 1
+                            }}
+                          />
+                          {errors.father_husband_name && (
+                            <div style={{ color: '#ef4444', fontSize: '12px', fontWeight: '800', marginTop: '4px' }}>
+                              {errors.father_husband_name}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
                 const isLockedForRole = LOCKED_FIELDS.includes(field.key) && !isAdmin;
                 const isDisabled = (activeSection === 'assets') || !isEditing || isLockedForRole;
 
@@ -1520,16 +1621,6 @@ export default function DocumentsScreen({ onBack }) {
                           })()}
                           readOnly={isDisabled || field.key === 'age'}
                           onChange={e => handleChange(field.key, e.target.value)}
-                          onKeyDown={e => {
-                            if (field.key === 'dob') {
-                              e.preventDefault();
-                            }
-                          }}
-                          onPaste={e => {
-                            if (field.key === 'dob') {
-                              e.preventDefault();
-                            }
-                          }}
                           onClick={e => {
                             if (field.type === 'date' && !isDisabled) {
                               try {

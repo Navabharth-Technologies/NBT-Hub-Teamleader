@@ -144,7 +144,7 @@ export const AuthProvider = ({ children }) => {
             'Authorization': `Bearer ${token?.trim()}`
         },
         body: JSON.stringify({ 
-            [field]: value, 
+            ...(field === 'dob' || field === 'date_of_birth' ? { date_of_birth: value, dateOfBirth: value } : { [field]: value }),
             profile_picture: (field === 'profile_pic' || field === 'profile_picture' || field === 'profileImage') ? value : undefined,
             email: user.email, 
             userId: user.id || user.userId 

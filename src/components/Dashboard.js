@@ -1204,7 +1204,7 @@ const Dashboard = ({ setActiveTab }) => {
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{b?.employee_name || b?.name}</div>
                         <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700' }}>
-                          {`${dob.getFullYear()}/${String(dob.getMonth() + 1).padStart(2, '0')}/${String(dob.getDate()).padStart(2, '0')}`}
+                          {`${String(dob.getDate()).padStart(2, '0')}/${String(dob.getMonth() + 1).padStart(2, '0')}/${dob.getFullYear()}`}
                         </div>
                       </div>
                       <div style={{ fontSize: '10px', fontWeight: '900', padding: '4px 10px', borderRadius: '10px', backgroundColor: isToday ? '#ec4899' : '#f1f5f9', color: isToday ? 'white' : '#64748b' }}>

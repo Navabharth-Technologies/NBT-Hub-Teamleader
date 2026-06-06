@@ -203,7 +203,14 @@ export default function FocusLogs({ onBack }) {
         created.time,
         log.overallStatus || "PENDING",
         updated.date !== '--/--/----' ? `${updated.date} ${updated.time}` : 'N/A',
-        (log.tasks || []).map(t => t.text).join('\n')
+        (log.tasks || []).map(t => {
+          const taskId = typeof t === 'object' ? Number(t.id) : null;
+          const tTime = (!isNaN(taskId) && taskId > 1000000000000)
+            ? new Date(taskId).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
+            : '';
+          const prefix = tTime ? `[${tTime}] ` : '';
+          return `${prefix}${t.text || ''}`;
+        }).join('\n')
       ];
       tableRows.push(logData);
     });
