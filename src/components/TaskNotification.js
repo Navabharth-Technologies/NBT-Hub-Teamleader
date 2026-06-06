@@ -4,7 +4,7 @@ import { Bell, X, Play, Clock, Zap, Award, CheckCircle, XCircle, RefreshCw, Clip
 import { useAuth, checkAuthOnce } from '../context/AuthContext';
 import { API_ENDPOINTS } from '../config';
 
-const TaskNotification = ({ onOpenTask }) => {
+const TaskNotification = ({ onOpenTask, onNavigate }) => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
@@ -123,12 +123,15 @@ const TaskNotification = ({ onOpenTask }) => {
 
         return {
           id: gId,
+          rawId: gn.id,
           type: gn.type || 'ALERT',
           title: dynamicTitle,
           description: rawMsg,
           formattedTime: formatDate(parseDate),
           isNew: !isRead,
-          rawDate: parseDate
+          rawDate: parseDate,
+          leaveId: gn.leaveId || gn.leave_id || gn.relatedId || gn.related_id || gn.id,
+          taskId: gn.taskId || gn.task_id || gn.relatedId || gn.related_id || gn.id
         };
       });
 
@@ -291,7 +294,20 @@ const TaskNotification = ({ onOpenTask }) => {
                           tab = 'PROJECTS';
                         }
 
-                        onOpenTask(tab);
+                        if (typeof onOpenTask === 'function') {
+                          onOpenTask(tab);
+                        } else if (typeof onNavigate === 'function') {
+                          let path = '/';
+                          if (tab === 'LEAVE') path = '/leave';
+                          else if (tab === 'THREAD') path = '/thread';
+                          else if (tab === 'FUN') path = '/fun';
+                          
+                          const navState = (tab === 'LEAVE')
+                            ? { requestId: notif.leaveId || notif.id, notificationDesc: notif.description, notificationTitle: notif.title }
+                            : { taskId: notif.taskId || notif.id, notificationDesc: notif.description, notificationTitle: notif.title };
+                          
+                          onNavigate(path, navState);
+                        }
                         setIsOpen(false);
                         setHasUnread(false);
                       }}
