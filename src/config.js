@@ -29,6 +29,15 @@ export const cleanId = (id) => {
   return s;
 };
 
+// Company branding constants — single source of truth
+export const COMPANY_INFO = {
+  name: 'Navabharath Technologies',
+  tagline: 'Smarter Solutions for Better Future',
+  phone: '0821-3128831',
+  website: 'www.navabharathtechnologies.com',
+  email: 'contact@navabharathtechnologies.com',
+};
+
 export const API_ENDPOINTS = {
   LOGIN: `${BASE_URL}/api/login`,
   REGISTER: `${BASE_URL}/api/register`,

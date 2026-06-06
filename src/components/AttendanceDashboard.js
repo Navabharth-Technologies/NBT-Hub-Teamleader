@@ -276,12 +276,12 @@ const AttendanceDashboard = ({ onBack }) => {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
+    const clean = String(dateStr).split('T')[0];
+    const parts = clean.split('-');
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return 'N/A';
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}/${month}/${day}`;
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
   };
 
   const getStatusConfig = (log) => {
@@ -607,7 +607,7 @@ const AttendanceDashboard = ({ onBack }) => {
                       <Calendar size={12} color="#94a3b8" />
                       <span style={{ fontSize: isTablet ? '11px' : '13px', fontWeight: '700', color: '#475569' }}>
                         {isTablet
-                          ? new Date(log.punch_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                          ? (() => { const p = String(log.punch_date || '').split('T')[0].split('-'); return p.length === 3 ? `${p[2]}/${p[1]}` : formatDate(log.punch_date); })()
                           : formatDate(log.punch_date)
                         }
                       </span>

@@ -379,10 +379,11 @@ const AwardsScreen = ({ onBack }) => {
                 setQuizLeaderboard(activeLeaderboard);
 
 
+                const fmtDDMMYYYY = (raw) => { if (!raw) return ''; const p = String(raw).split('T')[0].split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : raw; };
                 quizHistory.forEach(comp => {
-                    const compDate = new Date(comp.completion_date || comp.created_at).toLocaleDateString();
+                    const compDate = fmtDDMMYYYY(comp.completion_date || comp.created_at);
                     const alreadyExists = allRewards.some(r => {
-                        const rDate = new Date(r.created_at || r.date).toLocaleDateString();
+                        const rDate = fmtDDMMYYYY(r.created_at || r.date);
                         return (r.reward_name === 'Points Earned By Quiz' || r.title === 'Points Earned By Quiz') && rDate === compDate;
                     });
 
@@ -1033,8 +1034,8 @@ const AwardsScreen = ({ onBack }) => {
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
                                                                 <div style={{ fontSize: '13px', fontWeight: '900', color: '#1e293b' }}>{aw.title || aw.award_name || aw.reward_name || aw.awardName}</div>
+                                                                <div style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8', flexShrink: 0 }}>{aw.created_at || aw.date ? (() => { const p = String(aw.created_at || aw.date).split('T')[0].split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : ''; })() : 'Recent'}</div>
                                                             </div>
-                                                            <div style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8', flexShrink: 0 }}>{aw.created_at || aw.date ? new Date(aw.created_at || aw.date).toLocaleDateString() : 'Recent'}</div>
                                                         </div>
                                                         <div style={{ fontSize: '11px', fontWeight: '1000', color: '#3B5998', marginTop: '4px' }}>+{aw.rep || aw.points} REP POINTS</div>
                                                     </motion.div>
@@ -1103,7 +1104,7 @@ const AwardsScreen = ({ onBack }) => {
                                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, paddingRight: isQuiz ? '15px' : '0' }}>
                                                                     <div style={{ fontSize: '13px', fontWeight: '900', color: '#1e293b' }}>{displayTitle}</div>
                                                                 </div>
-                                                                <div style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8', flexShrink: 0 }}>{aw.created_at || aw.date ? new Date(aw.created_at || aw.date).toLocaleDateString() : 'Recent'}</div>
+                                                                <div style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8', flexShrink: 0 }}>{aw.created_at || aw.date ? (() => { const p = String(aw.created_at || aw.date).split('T')[0].split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : ''; })() : 'Recent'}</div>
                                                             </div>
                                                             <div style={{ fontSize: '11px', fontWeight: '1000', color: isQuiz ? '#d97706' : '#15803d', marginTop: '4px' }}>+{aw.rep || aw.points} REP POINTS</div>
                                                         </motion.div>
@@ -1330,7 +1331,7 @@ const AwardsScreen = ({ onBack }) => {
                                                     </div>
                                                     <div style={{ fontSize: '14px', fontWeight: '900', color: '#3B5998' }}>{log.reward_name || log.award_name || log.title}</div>
                                                     <div><span style={{ padding: '6px 14px', backgroundColor: '#f0f9ff', color: '#0ea5e9', borderRadius: '10px', fontSize: '12px', fontWeight: '1000' }}>+{log.points || log.rep || 0} REP</span></div>
-                                                    <div style={{ textAlign: 'right', fontSize: '14px', fontWeight: '800', color: '#64748b' }}>{new Date(log.created_at || log.date || Date.now()).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                                                    <div style={{ textAlign: 'right', fontSize: '14px', fontWeight: '800', color: '#64748b' }}>{(() => { const raw = log.created_at || log.date; if (!raw) return ''; const p = String(raw).split('T')[0].split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : raw; })()}</div>
                                                 </div>
                                             );
                                         })

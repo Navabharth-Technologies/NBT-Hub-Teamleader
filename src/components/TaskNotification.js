@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, X, Play, Clock, Zap, Award } from 'lucide-react';
+import { Bell, X, Play, Clock, Zap, Award, CheckCircle, XCircle, RefreshCw, ClipboardList } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { API_ENDPOINTS, BASE_URL } from '../config';
 
@@ -52,7 +52,7 @@ const TaskNotification = ({ onNavigate }) => {
         hour = hour ? hour : 12;
         const formattedTime = `${String(hour).padStart(2, '0')}:${mm}:${ss || '00'} ${ampm}`;
 
-        return `${year}/${month}/${day} at ${formattedTime}`;
+        return `${day}/${month}/${year} at ${formattedTime}`;
       } catch (e) {
         console.warn('Manual date parse failed, falling back to JS Date');
       }
@@ -70,7 +70,7 @@ const TaskNotification = ({ onNavigate }) => {
     if (isToday) return `${timeStr} - Today`;
     const mon = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    return `${date.getFullYear()}/${mon}/${day} - ${timeStr}`;
+    return `${day}/${mon}/${date.getFullYear()} - ${timeStr}`;
   };
 
   const parseDate = (dateStr) => {
@@ -411,20 +411,24 @@ const TaskNotification = ({ onNavigate }) => {
                       e.currentTarget.style.transform = 'translateX(0)';
                     }}
                   >
-                    <div style={{
-                      width: '38px',
-                      height: '38px',
-                      borderRadius: '12px',
-                      backgroundColor: notif.type === 'QUIZ' ? '#0d676c' : (notif.isNew ? '#3B5998' : '#f1f5f9'),
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: (notif.isNew || notif.type === 'QUIZ') ? 'white' : '#94a3b8',
-                      flexShrink: 0,
-                      transition: 'all 0.3s ease'
-                    }}>
-                      {notif.type === 'QUIZ' ? <Zap size={18} fill="white" /> : notif.type === 'AWARD' ? <Award size={18} /> : <Bell size={18} fill={notif.isNew ? 'white' : 'transparent'} />}
-                    </div>
+                    {/* Left Icon Box — color-coded by task status */}
+                    {(() => {
+                      const t = String(notif.title || '').toLowerCase();
+                      let bg = notif.isNew ? '#3B5998' : '#f1f5f9';
+                      let iconEl = <Bell size={18} fill={notif.isNew ? 'white' : 'transparent'} />;
+                      if (notif.type === 'QUIZ') { bg = '#0d676c'; iconEl = <Zap size={18} fill="white" />; }
+                      else if (notif.type === 'AWARD') { bg = '#f59e0b'; iconEl = <Award size={18} />; }
+                      else if (t.includes('approved') || t.includes('accepted')) { bg = '#16a34a'; iconEl = <CheckCircle size={18} />; }
+                      else if (t.includes('rejected') || t.includes('declined')) { bg = '#ef4444'; iconEl = <XCircle size={18} />; }
+                      else if (t.includes('completed') || t.includes('done')) { bg = '#8b5cf6'; iconEl = <CheckCircle size={18} />; }
+                      else if (t.includes('update') || t.includes('reassign') || t.includes('deadline')) { bg = '#f97316'; iconEl = <RefreshCw size={18} />; }
+                      else if (t.includes('task') || t.includes('assigned')) { bg = '#3B5998'; iconEl = <ClipboardList size={18} />; }
+                      return (
+                        <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0, transition: 'all 0.3s ease' }}>
+                          {iconEl}
+                        </div>
+                      );
+                    })()}
 
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <h4 style={{
@@ -450,6 +454,23 @@ const TaskNotification = ({ onNavigate }) => {
                         overflow: 'hidden',
                         transition: 'all 0.3s ease'
                       }}>{notif.description}</p>
+                      {/* Assignee chip for task notifications */}
+                      {(String(notif.title || '').toLowerCase().includes('task') || String(notif.title || '').toLowerCase().includes('assigned')) && (() => {
+                        const desc = notif.description || '';
+                        let assignee = '';
+                        const toMatch = desc.match(/assigned to ([^:]+?)(?:\s*:|,|\s+by\s|$)/i);
+                        const byMatch = desc.match(/\bby\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*$/i);
+                        if (toMatch) assignee = toMatch[1].trim();
+                        else if (byMatch) assignee = byMatch[1].trim();
+                        return assignee ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '5px' }}>
+                            <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: notif.isNew ? '#3B5998' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: '900', color: 'white', flexShrink: 0 }}>
+                              {assignee.charAt(0).toUpperCase()}
+                            </div>
+                            <span style={{ fontSize: '10px', fontWeight: '900', color: notif.isNew ? '#3B5998' : '#94a3b8' }}>{assignee}</span>
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
 
                     {notif.isNew && (

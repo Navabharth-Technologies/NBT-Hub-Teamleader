@@ -37,6 +37,15 @@ export default function FocusLogs({ onBack }) {
     return `${y}-${m}-${d}`;
   };
 
+  const formatDisplayDate = (dateStr) => {
+    if (!dateStr) return 'dd/mm/yyyy';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return dateStr;
+  };
+
   const now = new Date();
   const firstDay = formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1));
   const lastDay = formatLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
@@ -189,7 +198,7 @@ export default function FocusLogs({ onBack }) {
   const downloadPDF = () => {
     if (filteredLogs.length === 0) return alert("No logs to download");
     const doc = new jsPDF();
-    const rangeTitle = (startDate && endDate) ? `${startDate} to ${endDate}` : 'All Time';
+    const rangeTitle = (startDate && endDate) ? `${formatDisplayDate(startDate)} to ${formatDisplayDate(endDate)}` : 'All Time';
     doc.text(`Personal Focus Logs: ${rangeTitle}`, 14, 15);
 
     const tableColumn = ["Report Date", "Time", "Status", "Updated At", "Tasks"];
@@ -203,14 +212,7 @@ export default function FocusLogs({ onBack }) {
         created.time,
         log.overallStatus || "PENDING",
         updated.date !== '--/--/----' ? `${updated.date} ${updated.time}` : 'N/A',
-        (log.tasks || []).map(t => {
-          const taskId = typeof t === 'object' ? Number(t.id) : null;
-          const tTime = (!isNaN(taskId) && taskId > 1000000000000)
-            ? new Date(taskId).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
-            : '';
-          const prefix = tTime ? `[${tTime}] ` : '';
-          return `${prefix}${t.text || ''}`;
-        }).join('\n')
+        (log.tasks || []).map(t => t.text || '').join('\n')
       ];
       tableRows.push(logData);
     });
@@ -352,29 +354,9 @@ export default function FocusLogs({ onBack }) {
           <button style={s.clearBtn} onClick={handleClear}>Clear</button>
 
           <div style={{ position: 'relative' }}>
-            <button style={s.downloadBtn} onClick={() => setShowDownloadMenu(!showDownloadMenu)}>
-              <Download size={18} /> Download Logs
+            <button style={s.downloadBtn} onClick={downloadPDF}>
+              <Download size={18} /> Download PDF
             </button>
-            {showDownloadMenu && (
-              <div style={s.dropdownMenu}>
-                <button
-                  style={s.dropdownItem}
-                  onMouseEnter={e => e.target.style.backgroundColor = '#f1f5f9'}
-                  onMouseLeave={e => e.target.style.backgroundColor = 'white'}
-                  onClick={downloadSpreadsheet}
-                >
-                  <FileText size={16} color="#059669" /> Download Spreadsheet
-                </button>
-                <button
-                  style={s.dropdownItem}
-                  onMouseEnter={e => e.target.style.backgroundColor = '#f1f5f9'}
-                  onMouseLeave={e => e.target.style.backgroundColor = 'white'}
-                  onClick={downloadPDF}
-                >
-                  <FileText size={16} color="#e11d48" /> Download PDF
-                </button>
-              </div>
-            )}
           </div>
         </div>
 

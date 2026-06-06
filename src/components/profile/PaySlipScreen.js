@@ -1,557 +1,510 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ChevronLeft, ArrowLeft, Download, FileText, Calendar, DollarSign,
-  ArrowRight, Search, Filter, CheckCircle2, AlertCircle,
-  Printer, Share2, MoreHorizontal, User, Briefcase, MapPin,
-  Clock, Plus, Minus, Landmark, FileSpreadsheet
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Download, Calendar, ChevronRight, FileText, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { API_ENDPOINTS, BASE_URL } from '../../config';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
+import { API_ENDPOINTS, COMPANY_INFO } from '../../config';
+import logo from '../../assets/image.png';
+import BackButton from '../BackButton';
 
-const PaySlipScreen = ({ onBack }) => {
+// Helper: format a month label like "April 2026" from a date string or {month, year} object
+function formatMonthLabel(payslip) {
+  if (payslip.month_label) return payslip.month_label;
+  if (payslip.month && payslip.year) {
+    const d = new Date(`${payslip.year}-${String(payslip.month).padStart(2, '0')}-01`);
+    return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  }
+  if (payslip.period || payslip.payPeriod) {
+    const raw = payslip.period || payslip.payPeriod;
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? raw : d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  }
+  return 'Payslip';
+}
+
+// Helper: format currency
+function formatAmount(val) {
+  const num = parseFloat(String(val || '0').replace(/,/g, ''));
+  return isNaN(num) ? '0' : num.toLocaleString('en-IN');
+}
+
+export default function PaySlipScreen({ onBack }) {
   const { user } = useAuth();
-  const [winWidth, setWinWidth] = useState(window.innerWidth);
-  const isMobile = winWidth < 768;
-  const isTablet = winWidth < 1024;
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedYear, setSelectedYear] = useState('2026');
-  const [viewingSlip, setViewingSlip] = useState(null);
-  const [profileData, setProfileData] = useState({
-    name: user?.name || 'User',
-    empId: user?.employee_id || user?.id || 'N/A',
-    designation: user?.designation || user?.role || 'Member',
-    department: 'Information Technology',
-    role: user?.role || ''
-  });
-
-  const [paySlips, setPaySlips] = useState([]);
+  const [payslips, setPayslips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedPayslip, setSelectedPayslip] = useState(null);
+  const [winWidth, setWinWidth] = useState(window.innerWidth);
 
   useEffect(() => {
-    const fetchFullProfile = async () => {
-      try {
-        const identifier = user?.email || user?.id || user?.employee_id;
-        if (!identifier) return;
-        const token = localStorage.getItem('token');
-        const resp = await fetch(`${BASE_URL}/api/profile/${identifier}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          const jd = data.joining_date || data.joiningDate || data['joining date'] || user?.joining_date || user?.joiningDate || '';
-          setProfileData({
-            name: data.employee_name || data.name || user?.name,
-            empId: data.employee_id || data.id || user?.employee_id || user?.id,
-            designation: data.designation || data.role || user?.designation || user?.role,
-            department: data.department || 'Information Technology',
-            role: data.role || user?.role || '',
-            joiningDate: jd
-          });
-        }
-      } catch (err) {
-        console.error('PaySlip Profile Sync Error:', err);
-      }
-    };
-    fetchFullProfile();
-  }, [user]);
+    const onResize = () => setWinWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
+  // ── Fetch payslips from backend ──
   useEffect(() => {
-    const fetchSlips = async () => {
+    const fetchPayslips = async () => {
       try {
-        const uid = user?.employee_id || user?.id;
-        if (!uid) return;
-        const token = localStorage.getItem('token');
-        const resp = await fetch(API_ENDPOINTS.MY_PAYSLIPS(uid), {
-          headers: { 'Authorization': `Bearer ${token}` }
+        setLoading(true);
+        setError('');
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        const userId = user?.id || user?.employee_id || user?.empId;
+        const url = API_ENDPOINTS.MY_PAYSLIPS(userId);
+
+        const res = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token.trim()}` : ''
+          }
         });
-        if (resp.ok) {
-          const data = await resp.json();
-          setPaySlips(Array.isArray(data) ? data : (data.value || data.data || []));
+
+        if (res.ok) {
+          const data = await res.json();
+          console.log('[PaySlipScreen] Raw API response:', JSON.stringify(data, null, 2));
+          const list = Array.isArray(data)
+            ? data
+            : (data.value || data.data || data.payslips || data.result || data.results || data.records || data.items || []);
+          console.log('[PaySlipScreen] Parsed list:', list);
+          setPayslips(list);
+        } else {
+          console.warn('[PaySlipScreen] API returned error:', res.status);
+          setError(`Failed to load payslips (${res.status}). Please try again later.`);
+          setPayslips([]);
         }
       } catch (err) {
-        console.error('PaySlip Fetch Error:', err);
+        console.error('[PaySlipScreen] Fetch error:', err);
+        setError('Could not connect to server. Please check your connection.');
+        setPayslips([]);
       } finally {
         setLoading(false);
       }
     };
-    fetchSlips();
+
+    fetchPayslips();
   }, [user]);
 
-  const getMonthName = (m) => {
-    const months = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    return months[Number(m)] || m;
-  };
+  const handleDownload = async () => {
+    if (!selectedPayslip) return;
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      const { default: jsPDF } = await import('jspdf');
+      const el = document.querySelector('.printable-payslip');
+      if (!el) return;
 
-  useEffect(() => {
-    const handleResize = () => setWinWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        windowWidth: el.scrollWidth,
+        windowHeight: el.scrollHeight
+      });
 
-  const filteredSlips = paySlips.filter(slip => {
-    const month = String(getMonthName(slip.month) || '').toLowerCase();
-    const year = String(slip.year || '');
-    const search = searchQuery.toLowerCase();
-    return (month.includes(search) || year.includes(search)) && (selectedYear === 'All' || year === selectedYear);
-  });
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-  if (viewingSlip) {
-    return <PaySlipDetail slip={viewingSlip} profile={profileData} onBack={() => setViewingSlip(null)} />;
-  }
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
 
-  return (
-    <div style={{ padding: isMobile ? '0 15px 40px 15px' : '0 40px 60px 40px', maxWidth: '100%', marginTop: '15px', fontFamily: "'Inter', sans-serif" }}>
-      <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', gap: isMobile ? '12px' : '20px', marginBottom: '10px', flexDirection: isMobile ? 'column' : 'row' }}>
-        <button onClick={onBack} style={{
-          padding: isMobile ? '8px' : '12px',
-          borderRadius: '12px',
-          backgroundColor: 'white',
-          border: '1.5px solid #e2e8f0',
-          cursor: 'pointer',
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-        }}>
-          <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
-        </button>
-        <h1 style={{ fontSize: isMobile ? '24px' : '32px', fontWeight: '900', color: '#10274A', margin: 0 }}>Salary Statements</h1>
-      </div>
+      let imgW = pageW;
+      let imgH = (canvas.height * imgW) / canvas.width;
 
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '100px', color: '#64748b' }}>Loading records...</div>
-      ) : filteredSlips.length > 0 ? (
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'), gap: '20px' }}>
-          {filteredSlips.map(slip => (
-            <div key={slip.id} onClick={() => setViewingSlip(slip)} style={{ backgroundColor: 'white', borderRadius: '24px', padding: '24px', border: '1.5px solid #f1f5f9', cursor: 'pointer' }}>
-              <div style={{ fontSize: '12px', fontWeight: '900', color: '#10274A', marginBottom: '10px' }}>{getMonthName(slip.month)} {slip.year}</div>
-              <div style={{ fontSize: '24px', fontWeight: '900' }}>₹ {slip.net_payable || slip.amount || 0}</div>
-              <button style={{ width: '100%', marginTop: '15px', padding: '10px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', fontWeight: '800' }}>View Statement</button>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div style={{ textAlign: 'center', padding: '100px', backgroundColor: 'white', borderRadius: '30px', border: '1.5px solid #f1f5f9' }}>
-          <FileText size={48} color="#cbd5e1" style={{ marginBottom: '15px' }} />
-          <div style={{ fontSize: '18px', fontWeight: '800', color: '#10274A' }}>No records found</div>
-          <div style={{ fontSize: '14px', color: '#64748b' }}>Your salary statements will appear here once they are released.</div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ────── OFFICIAL PAY SLIP DOCUMENT VIEW ──────
-const PaySlipDetail = ({ slip, profile, onBack }) => {
-  const { user } = useAuth();
-  const [winWidth, setWinWidth] = useState(window.innerWidth);
-  const isMobile = winWidth < 768;
-  const isTablet = winWidth < 1024;
-
-  useEffect(() => {
-    const handleResize = () => setWinWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Flexible mapping strictly aligned with the provided database schema and user's visual reference
-  const d = slip;
-
-  const getMonthName = (m) => {
-    const months = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    return months[Number(m)] || m;
-  };
-
-  const [showDownloadMenu, setShowDownloadMenu] = useState(false);
-  const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowDownloadMenu(false);
+      if (imgH > pageH) {
+        const ratio = pageH / imgH;
+        imgH = pageH;
+        imgW = imgW * ratio;
       }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
-  const handleDownload = async (type) => {
-    setShowDownloadMenu(false);
+      const x = (pageW - imgW) / 2;
+      const y = (pageH - imgH) / 2;
 
-    if (type === 'PDF') {
-      const element = document.getElementById('printable-area');
-      if (!element) return;
+      pdf.addImage(imgData, 'JPEG', x, y, imgW, imgH);
+      const label = formatMonthLabel(selectedPayslip).replace(/\s+/g, '_');
 
-      try {
-        const canvas = await html2canvas(element, {
-          scale: 2, // High resolution
-          useCORS: true,
-          backgroundColor: '#ffffff'
-        });
-
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`payslip_${data.name.replace(/\s+/g, '_')}_${data.month}_${data.year}.pdf`);
-      } catch (err) {
-        console.error('PDF Generation Error:', err);
-        // Fallback to print if library fails
-        window.print();
-      }
-    } else if (type === 'EXCEL') {
-      // Generate CSV for Excel
-      let csv = "data:text/csv;charset=utf-8,";
-      csv += "SALARY STATEMENT - NAVABHARATH TECHNOLOGIES\n";
-      csv += `Month,${data.month} ${data.year}\n`;
-      csv += `Employee,${data.name} (${data.empCode})\n`;
-      csv += `Designation,${data.designation}\n\n`;
-
-      csv += "EARNINGS,Amount,DEDUCTIONS,Amount\n";
-      csv += `Basic,${data.earnings.basic},PF,${data.deductions.pf}\n`;
-      csv += `HRA,${data.earnings.hra},ESI,${data.deductions.esi}\n`;
-      csv += `Conveyance,${data.earnings.conveyance},PT,${data.deductions.pt}\n`;
-      csv += `Special Allowance,${data.earnings.special},LWF,${data.deductions.lwf}\n`;
-      csv += `,,Income Tax,${data.deductions.incomeTax}\n`;
-      csv += `,,Loss of Pay,${data.deductions.lop}\n`;
-      csv += `Performance Incentive,${data.incentives.performance},,\n`;
-      csv += `Yearly Incentive,${data.incentives.yearly},,\n\n`;
-
-      csv += `TOTAL EARNINGS,${totalEarnings + totalIncentives},TOTAL DEDUCTIONS,${totalDeductions}\n`;
-      csv += `,,NET PAYABLE,${netPayable}\n\n`;
-
-      csv += "ATTENDANCE SUMMARY\n";
-      csv += `Present,${data.attendance.present},Weekly Off,${data.attendance.wo}\n`;
-      csv += `Holidays,${data.attendance.hl},Leaves,${data.attendance.leave}\n`;
-      csv += `Loss of Pay,${data.attendance.absent},OT Hours,${data.attendance.totalOT}\n`;
-
-      const encodedUri = encodeURI(csv);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `payslip_${data.name.replace(/\s+/g, '_')}_${data.month}_${data.year}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      // Save directly as standard PDF file
+      pdf.save(`Payslip_${label}.pdf`);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      window.print();
     }
   };
 
-  const attendance = slip.attendance || {
-    present: d.total_present || d.present || 0,
-    wo: d.total_weekly_off || d.wo || 0,
-    hl: d.total_holidays || d.hl || 0,
-    leave: d.total_leaves || d.leave || 0,
-    absent: d.total_absent || d.absent || 0,
-    totalWork: d.total_work_ot || d.work_overtime || '0:00',
-    totalOT: d.total_ot_hours || d.ot_hours || '0:00',
-    refAmt: d.bonus_ref_amt || d.reference_amount || 0
+  // ── Shared helpers ──
+  const parseAmt = (val) => {
+    const n = parseFloat(String(val || '0').replace(/,/g, ''));
+    return isNaN(n) ? 0 : n;
   };
 
-  const earnings = {
-    basic: d.basic_salary || d.basic_pay || d.basic || 0,
-    hra: d.hra || 0,
-    conveyance: d.conveyance || 0,
-    special: d.special_allowance || d.special || 0,
-    total: d.total_earnings || 0
+  const getNetPayAmt = (ps) => {
+    // 1. Priority to explicit net_payable from backend
+    const explicitNet = parseAmt(ps.net_payable || ps.net_pay || ps.netPay || ps.amount || 0);
+    if (explicitNet > 0) return explicitNet;
+
+    // 2. Dynamic Calculation: (Earnings + Incentives) - Deductions
+    const basicAmt = parseAmt(ps.basic_salary || ps.basic || ps.basicSalary || 0);
+    const hraAmt = parseAmt(ps.hra || ps.house_rent_allowance || ps.houseRentAllowance || 0);
+    const convAmt = parseAmt(ps.conveyance || ps.conveyance_allowance || ps.conveyanceAllowance || 0);
+    const specialAmt = parseAmt(ps.special_allowance || ps.specialAllowance || ps.other_allowance || 0);
+    const earnAmt = parseAmt(ps.total_earnings || ps.total_earning || ps.totalEarning || ps.gross_salary || ps.grossSalary || 0) || (basicAmt + hraAmt + convAmt + specialAmt);
+
+    const perfAmt = parseAmt(ps.performance_incentive || ps.performanceIncentive || ps.performance || 0);
+    const yrAmt = parseAmt(ps.yearly_incentive || ps.yearlyIncentive || ps.yearly || 0);
+    const incAmt = parseAmt(ps.total_incentive || ps.totalIncentive || 0) || (perfAmt + yrAmt);
+
+    const pfAmt = parseAmt(ps.pf_deduction || ps.pf || ps.provident_fund || ps.providentFund || 0);
+    const esiAmt = parseAmt(ps.esi_deduction || ps.esi || ps.employee_state_insurance || ps.employeeStateInsurance || 0);
+    const ptAmt = parseAmt(ps.pt_deduction || ps.pt || ps.professional_tax || ps.professionalTax || 0);
+    const lwfAmt = parseAmt(ps.lwf || ps.labour_welfare_fund || ps.labourWelfareFund || 0);
+    const taxAmt = parseAmt(ps.income_tax || ps.incomeTax || ps.tds || 0);
+    const lopAmt = parseAmt(ps.lop_deduction || ps.lopDeduction || 0);
+    const dedAmt = parseAmt(ps.total_deductions || ps.total_deduction || ps.totalDeduction || 0) || (pfAmt + esiAmt + ptAmt + lwfAmt + taxAmt + lopAmt);
+
+    return (earnAmt + incAmt) - dedAmt;
   };
 
-  const deductions = {
-    pf: d.pf_deduction || d.pf || 0,
-    esi: d.esi_deduction || d.esi || 0,
-    pt: d.pt_deduction || d.pt || 0,
-    lwf: d.lwf || 0,
-    incomeTax: d.income_tax || d.tax || 0,
-    lop: d.lop_deduction || d.lop || 0,
-    total: d.total_deductions || 0
-  };
+  const cell = (extra = {}) => ({
+    border: '1px solid #e2e8f0', padding: '14px 15px', fontSize: '12px', color: '#1e293b', ...extra
+  });
 
-  const incentives = {
-    performance: d.performance_incentive || 0,
-    yearly: d.yearly_incentive || d.annual_bonus || 0,
-    total: d.total_incentives || 0
-  };
+  const SectionCard = ({ rows, total, totalLabel, color, isLast }) => (
+    <div style={{ border: '1px solid #e2e8f0', borderTop: 'none', borderRight: isLast ? '1px solid #e2e8f0' : 'none', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      {rows.map(([label, val], i) => (
+        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 15px', fontSize: '12px' }}>
+          <span style={{ color: '#64748b', fontWeight: '600' }}>{label}</span>
+          <span style={{ color: '#0f172a', fontWeight: '800' }}>{val}</span>
+        </div>
+      ))}
+      <div style={{ flex: 1, minHeight: '40px' }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 15px', borderTop: '1px solid #e2e8f0', fontSize: '12px', fontWeight: '900', color: '#0f172a' }}>
+        <span>{totalLabel}</span>
+        <span style={{ color: color || '#0f172a' }}>{total}</span>
+      </div>
+    </div>
+  );
 
-  const data = {
-    month: getMonthName(d.month),
-    year: d.year || '',
-    empCode: d.employee_id || d.emp_code || profile.empId || 'N/A',
-    department: d.department || profile.department || '',
-    name: d.emp_name || d.name || profile.name || '',
-    designation: d.designation || profile.designation || '',
-    attendance,
-    earnings,
-    incentives,
-    deductions
-  };
+  // ════════════════════════════════════════════
+  //  MONTH PICKER VIEW
+  // ════════════════════════════════════════════
+  if (!selectedPayslip) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9', padding: winWidth < 768 ? '20px 15px 120px' : '40px 20px 120px', fontFamily: "'Inter', sans-serif" }}>
+        <div style={{ maxWidth: '100%', margin: '0 auto' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '30px' }}>
+            <BackButton onClick={onBack} />
+            <div>
+              <h2 style={{ margin: 0, fontSize: winWidth < 768 ? '18px' : '22px', fontWeight: '900', color: '#0B1E3F' }}>Salary Statements</h2>
+              <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Select a month to view your payslip</p>
+            </div>
+          </div>
 
-  const totalEarnings = data.earnings.total || (Number(data.earnings.basic) + Number(data.earnings.hra) + Number(data.earnings.conveyance) + Number(data.earnings.special));
-  const totalIncentives = data.incentives.total || (Number(data.incentives.performance) + Number(data.incentives.yearly));
-  const totalDeductions = data.deductions.total || (Number(data.deductions.pf) + Number(data.deductions.esi) + Number(data.deductions.pt) + Number(data.deductions.lwf) + Number(data.deductions.incomeTax) + Number(data.deductions.lop));
-  const netPayable = d.net_payable || (totalEarnings + totalIncentives - totalDeductions);
+          {/* Loading State */}
+          {loading && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', gap: '16px' }}>
+              <Loader2 size={36} color="#3b82f6" style={{ animation: 'spin 1s linear infinite' }} />
+              <div style={{ fontSize: '14px', color: '#64748b', fontWeight: '600' }}>Fetching your payslips...</div>
+              <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            </div>
+          )}
 
-  const fmt = (v) => (Number(v) || 0).toLocaleString('en-IN');
+          {/* Error State */}
+          {!loading && error && (
+            <div style={{ padding: '20px 24px', backgroundColor: '#fef2f2', borderRadius: '16px', border: '1.5px solid #fecaca', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <AlertCircle size={20} color="#ef4444" />
+              <span style={{ fontSize: '13px', color: '#dc2626', fontWeight: '700' }}>{error}</span>
+            </div>
+          )}
 
-  const s = {
-    docWrapper: { backgroundColor: '#fcfdfe', minHeight: '100vh', padding: isMobile ? '0 10px 40px 10px' : '0 40px 40px 40px' },
-    topNav: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', maxWidth: '900px', margin: '0 auto 20px', flexDirection: isMobile ? 'column' : 'row', gap: '15px' },
-    backBtn: { background: 'white', padding: '10px 20px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '13px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', width: isMobile ? '100%' : 'auto', justifyContent: 'center' },
-    actionBtn: { padding: '10px 25px', borderRadius: '10px', fontSize: '13px', fontWeight: '800', cursor: 'pointer', border: 'none', display: 'flex', alignItems: 'center', gap: '8px', flex: 1, justifyContent: 'center' },
+          {/* Empty State */}
+          {!loading && !error && payslips.length === 0 && (
+            <div style={{ padding: '50px 20px', textAlign: 'center', backgroundColor: 'white', borderRadius: '20px', border: '2px solid #e2e8f0' }}>
+              <FileText size={40} color="#cbd5e1" style={{ marginBottom: '12px' }} />
+              <div style={{ fontSize: '15px', fontWeight: '800', color: '#94a3b8' }}>No payslips found</div>
+              <div style={{ fontSize: '12px', color: '#cbd5e1', marginTop: '6px' }}>Payslips will appear here once processed by your HR team</div>
+            </div>
+          )}
 
-    // THE DOCUMENT BOX
-    paper: {
-      backgroundColor: 'white',
-      maxWidth: '900px',
-      margin: '0 auto',
-      boxShadow: '0 0 20px rgba(0,0,0,0.05)',
-      padding: isMobile ? '20px 15px' : '50px',
-      position: 'relative',
-      fontFamily: "'Inter', sans-serif",
-      color: '#0B1E3F',
-      overflow: 'hidden',
-      borderRadius: '15px'
-    },
-    cornerTriangle: {
-      position: 'absolute',
-      width: '150px',
-      height: '150px',
-      backgroundColor: '#1E3A8A',
-      zIndex: 0
-    },
-    header: { textAlign: 'center', position: 'relative', zIndex: 1, marginBottom: '30px' },
-    companyName: { fontSize: '28px', fontWeight: '1000', letterSpacing: '1px', marginBottom: '5px' },
-    tagline: { fontSize: '12px', fontWeight: '600', color: '#64748b' },
-    slipTitleBox: { borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0', padding: '10px', margin: '20px 0', textTransform: 'uppercase' },
-    slipTitleText: { fontSize: '15px', fontWeight: '900', letterSpacing: '1px' },
+          {/* Payslip Cards */}
+          {!loading && !error && payslips.length > 0 && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: winWidth < 768 ? '1fr' : 'repeat(3, 1fr)',
+              gap: '14px'
+            }}>
+              {payslips.map((ps, idx) => {
+                const netPay = formatAmount(getNetPayAmt(ps));
+                const monthLabel = formatMonthLabel(ps);
 
-    // THE GRID TABLES (RECREATING IMAGE STYLE)
-    gridTable: {
-      width: '100%',
-      borderCollapse: 'collapse',
-      marginBottom: '12px',
-      fontSize: '11px',
-      border: '1px solid #e2e8f0'
-    },
-    cell: {
-      padding: '12px 15px',
-      textAlign: 'left'
-    },
-    label: { color: '#64748b', fontWeight: '800', textTransform: 'uppercase' },
-    value: { fontWeight: '700', color: '#0B1E3F' },
+                return (
+                  <motion.div
+                    key={ps.id || ps._id || idx}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.07 }}
+                    onClick={() => setSelectedPayslip(ps)}
+                    whileHover={{ scale: 1.01, boxShadow: '0 8px 30px rgba(11,30,63,0.12)' }}
+                    whileTap={{ scale: 0.99 }}
+                    style={{ backgroundColor: 'white', borderRadius: '18px', padding: '24px 24px 18px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', cursor: 'pointer', border: '2px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.04)', transition: 'all 0.2s ease' }}
+                  >
+                    {/* Top Row: Info & Status */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '18px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                        <div style={{ width: '56px', height: '56px', borderRadius: '14px', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <FileText size={26} color="#1e40af" />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '17px', fontWeight: '800', color: '#0B1E3F' }}>{monthLabel}</div>
+                          <div style={{ fontSize: '22px', fontWeight: '900', color: '#1e40af', marginTop: '2px' }}>₹ {netPay}</div>
+                        </div>
+                      </div>
 
-    // DUAL TABLE
-    dualContainer: { display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '0', border: '1px solid #e2e8f0' },
-    sideBlock: { flex: 1, borderRight: isMobile ? 'none' : '1px solid #e2e8f0', borderBottom: isMobile ? '1px solid #e2e8f0' : 'none' },
-    sideHeader: { padding: '12px 15px', backgroundColor: '#f8fafc', fontWeight: '900', textTransform: 'uppercase', borderBottom: '1px solid #e2e8f0', fontSize: '10px' },
-    row: { display: 'flex', justifyContent: 'space-between', padding: '10px 15px', borderBottom: '1px solid #f8fafc', fontSize: '11px' },
-    rowTotal: { padding: '12px 15px', backgroundColor: '#f8fafc', fontWeight: '900', display: 'flex', justifyContent: 'space-between', fontSize: '11px' },
+                    </div>
 
-    footer: { marginTop: '40px', fontSize: '10px', color: '#94a3b8', textAlign: 'center', padding: '0 40px' },
-    contactInfo: { marginTop: '30px', textAlign: 'right', fontSize: '11px', fontWeight: '700' }
-  };
+                    {/* Bottom Row: View Statement footer */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%', borderTop: '1px solid #f1f5f9', paddingTop: '12px', color: '#1e40af' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '800' }}>
+                          View Statement
+                        </span>
+                        <ChevronRight size={20} />
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Info note */}
+          {!loading && (
+            <div style={{ marginTop: '24px', padding: '14px 18px', backgroundColor: '#eff6ff', borderRadius: '14px', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Calendar size={18} color="#3b82f6" />
+              <span style={{ fontSize: '12px', color: '#1e40af', fontWeight: '600' }}>Click on any month to view and download your full payslip</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════
+  //  PAYSLIP DETAIL VIEW
+  // ════════════════════════════════════════════
+  const ps = selectedPayslip;
+  const monthLabel = formatMonthLabel(ps);
+
+  // Earnings
+  const basicAmt = parseAmt(ps.basic_salary || ps.basic || ps.basicSalary || 0);
+  const hraAmt = parseAmt(ps.hra || ps.house_rent_allowance || ps.houseRentAllowance || 0);
+  const conveyanceAmt = parseAmt(ps.conveyance || ps.conveyance_allowance || ps.conveyanceAllowance || 0);
+  const specialAllowAmt = parseAmt(ps.special_allowance || ps.specialAllowance || ps.other_allowance || 0);
+
+  const earningRows = [
+    ['Basic', formatAmount(basicAmt)],
+    ['HRA', formatAmount(hraAmt)],
+    ['Conveyance', formatAmount(conveyanceAmt)],
+    ['Special Allowance', formatAmount(specialAllowAmt)],
+  ];
+  const totalEarningAmt = parseAmt(ps.total_earnings || ps.total_earning || ps.totalEarning || ps.gross_salary || ps.grossSalary || 0)
+    || (basicAmt + hraAmt + conveyanceAmt + specialAllowAmt);
+  const totalEarning = formatAmount(totalEarningAmt);
+
+  // Incentives
+  const perfAmt = parseAmt(ps.performance_incentive || ps.performanceIncentive || ps.performance || 0);
+  const yearlyAmt = parseAmt(ps.yearly_incentive || ps.yearlyIncentive || ps.yearly || 0);
+  const incentiveRows = [
+    ['Performance', formatAmount(perfAmt)],
+    ['Yearly Incentive', formatAmount(yearlyAmt)],
+  ];
+  const totalIncentiveAmt = parseAmt(ps.total_incentive || ps.totalIncentive || 0) || (perfAmt + yearlyAmt);
+  const totalIncentive = formatAmount(totalIncentiveAmt);
+
+  // Deductions
+  const pfAmt = parseAmt(ps.pf_deduction || ps.pf || ps.provident_fund || ps.providentFund || 0);
+  const esiAmt = parseAmt(ps.esi_deduction || ps.esi || ps.employee_state_insurance || ps.employeeStateInsurance || 0);
+  const ptAmt = parseAmt(ps.pt_deduction || ps.pt || ps.professional_tax || ps.professionalTax || 0);
+  const lwfAmt = parseAmt(ps.lwf || ps.labour_welfare_fund || ps.labourWelfareFund || 0);
+  const incomeTaxAmt = parseAmt(ps.income_tax || ps.incomeTax || ps.tds || 0);
+  const lopDeductionAmt = parseAmt(ps.lop_deduction || ps.lopDeduction || 0);
+
+  const deductionRows = [
+    ['PF', formatAmount(pfAmt)],
+    ['ESI', formatAmount(esiAmt)],
+    ['PT', formatAmount(ptAmt)],
+    ['LWF', formatAmount(lwfAmt)],
+    ['Income Tax', formatAmount(incomeTaxAmt)],
+    ['LOP Deduction', formatAmount(lopDeductionAmt)],
+  ];
+  const totalDeductionAmt = parseAmt(ps.total_deductions || ps.total_deduction || ps.totalDeduction || 0)
+    || (pfAmt + esiAmt + ptAmt + lwfAmt + incomeTaxAmt + lopDeductionAmt);
+  const totalDeduction = formatAmount(totalDeductionAmt);
+
+  // Net Payable
+  const netPayAmt = parseAmt(ps.net_payable || ps.net_pay || ps.netPay || ps.amount || 0)
+    || ((totalEarningAmt + totalIncentiveAmt) - totalDeductionAmt);
+  const netPay = formatAmount(netPayAmt);
 
   return (
-    <div style={s.docWrapper}>
-      {/* Top Controls */}
-      <div style={s.topNav}>
-        <button onClick={onBack} style={{
-          padding: isMobile ? '8px' : '12px',
-          borderRadius: '12px',
-          backgroundColor: 'white',
-          border: '1.5px solid #e2e8f0',
-          cursor: 'pointer',
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-        }}>
-          <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
-        </button>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9', padding: '40px 20px 120px', fontFamily: "'Inter', sans-serif" }}>
 
-        {/* UNIFIED DOWNLOAD DROPDOWN */}
-        <div style={{ position: 'relative' }} ref={dropdownRef}>
-          <button
-            onClick={() => setShowDownloadMenu(!showDownloadMenu)}
-            style={{ ...s.actionBtn, background: '#0B1E3F', color: 'white', minWidth: '220px' }}
-          >
-            <Download size={16} /> Download Statement
+      {/* Action bar */}
+      <div className="no-print" style={{ maxWidth: '900px', margin: '0 auto 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+        <BackButton onClick={() => setSelectedPayslip(null)} />
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={handleDownload} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 18px', borderRadius: '10px', border: 'none', backgroundColor: '#0B1E3F', color: 'white', fontWeight: '800', fontSize: '13px', cursor: 'pointer' }}>
+            <Download size={18} /> Download
           </button>
-
-          <AnimatePresence>
-            {showDownloadMenu && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                style={{
-                  position: 'absolute', top: '100%', right: 0, marginTop: '10px',
-                  backgroundColor: 'white', borderRadius: '15px', padding: '10px',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.15)', zIndex: 100,
-                  minWidth: '220px', border: '1px solid #f1f5f9'
-                }}
-              >
-                <div
-                  onClick={() => handleDownload('PDF')}
-                  style={{
-                    padding: '12px 15px', borderRadius: '10px', display: 'flex', alignItems: 'center',
-                    gap: '12px', cursor: 'pointer', transition: '0.2s', color: '#1e293b'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  <FileText size={18} color="#ef4444" />
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '13px', fontWeight: '800' }}>PDF Document</span>
-                    <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '600' }}>For official submission</span>
-                  </div>
-                </div>
-
-                <div style={{ height: '1px', background: '#f1f5f9', margin: '5px 0' }} />
-
-                <div
-                  onClick={() => handleDownload('EXCEL')}
-                  style={{
-                    padding: '12px 15px', borderRadius: '10px', display: 'flex', alignItems: 'center',
-                    gap: '12px', cursor: 'pointer', transition: '0.2s', color: '#1e293b'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  <FileSpreadsheet size={18} color="#16a34a" />
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '13px', fontWeight: '800' }}>Excel Spreadsheet</span>
-                    <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '600' }}>For personal tracking</span>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       </div>
 
-      <div id="printable-area" style={s.paper}>
-        {/* Branding Elements (Corner decorations from image) */}
-        <div style={{ ...s.cornerTriangle, top: -75, right: -75, transform: 'rotate(45deg)' }} />
-        <div style={{ ...s.cornerTriangle, top: -100, right: -20, transform: 'rotate(45deg)', opacity: 0.5 }} />
-        <div style={{ ...s.cornerTriangle, bottom: -75, left: -75, transform: 'rotate(45deg)', backgroundColor: '#3B82F6' }} />
+      {/* Payslip document */}
+      <motion.div
+        key={ps.id || ps._id}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="printable-payslip"
+        style={{ maxWidth: '900px', width: '100%', margin: '0 auto', backgroundColor: 'white', padding: '60px 40px 80px', borderRadius: '2px', boxShadow: '0 0 40px rgba(0,0,0,0.05)', position: 'relative', overflowX: 'auto', minHeight: '1100px', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}
+      >
+        {/* Decorative corner shapes */}
+        <div style={{ position: 'absolute', top: 0, right: 0, width: '180px', height: '180px', backgroundColor: '#3b82f6', clipPath: 'polygon(100% 0, 100% 100%, 0 0)', zIndex: 1 }} />
 
-        {/* Content */}
-        <div style={s.header}>
-          <img src={`${process.env.PUBLIC_URL}/image.png`} alt="Logo" style={{ height: '120px', marginBottom: '15px', objectFit: 'contain' }} />
-          <div style={s.companyName}>NAVABHARATH TECHNOLOGIES</div>
-          <div style={s.tagline}>Smarter Solutions for Better Future</div>
-
-          <div style={s.slipTitleBox}>
-            <div style={s.slipTitleText}>PAY SLIP FOR THE MONTH OF {data.month} - {data.year}</div>
+        {/* Header */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '40px', position: 'relative', zIndex: 10 }}>
+          <img src={logo} alt="NBT Logo" style={{ height: '70px', marginBottom: '20px' }} />
+          <div style={{ fontSize: '26px', fontWeight: '900', color: '#0f172a', letterSpacing: '1px', textAlign: 'center', textTransform: 'uppercase' }}>
+            {ps.company_name || ps.companyName || ps.organisation || ps.organization || COMPANY_INFO.name}
+          </div>
+          <div style={{ fontSize: '14px', color: '#64748b', fontWeight: '600', letterSpacing: '0.5px', marginTop: '8px', textAlign: 'center' }}>
+            {ps.company_tagline || ps.companyTagline || ps.tagline || COMPANY_INFO.tagline}
+          </div>
+          <div style={{ marginTop: '40px', paddingBottom: '8px', borderBottom: '2px solid #e2e8f0', textAlign: 'center', fontSize: '15px', fontWeight: '900', color: '#1e293b', letterSpacing: '2px', textTransform: 'uppercase', display: 'inline-block' }}>
+            Pay Slip for the Month of {monthLabel}
           </div>
         </div>
 
-        {/* Profile Info Grid - Modernized to 2 rows and 12 column layout */}
-        <div style={{ border: '1px solid #e2e8f0', marginBottom: '12px' }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : 'repeat(12, 1fr)',
-            gridAutoRows: 'minmax(45px, auto)',
-            backgroundColor: '#e2e8f0',
-            gap: '1px'
-          }}>
-            <div style={{ ...s.cell, backgroundColor: 'white', gridColumn: isMobile ? 'auto' : 'span 6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={s.label}>Empcode</span>
-              <span style={s.value}>{data.empCode}</span>
-            </div>
-            <div style={{ ...s.cell, backgroundColor: 'white', gridColumn: isMobile ? 'auto' : 'span 6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={s.label}>Department</span>
-              <span style={s.value}>{data.department}</span>
-            </div>
-            <div style={{ ...s.cell, backgroundColor: 'white', gridColumn: isMobile ? 'auto' : 'span 6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={s.label}>Emp. Name</span>
-              <span style={s.value}>{data.name}</span>
-            </div>
-            <div style={{ ...s.cell, backgroundColor: 'white', gridColumn: isMobile ? 'auto' : 'span 6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={s.label}>Designation</span>
-              <span style={s.value}>{data.designation}</span>
-            </div>
-          </div>
+        {/* Employee Info */}
+        <div style={{ position: 'relative', zIndex: 10 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <tbody>
+              <tr>
+                <td style={cell({ width: '50%' })}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase' }}>EMPCODE</span>
+                    <span style={{ fontSize: '12px', fontWeight: '900', color: '#0f172a' }}>{ps.employee_id || ps.emp_code || ps.empCode || user?.employee_id || user?.empId || user?.emp_id || '--'}</span>
+                  </div>
+                </td>
+                <td style={cell({ width: '50%' })}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase' }}>DEPARTMENT</span>
+                    <span style={{ fontSize: '12px', fontWeight: '900', color: '#0f172a' }}>{ps.department || ps.dept || user?.department || user?.dept || ''}</span>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style={cell()}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase' }}>EMP. NAME</span>
+                    <span style={{ fontSize: '12px', fontWeight: '900', color: '#0f172a' }}>{ps.emp_name || ps.employee_name || ps.name || user?.name || user?.employee_name || user?.emp_name || '--'}</span>
+                  </div>
+                </td>
+                <td style={cell()}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase' }}>DESIGNATION</span>
+                    <span style={{ fontSize: '12px', fontWeight: '900', color: '#0f172a' }}>{ps.designation || ps.role || ps.position || user?.designation || user?.role || user?.position || '--'}</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
-        {/* Attendance Grid - Exactly matching User Image */}
-        <table style={s.gridTable}>
-          <tbody>
-            <tr>
-              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOT. PRE:</span><span style={s.value}>{data.attendance.present}</span></div></td>
-              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOT. WO:-</span><span style={s.value}>{data.attendance.wo}</span></div></td>
-              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOT. HL:-</span><span style={s.value}>{data.attendance.hl}</span></div></td>
-              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOT. LEAVE:-</span><span style={s.value}>{data.attendance.leave}</span></div></td>
-            </tr>
-            <tr>
-              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>LOSS OF PAY</span><span style={s.value}>{data.attendance.absent}</span></div></td>
-              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOTAL WORK+OT</span><span style={s.value}>{data.attendance.totalWork}</span></div></td>
-              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>TOTAL OT</span><span style={s.value}>{data.attendance.totalOT}</span></div></td>
-              <td style={{ ...s.cell, border: '1px solid #e2e8f0' }}><div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={s.label}>BS/REFERENCE AMT.</span><span style={s.value}>{data.attendance.refAmt}</span></div></td>
-            </tr>
-          </tbody>
-        </table>
+        {/* Attendance Summary */}
+        <div style={{ position: 'relative', zIndex: 10, marginTop: '20px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <tbody>
+              <tr>
+                {[
+                  ['TOT. PRE:', ps.total_present || ps.totalPresent || '0'],
+                  ['TOT. WO:-', ps.total_weekly_off || ps.total_wo || ps.totalWO || '0'],
+                  ['TOT. HL:-', ps.total_holidays || ps.totalHolidays || '0'],
+                  ['TOT. LEAVE:-', ps.total_leaves || ps.total_leave || ps.totalLeave || '0'],
+                  ['TOTAL ABSENT', ps.total_absent || ps.totalAbsent || '0'],
+                ].map(([l, v], i) => (
+                  <td key={i} style={cell({ padding: '14px 12px' })}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '9px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase' }}>{l}</span>
+                      <span style={{ fontSize: '11px', fontWeight: '900', color: '#0f172a' }}>{v}</span>
+                    </div>
+                  </td>
+                ))}
+              </tr>
+              <tr>
+                {[
+                  ['TOTAL WORK+OT', ps.total_work_ot || ps.totalWorkOt || '0'],
+                  ['TOTAL OT', ps.total_ot_hours || ps.total_ot || ps.totalOt || '0'],
+                  ['AVAILABLE LEAVE', ps.available_leave || '0'],
+                  ['LOP COUNT', ps.lop_count || '0'],
+                  ['BS/REF AMT.', ps.bonus_ref_amt || ps.bs_reference_amt || ps.bsReferenceAmt || '0'],
+                ].map(([l, v], i) => (
+                  <td key={i} style={cell({ padding: '14px 12px' })}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '9px', fontWeight: '900', color: '#64748b', textTransform: 'uppercase' }}>{l}</span>
+                      <span style={{ fontSize: '11px', fontWeight: '900', color: '#0f172a' }}>{v}</span>
+                    </div>
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
         {/* Earning / Incentive / Deduction Table */}
-        <div style={s.dualContainer}>
-          <div style={s.sideBlock}>
-            <div style={s.sideHeader}>EARNING</div>
-            <div style={s.row}><span>Basic</span> <span>{fmt(data.earnings.basic)}</span></div>
-            <div style={s.row}><span>HRA</span> <span>{fmt(data.earnings.hra)}</span></div>
-            <div style={s.row}><span>Conveyance</span> <span>{fmt(data.earnings.conveyance)}</span></div>
-            <div style={s.row}><span>Special Allowance</span> <span>{fmt(data.earnings.special)}</span></div>
-            <div style={{ ...s.row, borderBottom: 'none' }}><span>&nbsp;</span><span>&nbsp;</span></div>
-            <div style={{ ...s.row, borderBottom: 'none' }}><span>&nbsp;</span><span>&nbsp;</span></div>
-            <div style={s.rowTotal}><span>Total Earning</span> <span>{fmt(totalEarnings)}</span></div>
+        <div style={{ marginTop: '20px', position: 'relative', zIndex: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
+            {['EARNING', 'INCENTIVES', 'DEDUCTION'].map(t => (
+              <div key={t} style={{ backgroundColor: '#f8fafc', padding: '14px 15px', fontSize: '11px', fontWeight: '900', color: '#0f172a', border: '1px solid #e2e8f0', borderRight: t === 'DEDUCTION' ? '1px solid #e2e8f0' : 'none' }}>{t}</div>
+            ))}
           </div>
-          <div style={s.sideBlock}>
-            <div style={s.sideHeader}>INCENTIVES</div>
-            <div style={s.row}><span>Performance</span> <span>{fmt(data.incentives.performance)}</span></div>
-            <div style={s.row}><span>Yearly Incentive</span> <span>{fmt(data.incentives.yearly)}</span></div>
-            <div style={{ ...s.row, borderBottom: 'none' }}><span>&nbsp;</span><span>&nbsp;</span></div>
-            <div style={{ ...s.row, borderBottom: 'none' }}><span>&nbsp;</span><span>&nbsp;</span></div>
-            <div style={{ ...s.row, borderBottom: 'none' }}><span>&nbsp;</span><span>&nbsp;</span></div>
-            <div style={{ ...s.row, borderBottom: 'none' }}><span>&nbsp;</span><span>&nbsp;</span></div>
-            <div style={s.rowTotal}><span>Total Incent.</span> <span>{fmt(totalIncentives)}</span></div>
+          <div style={{ display: 'flex' }}>
+            <SectionCard rows={earningRows} total={totalEarning} totalLabel="Total Earning" />
+            <SectionCard rows={incentiveRows} total={totalIncentive} totalLabel="Total Incent." />
+            <SectionCard rows={deductionRows} total={totalDeduction} totalLabel="Total Deduct." isLast={true} />
           </div>
-          <div style={{ ...s.sideBlock, borderRight: 'none' }}>
-            <div style={s.sideHeader}>DEDUCTION</div>
-            <div style={s.row}><span>PF</span> <span>{fmt(data.deductions.pf)}</span></div>
-            <div style={s.row}><span>ESI</span> <span>{fmt(data.deductions.esi)}</span></div>
-            <div style={s.row}><span>PT</span> <span>{fmt(data.deductions.pt)}</span></div>
-            <div style={s.row}><span>LWF</span> <span>{fmt(data.deductions.lwf)}</span></div>
-            <div style={s.row}><span>Income Tax</span> <span>{fmt(data.deductions.incomeTax)}</span></div>
-            <div style={s.row}><span>Loss of Pay</span> <span>{fmt(data.deductions.lop)}</span></div>
-            <div style={{ ...s.rowTotal, ...s.row }}><span>Total Deduct.</span> <span>{fmt(totalDeductions)}</span></div>
-            <div style={{ ...s.rowTotal, background: 'none' }}><span>Net Payable</span> <span>{fmt(netPayable)}</span></div>
+
+          {/* Net Payable */}
+          <div style={{ border: '1px solid #e2e8f0', borderTop: 'none', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', backgroundColor: 'white' }}>
+              <span style={{ fontSize: '13px', fontWeight: '900', color: '#0f172a' }}>Net Payable</span>
+              <span style={{ fontSize: '16px', fontWeight: '900', color: '#16a34a' }}>₹ {netPay}</span>
+            </div>
           </div>
         </div>
 
-        <div style={{ fontStyle: 'italic', fontSize: '9px', color: '#94a3b8', marginTop: '20px', textAlign: 'center' }}>
+        {/* Disclaimer */}
+        <div style={{ marginTop: '40px', fontSize: '11px', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', position: 'relative', zIndex: 10 }}>
           This is a computer generated payslip and does not require a physical signature.
         </div>
 
-        <div style={s.contactInfo}>
-          <div style={{ color: '#1E3A8A' }}>Phone: 0821-3128831</div>
-          <div>www.navabharathtechnologies.com</div>
-          <div>contact@navabharathtechnologies.com</div>
+        {/* Footer */}
+        <div style={{ marginTop: 'auto', paddingTop: '40px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', position: 'relative', zIndex: 10 }}>
+          <div style={{ textAlign: 'right', fontSize: '11px', color: '#1e3a8a', fontWeight: '900', lineHeight: '1.6' }}>
+            {(ps.company_phone || ps.phone || COMPANY_INFO.phone) && <>Phone: {ps.company_phone || ps.phone || COMPANY_INFO.phone}<br /></>}
+            {(ps.company_website || ps.website || COMPANY_INFO.website) && <>{ps.company_website || ps.website || COMPANY_INFO.website}<br /></>}
+            {(ps.company_email || ps.email || COMPANY_INFO.email) && <>{ps.company_email || ps.email || COMPANY_INFO.email}</>}
+          </div>
         </div>
-      </div>
 
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          #printable-area, #printable-area * { visibility: visible; }
-          #printable-area { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; padding: 0; margin: 0; }
-        }
-      `}</style>
+        {/* Bottom decorative shapes */}
+        <div style={{ position: 'absolute', bottom: 0, left: 0, width: '150px', height: '150px', backgroundColor: '#3b82f6', clipPath: 'polygon(0 0, 0 100%, 100% 100%)', zIndex: 1 }} />
+
+        <style>{`
+          @media print {
+            .no-print { display: none; }
+            body { background: white; padding: 0; }
+            .printable-payslip { box-shadow: none !important; margin: 0 !important; padding: 40px !important; width: 100% !important; max-width: none !important; }
+          }
+        `}</style>
+      </motion.div>
     </div>
   );
-};
-
-export default PaySlipScreen;
+}
