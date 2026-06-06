@@ -11,6 +11,104 @@ if (typeof window !== 'undefined' && !window.__NBT_AUTH_CONTEXT__) {
 
 export const useAuth = () => useContext(AuthContext);
 
+// Helper to safely set localStorage with failover to sessionStorage
+export const safeSetItem = (key, value) => {
+    let finalValue = value;
+    
+    // Aggressive pruning: Only prune if reaching significant size to avoid QuotaExceededError
+    if (key === 'user' && value.length > 1000000) { 
+        try {
+            const u = JSON.parse(value);
+            // Keep critical identity AND visual data
+            const pruned = { 
+                id: u.id || u.employee_id || u.userId, 
+                employee_id: u.employee_id || u.id,
+                name: u.name || u.employee_name, 
+                email: u.email, 
+                role: u.role,
+                profileImage: u.profileImage || u.profile_image || u.profile_pic || u.profile_picture || u.avatar,
+                profile_pic: u.profile_pic || u.profileImage || u.profile_image || u.profile_picture || u.avatar,
+                profile_picture: u.profile_picture || u.profile_pic || u.profileImage
+            };
+
+            finalValue = JSON.stringify(pruned);
+        } catch (e) {}
+    }
+
+    try {
+        localStorage.setItem(key, finalValue);
+    } catch (e) {
+        // Fallback to SessionStorage if LocalStorage is full/blocked
+        try {
+            sessionStorage.setItem(key, finalValue);
+        } catch (err) {}
+    }
+};
+
+export const safeGetItem = (key) => {
+    try {
+        return localStorage.getItem(key) || sessionStorage.getItem(key);
+    } catch (e) {
+        return sessionStorage.getItem(key);
+    }
+};
+
+// Centralized Auth Validation Singleton
+let _authPromise = null;
+let _authResult = null;
+
+export const checkAuthOnce = () => {
+    // If we already know the answer, return immediately
+    if (_authResult !== null) return Promise.resolve(_authResult);
+    // If a check is already in flight, return the same promise
+    if (_authPromise) return _authPromise;
+
+    _authPromise = (async () => {
+        try {
+            const token = safeGetItem('token');
+            if (!token || token === 'undefined' || token === 'null') { _authResult = false; return false; }
+            const clean = token.replace(/['"]+/g, '').trim();
+            if (!clean) { _authResult = false; return false; }
+
+            // Client-side JWT expiry check first (zero network cost)
+            try {
+                const parts = clean.split('.');
+                if (parts.length === 3) {
+                    const payload = JSON.parse(atob(parts[1]));
+                    if (payload.exp && (payload.exp * 1000 < Date.now())) { _authResult = false; return false; }
+                }
+            } catch { _authResult = false; return false; }
+
+            // Single server-side validation request (with 3s timeout)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+            try {
+                const res = await fetch(API_ENDPOINTS.MY_EMPLOYEE_PROFILE, {
+                    headers: { 'Authorization': `Bearer ${clean}` },
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                _authResult = res.ok;
+                return _authResult;
+            } catch (fetchErr) {
+                clearTimeout(timeoutId);
+                console.warn("Auth validation server request failed or timed out. Falling back to client JWT check.", fetchErr);
+                _authResult = true;
+                return true;
+            }
+        } catch {
+            _authResult = false;
+            return false;
+        }
+    })();
+
+    return _authPromise;
+};
+
+// Reset auth state (call on login/logout)
+export const resetAuthState = () => { _authPromise = null; _authResult = null; };
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);

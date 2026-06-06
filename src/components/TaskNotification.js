@@ -1,33 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X, Play, Clock, Zap, Award, CheckCircle, XCircle, RefreshCw, ClipboardList } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { API_ENDPOINTS, BASE_URL } from '../config';
+import { useAuth, checkAuthOnce } from '../context/AuthContext';
+import { API_ENDPOINTS } from '../config';
 
-const TaskNotification = ({ onNavigate }) => {
+const TaskNotification = ({ onOpenTask }) => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [lastIds, setLastIds] = useState(new Set());
+  const sanitizeId = (id) => String(id || '').split(':')[0];
+  const authValidRef = useRef(true);
 
   const [winWidth, setWinWidth] = useState(window.innerWidth);
-  const [prevUnreadCount, setPrevUnreadCount] = useState(0);
-  const [isVibrating, setIsVibrating] = useState(false);
 
-  useEffect(() => {
-    const currentUnreadCount = notifications.filter(n => n.isNew).length;
-    if (currentUnreadCount > prevUnreadCount) {
-      try {
-        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3');
-        audio.play().catch(() => { }); // Silently handle autoplay blocks
-      } catch (e) { }
-
-      setIsVibrating(true);
-      setTimeout(() => setIsVibrating(false), 800);
-    }
-    setPrevUnreadCount(currentUnreadCount);
-  }, [notifications]);
+  const parseDbDate = (dateStr) => {
+    if (!dateStr) return new Date();
+    if (dateStr instanceof Date) return dateStr;
+    try {
+      const s = String(dateStr);
+      const match = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/);
+      if (match) {
+        const [_, y, m, d, hh, mm, ss] = match;
+        return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss));
+      }
+    } catch (e) { }
+    return new Date(dateStr);
+  };
 
   useEffect(() => {
     const handleResize = () => setWinWidth(window.innerWidth);
@@ -35,206 +35,114 @@ const TaskNotification = ({ onNavigate }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const formatDate = (date, rawStr) => {
-    // If we have the raw SQL string, parse it manually to avoid timezone shifts
-    if (typeof rawStr === 'string' && (rawStr.includes('-') || rawStr.includes(':'))) {
-      try {
-        const parts = rawStr.split('T');
-        const datePart = parts[0].includes(' ') ? parts[0].split(' ')[0] : parts[0];
-        const timePart = parts[1] ? parts[1].split('.')[0] : (rawStr.includes(' ') ? rawStr.split(' ')[1].split('.')[0] : '00:00:00');
-
-        const [year, month, day] = datePart.split('-');
-        const [hh, mm, ss] = timePart.split(':');
-
-        let hour = parseInt(hh);
-        const ampm = hour >= 12 ? 'pm' : 'am';
-        hour = hour % 12;
-        hour = hour ? hour : 12;
-        const formattedTime = `${String(hour).padStart(2, '0')}:${mm}:${ss || '00'} ${ampm}`;
-
-        return `${day}/${month}/${year} at ${formattedTime}`;
-      } catch (e) {
-        console.warn('Manual date parse failed, falling back to JS Date');
-      }
-    }
-
+  const formatDate = (date) => {
     if (!date || isNaN(date.getTime())) return '';
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
     const hours = date.getHours();
     const minutes = date.getMinutes();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const seconds = date.getSeconds();
+    const ampm = hours >= 12 ? 'pm' : 'am';
     const h = hours % 12 || 12;
     const m = minutes < 10 ? '0' + minutes : minutes;
-    const timeStr = `${String(h).padStart(2, '0')}:${m} ${ampm}`;
-    if (isToday) return `${timeStr} - Today`;
-    const mon = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${day}/${mon}/${date.getFullYear()} - ${timeStr}`;
-  };
-
-  const parseDate = (dateStr) => {
-    if (!dateStr) return new Date();
-    if (dateStr instanceof Date) return dateStr;
-
-    // Handle SQL format "YYYY-MM-DD HH:MM:SS"
-    if (typeof dateStr === 'string' && !dateStr.includes('T') && !dateStr.includes('Z')) {
-      // If it looks like a standard SQL date, ensure we parse it correctly
-      const normalized = dateStr.replace(' ', 'T');
-      const d = new Date(normalized);
-      if (!isNaN(d.getTime())) return d;
-    }
-    const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? new Date() : d;
-  };
-
-  const calculateDays = (start, end) => {
-    if (!start || !end) return 0;
-    const s = new Date(start);
-    const e = new Date(end);
-    const diff = e - s;
-    return Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
-  };
-
-  // Derives a human-friendly notification title from message content
-  const getSmartTitle = (rawTitle, msg, ttl, type) => {
-    const t = (rawTitle || '').toLowerCase().trim();
-    const m = (msg || '').toLowerCase();
-    const l = (ttl || '').toLowerCase();
-    const combined = `${t} ${m} ${l}`;
-
-    // Only override if the title is generic
-    const isGeneric = !rawTitle || ['system update', 'system', 'update', 'notification', ''].includes(t);
-    if (!isGeneric) return rawTitle;
-
-    // --- Task titles ---
-    if (combined.includes('task assigned to you')) return '🆕 New Task Assigned';
-    if (combined.includes('task assigned by') || combined.includes('assigned a task')) return '📋 Task Assigned';
-    if (combined.includes('task completed') || combined.includes('marked as complete')) return '✅ Task Completed';
-    if (combined.includes('task submitted') || combined.includes('submitted the task')) return '📤 Task Submitted';
-    if (combined.includes('task reviewed') || combined.includes('review task')) return '🔍 Task Reviewed';
-    if (combined.includes('task approved')) return '✅ Task Approved';
-    if (combined.includes('task rejected')) return '❌ Task Rejected';
-    if (combined.includes('task updated') || combined.includes('task has been updated')) return '✏️ Task Updated';
-    if (combined.includes('task reassigned') || combined.includes('reassigned')) return '🔄 Task Reassigned';
-    if (combined.includes('task deadline') || combined.includes('due date')) return '⏰ Task Deadline Alert';
-    if (combined.includes('task created') || combined.includes('new task')) return '🆕 New Task Created';
-    if (combined.includes('task')) return '📋 Task Update';
-
-    // --- Leave titles ---
-    if (combined.includes('leave approved')) return '✅ Leave Approved';
-    if (combined.includes('leave rejected') || combined.includes('leave denied')) return '❌ Leave Rejected';
-    if (combined.includes('leave request') || combined.includes('applied for leave')) return '📝 Leave Requested';
-    if (combined.includes('leave cancelled')) return '🚫 Leave Cancelled';
-    if (combined.includes('leave')) return '🌴 Leave Update';
-
-    // --- Award titles ---
-    if (combined.includes('award') || combined.includes('reward') || combined.includes('recognition')) return '🏆 Award Received';
-
-    // --- Quiz titles ---
-    if (combined.includes('quiz') || combined.includes('teaser')) return '⚡ Quiz Available';
-
-    // --- Attendance titles ---
-    if (combined.includes('attendance') || combined.includes('check-in') || combined.includes('check in')) return '🕐 Attendance Update';
-
-    // --- General fallback by type ---
-    if (type === 'TASK') return '📋 Task Update';
-    if (type === 'LEAVE') return '🌴 Leave Update';
-    if (type === 'QUIZ') return '⚡ Quiz Update';
-    if (type === 'AWARD') return '🏆 Award Update';
-    return '🔔 New Notification';
+    const s = seconds < 10 ? '0' + seconds : seconds;
+    const day = date.getDate() < 10 ? '0' + date.getDate() : date.getDate();
+    const month = (date.getMonth() + 1) < 10 ? '0' + (date.getMonth() + 1) : (date.getMonth() + 1);
+    const year = date.getFullYear();
+    return `${day}/${month}/${year} at ${String(h).padStart(2, '0')}:${m}:${s} ${ampm}`;
   };
 
   const fetchNotifications = async () => {
-    const uid = user?.id || user?.empId || user?.userId || user?.employee_id;
-    // Guard: Don't fetch if no UID or if it's a placeholder '1'
-    if (!uid || String(uid) === '1') return;
+    if (!authValidRef.current) return;
+    const authOk = await checkAuthOnce();
+    if (!authOk) { authValidRef.current = false; return; }
+    const rawUid = user?.id || user?.empId || user?.userId || user?.employee_id;
+    const uid = sanitizeId(rawUid);
+    if (!uid || uid === 'undefined') return;
 
     try {
       const token = localStorage.getItem('token');
-      const headers = { 'Authorization': `Bearer ${token?.trim()}` };
+      const cleanToken = (token && token !== 'undefined' && token !== 'null') ? token.replace(/['"]+/g, '').trim() : '';
+      if (!cleanToken) return;
 
-      const newIds = new Set();
-      // Only used as a short-term optimistic cache for clicks in current session
-      const optimisticReadIds = JSON.parse(localStorage.getItem(`read_management_ids_${uid}`) || '[]');
+      const headers = { 'Authorization': `Bearer ${cleanToken}` };
 
-      let dbNotifs = [];
-      try {
-        const dbRes = await fetch(`${API_ENDPOINTS.NOTIFICATIONS || `${BASE_URL}/api/notifications`}?userId=${uid}`, { headers });
-        if (dbRes.ok) {
-          const dbData = await dbRes.json();
-          const dbList = Array.isArray(dbData) ? dbData : (dbData.data || []);
-          dbList.forEach(n => {
-            const nid = `db_${n.id}`;
-            newIds.add(nid);
-
-            // ✅ ONLY trust backend is_read as the source of truth
-            // optimisticReadIds is only used for clicks made THIS session
-            // before the next polling fetch returns updated data
-            const backendRead = n.is_read === 1 || n.is_read === true || n.read === 1 || n.read === true;
-            const optimisticRead = optimisticReadIds.includes(nid);
-            const isRead = backendRead || optimisticRead;
-
-            const nDate = parseDate(n.created_at || n.updated_at || n.timestamp);
-            const msg = (n.message || n.description || n.text || '').toLowerCase();
-            const ttl = (n.title || '').toLowerCase();
-
-            let type = n.type || 'SYSTEM';
-            if (ttl.includes('leave') || msg.includes('leave')) type = 'LEAVE';
-            else if (ttl.includes('quiz') || msg.includes('quiz')) type = 'QUIZ';
-            else if (ttl.includes('task') || msg.includes('task')) type = 'TASK';
-            else if (ttl.includes('award') || ttl.includes('reward') || msg.includes('award')) type = 'AWARD';
-
-            const rawMsg = n.message || n.description || n.text || '';
-            dbNotifs.push({
-              id: nid,
-              rawId: n.id,
-              type: type,
-              title: getSmartTitle(n.title, rawMsg, n.title, type),
-              description: rawMsg,
-              formattedTime: formatDate(nDate, n.created_at || n.updated_at || n.timestamp),
-              isNew: !isRead,
-              rawDate: nDate,
-              link: n.link,
-              leaveId: n.leaveId || n.leave_id || n.relatedId || n.related_id || n.id,
-              taskId: n.taskId || n.task_id || n.relatedId || n.related_id || n.id
-            });
-          });
-
-          // Once backend returns updated read state, clear optimistic cache
-          // (keeps only IDs that backend still says are unread — in case API call was slow)
-          const stillPendingOptimistic = optimisticReadIds.filter(id =>
-            dbNotifs.some(n => n.id === id && n.isNew)
-          );
-          localStorage.setItem(`read_management_ids_${uid}`, JSON.stringify(stillPendingOptimistic));
-        }
-      } catch (e) {
-        console.error("Central notification fetch failed:", e);
+      // Fetch Global Notifications from Backend Table
+      let globalNotifs = [];
+      const globalRes = await fetch(`${API_ENDPOINTS.NOTIFICATIONS}?userId=${uid}`, { headers }).catch(() => null);
+      if (globalRes && globalRes.ok) {
+        const data = await globalRes.json();
+        globalNotifs = Array.isArray(data) ? data : (data.value || data.data || []);
       }
 
-      const sorted = dbNotifs.sort((a, b) => {
-        const dateA = a.rawDate instanceof Date ? a.rawDate.getTime() : 0;
-        const dateB = b.rawDate instanceof Date ? b.rawDate.getTime() : 0;
-        return dateB - dateA;
+      const newIds = new Set();
+      let addedNew = false;
+      const readIds = JSON.parse(localStorage.getItem(`read_employee_notifs_${uid}`) || '[]');
+
+      // Map Global Notifications
+      const mappedGlobal = globalNotifs.map(gn => {
+        const gId = `global_${gn.id}`;
+        newIds.add(gId);
+        const parseDate = parseDbDate(gn.created_at || gn.createdAt || new Date());
+        const isNewlyAdded = lastIds.size > 0 && !lastIds.has(gId);
+        if (isNewlyAdded) addedNew = true;
+        const isRead = gn.is_read || gn.isRead || gn.read_status || readIds.includes(gId);
+
+        const rawMsg = gn.message || gn.content || gn.description || '';
+        let dynamicTitle = gn.title;
+
+        if (!dynamicTitle || dynamicTitle === 'System Alert' || dynamicTitle.toLowerCase().includes('system alert')) {
+          const lowerMsg = rawMsg.toLowerCase();
+          if (lowerMsg.includes('leave') && (lowerMsg.includes('approved') || lowerMsg.includes('accepted'))) {
+            dynamicTitle = 'Leave Approved';
+          } else if (lowerMsg.includes('leave') && (lowerMsg.includes('rejected') || lowerMsg.includes('declined'))) {
+            dynamicTitle = 'Leave Rejected';
+          } else if (lowerMsg.includes('leave') && lowerMsg.includes('updated')) {
+            dynamicTitle = 'Leave Status Updated';
+          } else if (lowerMsg.includes('leave')) {
+            dynamicTitle = 'Leave Update';
+          } else if (lowerMsg.includes('quiz')) {
+            dynamicTitle = 'New Fun Quiz';
+          } else if (lowerMsg.includes('task') && (lowerMsg.includes('approved') || lowerMsg.includes('accepted'))) {
+            dynamicTitle = 'Task Approved';
+          } else if (lowerMsg.includes('task') && (lowerMsg.includes('rejected') || lowerMsg.includes('declined'))) {
+            dynamicTitle = 'Task Rejected';
+          } else if (lowerMsg.includes('task') && (lowerMsg.includes('completed') || lowerMsg.includes('done') || lowerMsg.includes('finished'))) {
+            dynamicTitle = 'Task Completed';
+          } else if (lowerMsg.includes('task') && (lowerMsg.includes('updated') || lowerMsg.includes('changed') || lowerMsg.includes('modified'))) {
+            dynamicTitle = 'Task Update';
+          } else if (lowerMsg.includes('task') && lowerMsg.includes('assigned to')) {
+            dynamicTitle = 'New Task Assigned';
+          } else if (lowerMsg.includes('task') || lowerMsg.includes('assigned')) {
+            // Check if it's a status update (has "has been" pattern) or new assignment
+            dynamicTitle = lowerMsg.includes('has been') ? 'Task Update' : 'New Task Assigned';
+          } else if (lowerMsg.includes('reward') || lowerMsg.includes('points')) {
+            dynamicTitle = 'Reward Earned';
+          } else {
+            dynamicTitle = 'System Alert';
+          }
+        }
+
+        return {
+          id: gId,
+          type: gn.type || 'ALERT',
+          title: dynamicTitle,
+          description: rawMsg,
+          formattedTime: formatDate(parseDate),
+          isNew: !isRead,
+          rawDate: parseDate
+        };
       });
 
-      // Deduplicate: remove entries with the same description + timestamp (within 1 second)
-      // Backend sometimes creates 2 rows for the same event — keep the one with the lowest rawId
-      const seen = new Set();
-      const merged = sorted.filter(n => {
-        const ts = n.rawDate instanceof Date ? Math.floor(n.rawDate.getTime() / 1000) : 0;
-        const key = `${(n.description || '').trim().toLowerCase()}__${ts}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
+      const sortedNotifications = mappedGlobal.sort((a, b) => b.rawDate - a.rawDate);
 
-      setNotifications(merged);
+      setNotifications(sortedNotifications);
 
-      // Final Unread Check: Scan all merged notifications
-      const activeUnread = merged.some(n => n.isNew);
-      setHasUnread(activeUnread);
-
+      if (sortedNotifications.length > 0) {
+        const latestId = String(sortedNotifications[0].id);
+        const savedId = localStorage.getItem(`last_seen_task_${uid}`);
+        if (latestId !== savedId && (addedNew || lastIds.size === 0)) {
+          setHasUnread(true);
+        }
+      }
       setLastIds(newIds);
     } catch (err) {
       console.error("Management Sync Error:", err);
@@ -242,11 +150,7 @@ const TaskNotification = ({ onNavigate }) => {
   };
 
   useEffect(() => {
-    // Clear any stale optimistic cache on mount — backend is source of truth
-    const uid = user?.id || user?.empId || user?.userId || user?.employee_id;
-    if (uid) {
-      localStorage.removeItem(`read_management_ids_${uid}`);
-    }
+    authValidRef.current = true;
     fetchNotifications();
     const poll = setInterval(fetchNotifications, 20000);
     const handleToggle = () => setIsOpen(prev => !prev);
@@ -268,8 +172,7 @@ const TaskNotification = ({ onNavigate }) => {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'flex-end',
-      gap: '15px',
-      pointerEvents: 'none'
+      gap: '15px'
     }}>
 
       <AnimatePresence>
@@ -279,7 +182,6 @@ const TaskNotification = ({ onNavigate }) => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.95 }}
             style={{
-              pointerEvents: 'auto',
               background: 'white',
               width: isMobile ? 'calc(100vw - 20px)' : '340px',
               maxHeight: '480px',
@@ -294,207 +196,218 @@ const TaskNotification = ({ onNavigate }) => {
             <div style={{ padding: '20px', background: '#3B5998', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Bell size={20} fill="white" />
-                <span style={{ fontWeight: '1000', fontSize: '14px', letterSpacing: '1px' }}>Team leader Notification Hub</span>
+                <span style={{ fontWeight: '1000', fontSize: '14px', letterSpacing: '1px' }}>Management Alerts</span>
               </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', padding: '6px', color: 'white', cursor: 'pointer', display: 'flex' }}
-              >
-                <X size={16} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {notifications.some(n => n.isNew) && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const rawUid = user?.id || user?.empId || user?.userId || user?.employee_id;
+                      const uid = sanitizeId(rawUid);
+                      if (uid) {
+                        try {
+                          const token = localStorage.getItem('token');
+                          const cleanToken = (token && token !== 'undefined' && token !== 'null') ? token.replace(/['"]+/g, '').trim() : '';
+                          fetch(API_ENDPOINTS.NOTIFICATIONS_MARK_READ_ALL(uid), {
+                            method: 'PUT',
+                            headers: { 'Authorization': `Bearer ${cleanToken}` }
+                          }).catch(console.error);
+
+                          setNotifications(prev => prev.map(n => ({ ...n, isNew: false })));
+                          setHasUnread(false);
+                        } catch (err) { }
+                      }
+                    }}
+                    style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '8px', padding: '4px 10px', color: 'white', cursor: 'pointer', fontSize: '11px', fontWeight: '800' }}
+                  >
+                    Mark All Read
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsOpen(false)}
+                  style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', padding: '6px', color: 'white', cursor: 'pointer', display: 'flex' }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '15px', display: 'flex', flexDirection: 'column', gap: '15px', backgroundColor: '#f8fafc' }}>
-              {notifications.length > 0 ? notifications.map((notif, idx) => (
-                <div key={notif.id} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: '1000', color: '#94a3b8', marginLeft: '5px', marginBottom: '2px' }}>
-                    {notif.formattedTime}
-                  </div>
-                  <div
-                    onClick={() => {
-                      let path = '/';
-                      const lowerTitle = (notif.title || '').toLowerCase();
-                      const lowerDesc = (notif.description || '').toLowerCase();
-
-                      // 1. Check explicit link first
-                      if (notif.link) {
-                        path = notif.link;
-                      }
-                      // 2. Fallback to smart type detection & Keyword Analysis
-                      else if (
-                        notif.type === 'LEAVE' ||
-                        lowerTitle.includes('leave') ||
-                        lowerDesc.includes('leave') ||
-                        lowerTitle.includes('request') && lowerDesc.includes('leave')
-                      ) {
-                        path = '/leave';
-                      } else if (
-                        notif.type === 'QUIZ' ||
-                        lowerTitle.includes('quiz') ||
-                        lowerDesc.includes('quiz') ||
-                        lowerTitle.includes('teaser')
-                      ) {
-                        path = '/fun';
-                      } else if (
-                        notif.type === 'AWARD' ||
-                        lowerTitle.includes('award') ||
-                        lowerTitle.includes('reward') ||
-                        lowerTitle.includes('recognition') ||
-                        lowerDesc.includes('award') ||
-                        lowerDesc.includes('reward')
-                      ) {
-                        path = '/awards';
-                      } else if (
-                        notif.type === 'TASK' ||
-                        notif.type === 'TASK_REVIEW' ||
-                        lowerTitle.includes('task') ||
-                        lowerDesc.includes('task')
-                      ) {
-                        path = '/'; // Dashboard for tasks
-                      }
-
-                      const navState = (notif.type === 'LEAVE' || path === '/leave')
-                        ? { requestId: notif.leaveId, notificationDesc: notif.description, notificationTitle: notif.title }
-                        : { taskId: notif.taskId, notificationDesc: notif.description, notificationTitle: notif.title };
-
-                      const uid = user?.id || user?.empId || user?.userId || user?.employee_id;
-
-                      // ✅ Mark as read on BACKEND first, then update localStorage cache
-                      if (notif.isNew && notif.rawId) {
-                        const token = localStorage.getItem('token');
-                        fetch(API_ENDPOINTS.NOTIFICATIONS_READ(notif.rawId), {
-                          method: 'PUT',
-                          headers: {
-                            'Authorization': `Bearer ${token?.trim()}`,
-                            'Content-Type': 'application/json'
-                          },
-                          body: JSON.stringify({ userId: uid })
-                        }).catch(e => console.warn('Could not mark notification as read on server:', e));
-                      }
-
-                      // Update localStorage cache
-                      const readIds = JSON.parse(localStorage.getItem(`read_management_ids_${uid}`) || '[]');
-                      if (!readIds.includes(notif.id)) {
-                        readIds.push(notif.id);
-                        localStorage.setItem(`read_management_ids_${uid}`, JSON.stringify(readIds));
-                      }
-
-                      setNotifications(prev => {
-                        const updated = prev.map(n => n.id === notif.id ? { ...n, isNew: false } : n);
-                        setHasUnread(updated.some(n => n.isNew));
-                        return updated;
-                      });
-
-                      onNavigate(path, navState);
-                      setIsOpen(false);
-                    }}
-                    style={{
-                      background: notif.isNew ? '#f0f7ff' : '#ffffff',
-                      padding: '16px',
-                      borderRadius: '20px',
-                      border: notif.isNew ? '1.5px solid #3B599820' : '1.5px solid #f1f5f9',
-                      boxShadow: notif.isNew ? '0 8px 20px rgba(59, 89, 152, 0.06)' : 'none',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = notif.isNew ? '#e8f2ff' : '#fafbfc';
-                      e.currentTarget.style.transform = 'translateX(4px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = notif.isNew ? '#f0f7ff' : '#ffffff';
-                      e.currentTarget.style.transform = 'translateX(0)';
-                    }}
-                  >
-                    {/* Left Icon Box — color-coded by task status */}
-                    {(() => {
-                      const t = String(notif.title || '').toLowerCase();
-                      let bg = notif.isNew ? '#3B5998' : '#f1f5f9';
-                      let iconEl = <Bell size={18} fill={notif.isNew ? 'white' : 'transparent'} />;
-                      if (notif.type === 'QUIZ') { bg = '#0d676c'; iconEl = <Zap size={18} fill="white" />; }
-                      else if (notif.type === 'AWARD') { bg = '#f59e0b'; iconEl = <Award size={18} />; }
-                      else if (t.includes('approved') || t.includes('accepted')) { bg = '#16a34a'; iconEl = <CheckCircle size={18} />; }
-                      else if (t.includes('rejected') || t.includes('declined')) { bg = '#ef4444'; iconEl = <XCircle size={18} />; }
-                      else if (t.includes('completed') || t.includes('done')) { bg = '#8b5cf6'; iconEl = <CheckCircle size={18} />; }
-                      else if (t.includes('update') || t.includes('reassign') || t.includes('deadline')) { bg = '#f97316'; iconEl = <RefreshCw size={18} />; }
-                      else if (t.includes('task') || t.includes('assigned')) { bg = '#3B5998'; iconEl = <ClipboardList size={18} />; }
-                      return (
-                        <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0, transition: 'all 0.3s ease' }}>
-                          {iconEl}
-                        </div>
-                      );
-                    })()}
-
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <h4 style={{
-                        margin: 0,
-                        fontSize: '14px',
-                        fontWeight: notif.isNew ? '1000' : '500',
-                        color: notif.isNew ? '#0B1E3F' : '#64748b',
-                        marginBottom: '2px',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        transition: 'all 0.3s ease'
-                      }}>{notif.title}</h4>
-                      <p style={{
-                        margin: 0,
-                        fontSize: '12px',
-                        color: notif.isNew ? '#3B5998' : '#94a3b8',
-                        fontWeight: notif.isNew ? '800' : '400',
-                        lineHeight: '1.4',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                        transition: 'all 0.3s ease'
-                      }}>{notif.description}</p>
-                      {/* Assignee chip for task notifications */}
-                      {(String(notif.title || '').toLowerCase().includes('task') || String(notif.title || '').toLowerCase().includes('assigned')) && (() => {
-                        const desc = notif.description || '';
-                        let assignee = '';
-                        const toMatch = desc.match(/assigned to ([^:]+?)(?:\s*:|,|\s+by\s|$)/i);
-                        const byMatch = desc.match(/\bby\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*$/i);
-                        if (toMatch) assignee = toMatch[1].trim();
-                        else if (byMatch) assignee = byMatch[1].trim();
-                        return assignee ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '5px' }}>
-                            <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: notif.isNew ? '#3B5998' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: '900', color: 'white', flexShrink: 0 }}>
-                              {assignee.charAt(0).toUpperCase()}
-                            </div>
-                            <span style={{ fontSize: '10px', fontWeight: '900', color: notif.isNew ? '#3B5998' : '#94a3b8' }}>{assignee}</span>
-                          </div>
-                        ) : null;
-                      })()}
+              {notifications.length > 0 ? notifications.map((notif, idx) => {
+                const isRead = !notif.isNew;
+                return (
+                  <div key={notif.id} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', marginLeft: '5px', marginBottom: '2px' }}>
+                      {notif.formattedTime}
                     </div>
+                    <div
+                      onClick={() => {
+                        const rawUid = user?.id || user?.empId || user?.userId || user?.employee_id;
+                        const uid = sanitizeId(rawUid);
+                        if (uid) {
+                          const readIds = JSON.parse(localStorage.getItem(`read_employee_notifs_${uid}`) || '[]');
+                          if (!readIds.includes(notif.id)) {
+                            readIds.push(notif.id);
+                            localStorage.setItem(`read_employee_notifs_${uid}`, JSON.stringify(readIds.slice(-100)));
+                          }
+                        }
 
-                    {notif.isNew && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        style={{
-                          width: '10px',
-                          height: '10px',
-                          backgroundColor: '#3B5998',
-                          borderRadius: '50%',
-                          flexShrink: 0,
-                          boxShadow: '0 0 10px rgba(59, 89, 152, 0.4)'
-                        }}
-                      />
-                    )}
+                        // Immediately update local UI status
+                        setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isNew: false } : n));
+
+                        // Backend API call to mark as read
+                        if (String(notif.id).startsWith('global_')) {
+                          const dbId = String(notif.id).replace('global_', '');
+                          try {
+                            const token = localStorage.getItem('token');
+                            const cleanToken = (token && token !== 'undefined' && token !== 'null') ? token.replace(/['"]+/g, '').trim() : '';
+                            fetch(API_ENDPOINTS.NOTIFICATIONS_MARK_READ(dbId), {
+                              method: 'PUT',
+                              headers: { 'Authorization': `Bearer ${cleanToken}` }
+                            }).catch(console.error);
+                          } catch (err) { }
+                        }
+
+                        let tab = 'HOME';
+                        const nType = String(notif.type || '').toUpperCase();
+                        const nTitle = String(notif.title || '').toLowerCase();
+                        const nDesc = String(notif.description || '').toLowerCase();
+
+                        if (nType === 'LEAVE' || nTitle.includes('leave') || nDesc.includes('leave')) {
+                          tab = 'LEAVE';
+                        } else if (nType === 'THREAD' || nTitle.includes('thread') || nDesc.includes('thread')) {
+                          tab = 'THREAD';
+                        } else if (nType === 'QUIZ' || nTitle.includes('quiz') || nDesc.includes('quiz')) {
+                          tab = 'FUN';
+                        } else if (
+                          nType === 'TASK' ||
+                          nTitle.includes('task') ||
+                          nTitle.includes('assigned') ||
+                          nDesc.includes('task assigned') ||
+                          nDesc.includes('new task') ||
+                          nDesc.includes('assigned to')
+                        ) {
+                          tab = 'PROJECTS';
+                        }
+
+                        onOpenTask(tab);
+                        setIsOpen(false);
+                        setHasUnread(false);
+                      }}
+                      style={{
+                        background: isRead ? '#ffffff' : '#f0f7ff',
+                        padding: '16px',
+                        borderRadius: '20px',
+                        border: isRead ? '1.5px solid #f1f5f9' : '1.5px solid #3B599820',
+                        boxShadow: isRead ? 'none' : '0 8px 20px rgba(59, 89, 152, 0.06)',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = isRead ? '#fafbfc' : '#e8f2ff';
+                        e.currentTarget.style.transform = 'translateX(4px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = isRead ? '#ffffff' : '#f0f7ff';
+                        e.currentTarget.style.transform = 'translateX(0)';
+                      }}
+                    >
+                      {/* Left Icon Box — color-coded by task status */}
+                      {(() => {
+                        const t = String(notif.title || '').toLowerCase();
+                        let bg = !isRead ? '#3B5998' : '#f1f5f9';
+                        let iconEl = <Bell size={18} fill={!isRead ? 'white' : 'transparent'} />;
+                        if (notif.type === 'QUIZ') { bg = '#0d676c'; iconEl = <Zap size={18} fill="white" />; }
+                        else if (notif.type === 'AWARD') { bg = '#f59e0b'; iconEl = <Award size={18} />; }
+                        else if (t.includes('approved') || t.includes('accepted')) { bg = '#16a34a'; iconEl = <CheckCircle size={18} />; }
+                        else if (t.includes('rejected') || t.includes('declined')) { bg = '#ef4444'; iconEl = <XCircle size={18} />; }
+                        else if (t.includes('completed') || t.includes('done')) { bg = '#8b5cf6'; iconEl = <CheckCircle size={18} />; }
+                        else if (t.includes('update') || t.includes('changed') || t.includes('modified')) { bg = '#f97316'; iconEl = <RefreshCw size={18} />; }
+                        else if (t.includes('task') || t.includes('assigned')) { bg = '#3B5998'; iconEl = <ClipboardList size={18} />; }
+                        return (
+                          <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0, transition: 'all 0.3s ease' }}>
+                            {iconEl}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Text details */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <h4 style={{
+                          margin: 0,
+                          fontSize: '14px',
+                          fontWeight: !isRead ? '1000' : '500',
+                          color: !isRead ? '#0B1E3F' : '#64748b',
+                          marginBottom: '2px',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          transition: 'all 0.3s ease'
+                        }}>{notif.title}</h4>
+                        <p style={{
+                          margin: 0,
+                          fontSize: '12px',
+                          color: !isRead ? '#3B5998' : '#94a3b8',
+                          fontWeight: !isRead ? '800' : '400',
+                          lineHeight: '1.4',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          transition: 'all 0.3s ease'
+                        }}>{notif.description}</p>
+                        {/* Assignee chip for task notifications */}
+                        {(String(notif.title || '').toLowerCase().includes('task') || String(notif.title || '').toLowerCase().includes('assigned')) && (() => {
+                          const desc = notif.description || '';
+                          // Extract "assigned to [Name]" or "by [Name]"
+                          let assignee = '';
+                          const toMatch = desc.match(/assigned to ([^:]+?)(?:\s*:|,|\s+by\s|$)/i);
+                          const byMatch = desc.match(/\bby\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*$/i);
+                          if (toMatch) assignee = toMatch[1].trim();
+                          else if (byMatch) assignee = byMatch[1].trim();
+                          return assignee ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '5px' }}>
+                              <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: !isRead ? '#3B5998' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: '900', color: 'white', flexShrink: 0 }}>
+                                {assignee.charAt(0).toUpperCase()}
+                              </div>
+                              <span style={{ fontSize: '10px', fontWeight: '900', color: !isRead ? '#3B5998' : '#94a3b8' }}>{assignee}</span>
+                            </div>
+                          ) : null;
+                        })()}
+                      </div>
+
+                      {/* Unread Blue dot */}
+                      {!isRead && (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          style={{
+                            width: '10px',
+                            height: '10px',
+                            backgroundColor: '#3B5998',
+                            borderRadius: '50%',
+                            flexShrink: 0,
+                            boxShadow: '0 0 10px rgba(59, 89, 152, 0.4)'
+                          }}
+                        />
+                      )}
+                    </div>
                   </div>
-                </div>
-              )) : (
+                );
+              }) : (
                 <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8', fontSize: '13px', fontWeight: '700' }}>
                   No team updates logged.
                 </div>
               )}
             </div>
+
+
           </motion.div>
         )}
       </AnimatePresence>
@@ -502,15 +415,15 @@ const TaskNotification = ({ onNavigate }) => {
       <motion.div
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        animate={isVibrating ? { rotate: [0, -15, 15, -15, 15, -10, 10, 0], scale: [1, 1.1, 1.1, 1.1, 1.1, 1.1, 1.1, 1] } : { rotate: 0, scale: 1 }}
-        transition={isVibrating ? { duration: 0.6, ease: "easeInOut" } : { duration: 0.2 }}
         onClick={() => {
           setIsOpen(!isOpen);
+          if (!isOpen && notifications.length > 0) {
+            setHasUnread(false);
+            const uid = user?.id || user?.empId || user?.userId || user?.employee_id;
+            localStorage.setItem(`last_seen_task_${uid}`, String(notifications[0].id));
+          }
         }}
         style={{
-          pointerEvents: 'auto',
-          alignSelf: isMobile ? 'flex-end' : 'auto',
-          marginRight: isMobile ? '15px' : '0',
           background: '#3B5998',
           color: 'white',
           width: isMobile ? '50px' : '60px',
@@ -529,22 +442,17 @@ const TaskNotification = ({ onNavigate }) => {
         {hasUnread && (
           <motion.div
             initial={{ scale: 0 }}
-            animate={{
-              scale: [1, 1.4, 1],
-              opacity: [1, 0.6, 1]
-            }}
-            transition={{ repeat: Infinity, duration: 1 }}
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ repeat: Infinity, duration: 1.5 }}
             style={{
               position: 'absolute',
-              top: '-3px',
-              right: '-3px',
-              width: '20px',
-              height: '20px',
-              background: '#ff3131',
+              top: isMobile ? '12px' : '18px',
+              right: isMobile ? '12px' : '18px',
+              width: '14px',
+              height: '14px',
+              background: '#ef4444',
               borderRadius: '50%',
-              border: '3px solid white',
-              boxShadow: '0 4px 12px rgba(255, 49, 49, 0.6)',
-              zIndex: 10
+              border: '2px solid white'
             }}
           />
         )}
