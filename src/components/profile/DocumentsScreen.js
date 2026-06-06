@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, Save, Building2, FileText, ChevronDown,
   Shield, AlertCircle, CheckCircle2, User, Landmark, RefreshCw,
   Briefcase, MapPin, GraduationCap, History,
-  FileCheck, Eye, Check, X, Pencil, Camera
+  FileCheck, Eye, Check, X, Pencil, Camera, Trash2
 } from 'lucide-react';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -1551,6 +1551,17 @@ export default function DocumentsScreen({ onBack }) {
                               style={{ fontSize: '11px', color: '#ef4444', fontWeight: '800', border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                             >
                               <RefreshCw size={12} /> Update File
+                            </button>
+                          )}
+                          {form[field.key] && !isDisabled && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleChange(field.key, '');
+                              }}
+                              style={{ fontSize: '11px', color: '#dc2626', fontWeight: '800', border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <Trash2 size={12} /> Remove
                             </button>
                           )}
                           {form[field.key] && (

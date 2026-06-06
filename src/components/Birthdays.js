@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Cake, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { API_ENDPOINTS } from '../config';
+import { API_ENDPOINTS, BASE_URL } from '../config';
 
 export default function BirthdaysScreen() {
   const navigate = useNavigate();
@@ -44,10 +44,49 @@ export default function BirthdaysScreen() {
 
   const fetchBirthdays = async () => {
     try {
-      const res = await fetch(API_ENDPOINTS.BIRTHDAYS);
+      const token = localStorage.getItem('token');
+      const headers = { 'Accept': 'application/json' };
+      if (token && token !== 'undefined') {
+        headers['Authorization'] = `Bearer ${token.trim()}`;
+      }
+
+      const res = await fetch(API_ENDPOINTS.BIRTHDAYS, { headers });
       if (res.ok) {
         const data = await res.json();
-        setBirthdays(data);
+        const list = Array.isArray(data) ? data : (data.data || data.value || []);
+
+        // Normalise all entries so we always have a `date` field
+        let combined = list.map(item => ({
+          ...item,
+          name: item.name || item.emp_name || item.employee_name || item.userName,
+          date: item.date_of_birth || item.dob || item.dateOfBirth || item.date || item.birthday || null
+        })).filter(item => item.name);
+
+        // ── Always ensure the logged-in user appears with their freshest DOB ──
+        if (user) {
+          const myName = user.name || user.employee_name || user.emp_name;
+          const myEmail = user.email;
+          let myDob = user.date_of_birth || user.dob || user.dateOfBirth || user.birthday || user.date;
+
+          // If the user context has no DOB, fetch the profile directly
+          if (!myDob && myEmail) {
+            try {
+              const profileRes = await fetch(`${BASE_URL}/api/profile/${myEmail}`, { headers });
+              if (profileRes.ok) {
+                const profileData = await profileRes.json();
+                myDob = profileData.date_of_birth || profileData.dob || profileData.dateOfBirth
+                     || profileData.birthday || profileData.date || null;
+              }
+            } catch (e) {}
+          }
+
+          if (myName) {
+            combined = combined.filter(p => (p.name || '').toLowerCase() !== myName.toLowerCase());
+            combined.push({ ...user, name: myName, date: myDob || null });
+          }
+        }
+
+        setBirthdays(combined);
       }
     } catch { }
     setLoading(false);
@@ -130,7 +169,9 @@ export default function BirthdaysScreen() {
             .map(b => {
               const today = new Date();
               today.setHours(0, 0, 0, 0);
-              const rawDate = parseSafeDate(b.date || b.dob);
+              const rawDate = parseSafeDate(
+                b.date_of_birth || b.dob || b.dateOfBirth || b.date || b.birthday
+              );
               if (!rawDate) return null;
               const thisYearBDate = new Date(rawDate);
               thisYearBDate.setFullYear(today.getFullYear());
