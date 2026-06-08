@@ -11,6 +11,7 @@ import ThreadScreen from './components/ThreadScreen';
 import FocusLogs from './components/FocusLogs';
 import Birthdays from './components/Birthdays';
 import Holidays from './components/Holidays';
+import SaturdaySuggestions from './components/SaturdaySuggestions';
 import NavigationDock from './components/NavigationDock';
 import ScrollToTop from './components/ScrollToTop';
 import TaskNotification from './components/TaskNotification';
@@ -135,6 +136,7 @@ function App() {
             <Route path="/focus-logs" element={<FocusLogs />} />
             <Route path="/birthdays" element={<Birthdays />} />
             <Route path="/holidays" element={<Holidays />} />
+            <Route path="/saturday-suggestions" element={<SaturdaySuggestions />} />
             <Route path="/documents/:employeeId?" element={<DocumentsScreen onBack={() => navigate('/profile')} />} />
             <Route path="/asset-declaration/:employeeId?" element={<AssetDeclaration onBack={() => navigate('/')} />} />
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -23,7 +23,7 @@ const LOCKED_FIELDS = [
 
 const REQUIRED_FIELDS = [
   // Primary Profile
-  'emp_name', 'gender', 'dob', 'age', 'blood_group', 'marital_status', 'father_husband_name', 'pan_number', 'pancard_photo', 'aadhar_number', 'adharcard_photo',
+  'emp_name', 'gender', 'date_of_birth', 'age', 'blood_group', 'marital_status', 'father_husband_name', 'pan_number', 'pancard_photo', 'aadhar_number', 'adharcard_photo',
   // Organizational Hierarchy
   'designation', 'supervisor_l1', 'supervisor_l2', 'doj', 'ft_pt', 'status', 'place', 'moved', 'official_email_id',
   // Contact & Geography
@@ -46,7 +46,7 @@ const SECTIONS = [
     fields: [
       { key: 'emp_name', label: 'Employee Name', placeholder: 'Full Name', type: 'text' },
       { key: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female', 'Other'] },
-      { key: 'dob', label: 'Date of Birth', type: 'text', placeholder: 'DD/MM/YYYY' },
+      { key: 'date_of_birth', label: 'Date of Birth', type: 'text', placeholder: 'DD/MM/YYYY' },
       { key: 'age', label: 'Age', type: 'text', placeholder: 'Years' },
       { key: 'blood_group', label: 'Blood Group', type: 'text' },
       { key: 'marital_status', label: 'Marital Status', type: 'select', options: ['Single', 'Married'] },
@@ -194,7 +194,7 @@ export default function DocumentsScreen({ onBack }) {
   const { employeeId } = useParams();
 
   const [form, setForm] = useState({
-    emp_name: '', gender: '', dob: '', age: '', religion: '', blood_group: '', marital_status: 'Single', nationality: 'Indian', father_husband_name: '', pan_number: '', aadhar_number: '', category: '',
+    emp_name: '', gender: '', date_of_birth: '', age: '', religion: '', blood_group: '', marital_status: 'Single', nationality: 'Indian', father_husband_name: '', pan_number: '', aadhar_number: '', category: '',
     designation: '', department: '', process: '', supervisor_l1: '', supervisor_l2: '', doj: '', ft_pt: 'Full Time', status: 'Active', place: '', moved: '', official_email_id: '',
     dailyGoal: '',
     contact_no: '', emergency_contact_no: '', personal_email_id: '', present_address: '', permanent_address: '', state: '',
@@ -227,10 +227,10 @@ export default function DocumentsScreen({ onBack }) {
     const s = String(url).toLowerCase();
     // Handle query parameters by splitting at '?'
     const base = s.split('?')[0];
-    return base.endsWith('.pdf') || 
-           s.includes('.pdf?') || 
-           s.startsWith('data:application/pdf') ||
-           s.includes('/api/drive/stream/');
+    return base.endsWith('.pdf') ||
+      s.includes('.pdf?') ||
+      s.startsWith('data:application/pdf') ||
+      s.includes('/api/drive/stream/');
   };
 
   const scrollTabs = (direction) => {
@@ -344,7 +344,7 @@ export default function DocumentsScreen({ onBack }) {
             ...prev,
             emp_name: prev.emp_name && prev.emp_name !== 'Not Provided' ? prev.emp_name : (foundUser.name || foundUser.userName || ''),
             emp_id: prev.emp_id && prev.emp_id !== 'Not Provided' ? prev.emp_id : (foundUser.employee_id || foundUser.id || ''),
-            official_email_id: prev.official_email_id || foundUser.email || ''
+            official_email_id: (prev.official_email_id || foundUser.email || '').toLowerCase()
           }));
           return foundUser;
         }
@@ -381,8 +381,11 @@ export default function DocumentsScreen({ onBack }) {
             if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(val)) {
               val = val.substring(0, 10);
             }
+            if (typeof val === 'string' && key.toLowerCase().includes('email')) {
+              val = val.toLowerCase();
+            }
             // Standardize all dates to use slashes on load as per standard DD/MM/YYYY
-            if (typeof val === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('dob') || key.toLowerCase().includes('doj') || key.toLowerCase().includes('lwd') || key.toLowerCase().includes('separation'))) {
+            if (typeof val === 'string' && (key.toLowerCase().includes('date') || key.toLowerCase().includes('date_of_birth') || key.toLowerCase().includes('doj') || key.toLowerCase().includes('lwd') || key.toLowerCase().includes('separation'))) {
               if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(val)) {
                 const parts = val.substring(0, 10).split(/[-/]/);
                 val = `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -407,8 +410,8 @@ export default function DocumentsScreen({ onBack }) {
           const contactVal = cleanData.contact_no || cleanData.phone_number || cleanData.phone;
           if (contactVal) cleanData.contact_no = contactVal;
 
-          const dobVal = cleanData.dob || cleanData.date_of_birth || cleanData.dateofbirth;
-          if (dobVal) cleanData.dob = dobVal;
+          const dobVal = cleanData.date_of_birth || cleanData.dob || cleanData.dateofbirth;
+          if (dobVal) cleanData.date_of_birth = dobVal;
 
           // Aggressive Name Resolution
           const isOwnProfile = !employeeId || String(employeeId) === String(user?.employee_id) || String(employeeId) === String(user?.id);
@@ -529,7 +532,7 @@ export default function DocumentsScreen({ onBack }) {
     const numericFields = ['contact_no', 'emergency_contact_no', 'aadhar_number', 'bank_account_no', 'age', 'edu_completion_year', 'previous_experience', 'total_experience'];
     const percentageFields = ['sslc_percentage', 'puc_percentage', 'ug_pg_percentage'];
 
-    if (key === 'dob') {
+    if (key === 'date_of_birth') {
       if (value && value !== 'Not Provided' && value !== 'Add Date of Birth') {
         if (!/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
           error = 'Format must be DD/MM/YYYY (e.g., 08/09/2002)';
@@ -596,7 +599,7 @@ export default function DocumentsScreen({ onBack }) {
             error = 'Please enter CGPA with a decimal (e.g., 9.0) or enter a valid Percentage (e.g., 90)';
           }
         }
-        
+
         if (!error) {
           const parts = String(value).split('.');
           if (parts[1] && parts[1].length > 2) {
@@ -610,9 +613,13 @@ export default function DocumentsScreen({ onBack }) {
     } else if (key === 'ifsc_code') {
       const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
       if (!ifscRegex.test(String(value).toUpperCase())) error = 'Use ABCD0123456 format (11 chars)';
-    } else if (key.includes('email')) {
-      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      if (!emailRegex.test(value)) error = 'Invalid email format (e.g. user@domain.com)';
+    } else if (key.toLowerCase().includes('email')) {
+      if (/[A-Z]/.test(value)) {
+        error = 'Email ID must be in lowercase only';
+      } else {
+        const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
+        if (!emailRegex.test(value)) error = 'Invalid email format (lowercase only, e.g. user@domain.com)';
+      }
     }
 
     return error;
@@ -643,7 +650,7 @@ export default function DocumentsScreen({ onBack }) {
 
   const handleChange = (key, value) => {
     // If the value is selected from calendar (YYYY-MM-DD format), convert to DD/MM/YYYY
-    if (['dob', 'doj', 'separation', 'lwd'].includes(key) && value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    if (['date_of_birth', 'doj', 'separation', 'lwd'].includes(key) && value && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
       const parts = value.split('-');
       value = `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
@@ -667,15 +674,16 @@ export default function DocumentsScreen({ onBack }) {
     } else if (percentageFields.includes(key)) {
       cleanValue = value;
     } else if (key.includes('email')) {
-      // Remove spaces and any characters not typically allowed in emails
-      cleanValue = value.replace(/[^a-zA-Z0-9@._-]/g, '');
+      // Do not force lowercase or alter text during typing to avoid cursor reset.
+      // Spaces are removed, other uppercase/format checks are performed in validateField.
+      cleanValue = value.replace(/\s/g, '');
     } else if (key === 'pan_number' || key === 'ifsc_code' || key === 'voter_id') {
       // Alphanumeric only, forced uppercase
       cleanValue = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     } else if (key === 'blood_group') {
       // Allow only letters and symbols +, -
       cleanValue = value.replace(/[^a-zA-Z+-]/g, '').toUpperCase();
-    } else if (['dob', 'doj', 'separation', 'lwd'].includes(key)) {
+    } else if (['date_of_birth', 'doj', 'separation', 'lwd'].includes(key)) {
       // Allow only digits and slashes for date fields
       cleanValue = value.replace(/[^0-9/]/g, '');
     }
@@ -690,19 +698,19 @@ export default function DocumentsScreen({ onBack }) {
     if (key === 'edu_completion_year' && cleanValue.length > 4) return;
 
     // 3. Date Formatting (DD/MM/YYYY) - Auto-insert slashes
-    if ((key === 'dob' || key === 'doj' || key === 'separation' || key === 'lwd') && cleanValue.length > (form[key]?.length || 0)) {
+    if ((key === 'date_of_birth' || key === 'doj' || key === 'separation' || key === 'lwd') && cleanValue.length > (form[key]?.length || 0)) {
       // If typing and not deleting
       if (cleanValue.length === 2 || cleanValue.length === 5) {
         cleanValue += '/';
       }
     }
     // Limit date length
-    if ((key === 'dob' || key === 'doj' || key === 'separation' || key === 'lwd') && cleanValue.length > 10) return;
+    if ((key === 'date_of_birth' || key === 'doj' || key === 'separation' || key === 'lwd') && cleanValue.length > 10) return;
 
     let updates = { [key]: cleanValue };
 
     // Auto-calculate age for DOB format DD/MM/YYYY
-    if (key === 'dob' && cleanValue && cleanValue.length === 10) {
+    if (key === 'date_of_birth' && cleanValue && cleanValue.length === 10) {
       const parts = cleanValue.split('/');
       if (parts.length === 3) {
         // parts[0]=DD, parts[1]=MM, parts[2]=YYYY
@@ -790,6 +798,15 @@ export default function DocumentsScreen({ onBack }) {
       setErrors(newErrors);
       setToast({ type: 'error', msg: 'Please fix the highlighted errors in this section before saving.' });
       setTimeout(() => setToast(null), 3000);
+
+      // Scroll the first invalid field into view smoothly
+      const firstErrorKey = Object.keys(newErrors)[0];
+      setTimeout(() => {
+        const errorEl = document.getElementById(`field-${firstErrorKey}`);
+        if (errorEl) {
+          errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
       return;
     }
 
@@ -804,6 +821,9 @@ export default function DocumentsScreen({ onBack }) {
         let val = form[key];
         if (typeof val === 'string') {
           val = val.trim();
+        }
+        if (typeof val === 'string' && key.toLowerCase().includes('email')) {
+          val = val.toLowerCase();
         }
 
         // Convert "Yes"/"No" strings to booleans for fields starting with 'has_'
@@ -820,10 +840,10 @@ export default function DocumentsScreen({ onBack }) {
       });
 
       // Preserve original DD/MM/YYYY values before SQL conversion (needed for users table sync)
-      const originalDob = sanitizedForm.dob;
+      const originalDob = sanitizedForm.date_of_birth;
 
       // Convert DD/MM/YYYY to YYYY-MM-DD for backend SQL Date compatibility
-      const dateFields = ['dob', 'doj', 'separation', 'lwd'];
+      const dateFields = ['date_of_birth', 'doj', 'separation', 'lwd'];
       dateFields.forEach(field => {
         const dateVal = sanitizedForm[field];
         if (dateVal && typeof dateVal === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(dateVal)) {
@@ -843,37 +863,27 @@ export default function DocumentsScreen({ onBack }) {
         if (sanitizedForm.emp_name || originalDob || sanitizedForm.contact_no) {
           try {
             // Use a very robust email resolution for the users table sync
-            const targetEmail = form.official_email_id || form.email || form.personal_email_id || user?.email || user?.official_email_id || localStorage.getItem('user_email');
-            
+            const targetEmail = (form.official_email_id || form.email || form.personal_email_id || user?.email || user?.official_email_id || localStorage.getItem('user_email') || '').toLowerCase();
+
             const syncBody = {
               email: targetEmail,
               userId: uid,
               user_id: uid,
               emp_id: uid
             };
-            
+
             if (sanitizedForm.emp_name) {
-                syncBody.name = sanitizedForm.emp_name;
-                syncBody.emp_name = sanitizedForm.emp_name;
+              syncBody.name = sanitizedForm.emp_name;
+              syncBody.emp_name = sanitizedForm.emp_name;
             }
-            
-            // CONVERT TO DD/MM/YYYY (UI format) for the users table
+
+            // Send DD/MM/YYYY format for users table storage (compatibility with style 103 parsing)
             if (originalDob) {
-              let dobForUsers = originalDob; 
-              
-              if (/^\d{4}-\d{2}-\d{2}$/.test(originalDob)) {
-                const [y, m, d] = originalDob.split('-');
-                dobForUsers = `${d}/${m}/${y}`;
-              } else {
-                dobForUsers = String(originalDob).replace(/-/g, '/');
-              }
-              
-              // SEND EVERY POSSIBLE KEY
-              syncBody.date_of_birth = dobForUsers;
-              syncBody.dateOfBirth = dobForUsers;
-              
+              syncBody.date_of_birth = originalDob;
+              syncBody.dateOfBirth = originalDob;
+
               console.log(`[SYNC DEBUG] Target Email: ${targetEmail}`);
-              console.log(`[SYNC DEBUG] Target DOB: ${dobForUsers}`);
+              console.log(`[SYNC DEBUG] Target DOB: ${originalDob}`);
             }
 
             if (sanitizedForm.contact_no) {
@@ -884,8 +894,8 @@ export default function DocumentsScreen({ onBack }) {
             }
 
             const syncHeaders = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token?.trim()}`
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token?.trim()}`
             };
 
             // TRY BOTH PUT AND POST TO BE ABSOLUTELY SURE
@@ -980,7 +990,7 @@ export default function DocumentsScreen({ onBack }) {
           >
             {isPDF(viewImage) ? (
               <div style={{ width: '100%', height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-                 <iframe
+                <iframe
                   src={viewImage}
                   title="PDF Viewer"
                   style={{ width: '100%', height: '100%', border: 'none', borderRadius: '12px', backgroundColor: 'white' }}
@@ -1307,13 +1317,14 @@ export default function DocumentsScreen({ onBack }) {
                         </div>
                         <div style={{ position: 'relative', width: '100%' }}>
                           <select
+                            id="field-marital_status"
                             value={form.marital_status}
                             disabled={isDisabledMS}
                             onChange={e => handleChange('marital_status', e.target.value)}
                             style={{
                               width: '100%', padding: isMobile ? '14px 40px 14px 16px' : '16px 45px 16px 20px', borderRadius: isMobile ? '12px' : '16px', fontSize: isMobile ? '14px' : '16px',
                               fontWeight: '700', color: '#000000', backgroundColor: isDisabledMS ? '#f1f5f9' : '#f8fafc',
-                              border: !isDisabledMS ? '2px solid #315A9E' : '2px solid #e2e8f0', outline: 'none', cursor: isDisabledMS ? 'default' : 'pointer', appearance: 'none', boxSizing: 'border-box',
+                              border: errors.marital_status ? '2px solid #ef4444' : (!isDisabledMS ? '2px solid #315A9E' : '2px solid #e2e8f0'), outline: 'none', cursor: isDisabledMS ? 'default' : 'pointer', appearance: 'none', boxSizing: 'border-box',
                               transition: 'all 0.2s', opacity: isDisabledMS ? 0.8 : 1
                             }}
                           >
@@ -1343,6 +1354,7 @@ export default function DocumentsScreen({ onBack }) {
                             {isLockedFather && <Shield size={10} color="#000000" />}
                           </div>
                           <input
+                            id="field-father_husband_name"
                             type="text"
                             value={form.father_husband_name}
                             readOnly={isDisabledFather}
@@ -1387,19 +1399,20 @@ export default function DocumentsScreen({ onBack }) {
                       <label style={{ fontSize: isMobile ? '11px' : '12px', fontWeight: '900', color: '#000000', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
                         {field.label} {REQUIRED_FIELDS.includes(field.key) && <span style={{ color: '#ef4444' }}>*</span>}
                       </label>
-                      {isLockedForRole && <Shield size={10} color="#000000" />}
+                      {(isLockedForRole || field.key === 'emp_name') && <Shield size={10} color="#000000" />}
                     </div>
 
                     {field.type === 'select' ? (
                       <div style={{ position: 'relative', width: '100%' }}>
                         <select
+                          id={`field-${field.key}`}
                           value={form[field.key]}
                           disabled={isDisabled}
                           onChange={e => handleChange(field.key, e.target.value)}
                           style={{
                             width: '100%', padding: isMobile ? '14px 40px 14px 16px' : '16px 45px 16px 20px', borderRadius: isMobile ? '12px' : '16px', fontSize: isMobile ? '14px' : '16px',
                             fontWeight: '700', color: '#000000', backgroundColor: isDisabled ? '#f1f5f9' : '#f8fafc',
-                            border: !isDisabled ? '2px solid #315A9E' : '2px solid #e2e8f0', outline: 'none', cursor: isDisabled ? 'default' : 'pointer', appearance: 'none', boxSizing: 'border-box',
+                            border: errors[field.key] ? '2px solid #ef4444' : (!isDisabled ? '2px solid #315A9E' : '2px solid #e2e8f0'), outline: 'none', cursor: isDisabled ? 'default' : 'pointer', appearance: 'none', boxSizing: 'border-box',
                             transition: 'all 0.2s', opacity: isDisabled ? 0.8 : 1
                           }}
                         >
@@ -1445,6 +1458,7 @@ export default function DocumentsScreen({ onBack }) {
                       </div>
                     ) : field.type === 'textarea' ? (
                       <textarea
+                        id={`field-${field.key}`}
                         value={form[field.key]}
                         readOnly={isDisabled}
                         onChange={e => handleChange(field.key, e.target.value)}
@@ -1495,18 +1509,20 @@ export default function DocumentsScreen({ onBack }) {
                       </div>
                     ) : field.type === 'file' ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <div style={{
-                          width: '100%', height: '140px', borderRadius: '20px', border: '2.5px dashed #e2e8f0',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-                          backgroundColor: '#f8fafc', cursor: 'pointer', position: 'relative',
-                          transition: 'all 0.2s', borderColor: form[field.key] ? '#315A9E' : '#e2e8f0'
-                        }} onClick={() => {
-                          if (isEditing) {
-                            document.getElementById(`upload-${field.key}`).click();
-                          } else if (form[field.key]) {
-                            setViewImage(form[field.key].startsWith('http') || form[field.key].startsWith('data:') ? form[field.key] : `${BASE_URL}${form[field.key]}`);
-                          }
-                        }}>
+                        <div
+                          id={`field-${field.key}`}
+                          style={{
+                            width: '100%', height: '140px', borderRadius: '20px', border: '2.5px dashed #e2e8f0',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                            backgroundColor: '#f8fafc', cursor: 'pointer', position: 'relative',
+                            transition: 'all 0.2s', borderColor: errors[field.key] ? '#ef4444' : (form[field.key] ? '#315A9E' : '#e2e8f0')
+                          }} onClick={() => {
+                            if (isEditing) {
+                              document.getElementById(`upload-${field.key}`).click();
+                            } else if (form[field.key]) {
+                              setViewImage(form[field.key].startsWith('http') || form[field.key].startsWith('data:') ? form[field.key] : `${BASE_URL}${form[field.key]}`);
+                            }
+                          }}>
                           {form[field.key] && (form[field.key].length > 100 || !form[field.key].startsWith('data:')) ? (
                             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                               {isPDF(form[field.key]) ? (
@@ -1536,7 +1552,7 @@ export default function DocumentsScreen({ onBack }) {
                             </div>
                           )}
                           <input
-                            type="file" id={`upload-${field.key}`} style={{ display: 'none' }} 
+                            type="file" id={`upload-${field.key}`} style={{ display: 'none' }}
                             accept={field.onlyImages ? "image/*" : "image/*,application/pdf"}
                             onChange={(e) => handleFileUpload(field.key, e.target.files[0])}
                           />
@@ -1591,6 +1607,7 @@ export default function DocumentsScreen({ onBack }) {
                       </div>
                     ) : field.type === 'textarea' ? (
                       <textarea
+                        id={`field-${field.key}`}
                         value={form[field.key]}
                         readOnly={isDisabled}
                         onChange={e => handleChange(field.key, e.target.value)}
@@ -1606,11 +1623,12 @@ export default function DocumentsScreen({ onBack }) {
                     ) : (
                       <div style={{ position: 'relative', width: '100%' }}>
                         <input
+                          id={`field-${field.key}`}
                           type={field.type === 'date' ? 'date' : 'text'}
-                          max={field.key === 'dob' ? new Date().toISOString().split('T')[0] : undefined}
+                          max={field.key === 'date_of_birth' ? new Date().toISOString().split('T')[0] : undefined}
                           value={(() => {
                             let val = (form[field.key] && typeof form[field.key] === 'string' && form[field.key].includes('T') && form[field.key].length > 15) ? form[field.key].split('T')[0] : (form[field.key] || '');
-                            if (['dob', 'doj', 'separation', 'lwd'].includes(field.key) && typeof val === 'string') {
+                            if (['date_of_birth', 'doj', 'separation', 'lwd'].includes(field.key) && typeof val === 'string') {
                               if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(val)) {
                                 const parts = val.substring(0, 10).split(/[-/]/);
                                 val = `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -1630,7 +1648,7 @@ export default function DocumentsScreen({ onBack }) {
                             }
                             return val;
                           })()}
-                          readOnly={isDisabled || field.key === 'age'}
+                          readOnly={isDisabled || field.key === 'age' || field.key === 'emp_name'}
                           onChange={e => handleChange(field.key, e.target.value)}
                           onClick={e => {
                             if (field.type === 'date' && !isDisabled) {
@@ -1645,10 +1663,10 @@ export default function DocumentsScreen({ onBack }) {
                           style={{
                             width: '100%', padding: isMobile ? '12px' : '16px 20px',
                             borderRadius: isMobile ? '10px' : '16px', fontSize: isMobile ? '13px' : '16px',
-                            fontWeight: '800', color: '#000000', backgroundColor: (isDisabled || field.key === 'age') ? '#f1f5f9' : '#f8fafc',
-                            border: errors[field.key] ? '2px solid #ef4444' : (!isDisabled ? '2px solid #315A9E' : '2px solid #e2e8f0'),
+                            fontWeight: '800', color: '#000000', backgroundColor: (isDisabled || field.key === 'age' || field.key === 'emp_name') ? '#f1f5f9' : '#f8fafc',
+                            border: errors[field.key] ? '2px solid #ef4444' : ((!isDisabled && field.key !== 'emp_name') ? '2px solid #315A9E' : '2px solid #e2e8f0'),
                             outline: 'none', boxSizing: 'border-box',
-                            transition: 'all 0.2s', cursor: (isDisabled || field.key === 'age') ? 'default' : 'text'
+                            transition: 'all 0.2s', cursor: (isDisabled || field.key === 'age' || field.key === 'emp_name') ? 'default' : 'text'
                           }}
                         />
                       </div>

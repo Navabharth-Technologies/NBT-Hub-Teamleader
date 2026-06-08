@@ -262,7 +262,7 @@ export default function FocusLogs({ onBack }) {
     },
     input: { border: 'none', backgroundColor: 'transparent', fontSize: '14px', fontWeight: '700', color: '#1e293b', outline: 'none', cursor: 'pointer' },
     toText: { fontSize: '12px', fontWeight: '900', color: '#cbd5e1' },
-    clearBtn: { fontSize: '13px', fontWeight: '800', color: '#3B5998', cursor: 'pointer', border: 'none', backgroundColor: 'transparent', marginLeft: 'auto' },
+    clearBtn: { fontSize: '13px', fontWeight: '800', color: '#3B5998', cursor: 'pointer', border: 'none', backgroundColor: 'transparent' },
     downloadBtn: {
       backgroundColor: '#1e293b',
       color: 'white',
@@ -353,8 +353,8 @@ export default function FocusLogs({ onBack }) {
 
           <button style={s.clearBtn} onClick={handleClear}>Clear</button>
 
-          <div style={{ position: 'relative' }}>
-            <button style={s.downloadBtn} onClick={downloadPDF}>
+          <div style={{ position: 'relative', marginLeft: isMobile ? '0' : 'auto', width: isMobile ? '100%' : 'auto' }}>
+            <button style={{ ...s.downloadBtn, width: isMobile ? '100%' : 'auto', justifyContent: 'center' }} onClick={downloadPDF}>
               <Download size={18} /> Download PDF
             </button>
           </div>

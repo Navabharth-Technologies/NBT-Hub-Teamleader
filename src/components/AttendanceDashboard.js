@@ -166,7 +166,8 @@ const AttendanceDashboard = ({ onBack }) => {
       const token = localStorage.getItem('token');
       if (!token) throw new Error("Authentication token not found. Please log in again.");
 
-      const uid = targetUserId || user?.id || user?.empId || user?.userId || user?.employee_id;
+      const resolvedTargetId = (targetUserId && typeof targetUserId !== 'object') ? targetUserId : null;
+      const uid = resolvedTargetId || selectedSearchUser?.id || selectedSearchUser?.employee_id || user?.id || user?.empId || user?.userId || user?.employee_id;
       const url = `${BASE_URL}/api/attendance_logs?userId=${uid}&limit=1000`;
 
       const [attendanceRes, gapsRes] = await Promise.all([
@@ -360,6 +361,56 @@ const AttendanceDashboard = ({ onBack }) => {
     return matchesFilter && matchesSearch;
   });
 
+  const handleExportCSV = () => {
+    if (filteredLogs.length === 0) {
+      alert("No data available to export.");
+      return;
+    }
+
+    const headers = ["Employee Name", "Employee ID", "Date", "Punch In", "Punch Out", "Hours", "Status", "Audit Location"];
+    
+    const csvRows = [
+      headers.join(','),
+      ...filteredLogs.map(log => {
+        let hours = '0:00';
+        if (log.in_time && log.in_time !== '--:--') {
+          const [ih, im] = log.in_time.split(':').map(Number);
+          const [oh, om] = (log.out_time && log.out_time !== '--:--' && log.out_time !== '00:00:00') 
+            ? log.out_time.split(':').map(Number) 
+            : [new Date().getHours(), new Date().getMinutes()];
+          let diff = (oh * 60 + om) - (ih * 60 + im);
+          if (diff < 0) diff += 1440;
+          const h = Math.floor(diff / 60);
+          const m = diff % 60;
+          hours = `${h}:${String(m).padStart(2, '0')}`;
+        }
+        
+        const config = getStatusConfig(log);
+        const rowData = [
+          log.user_name || log.userName || log.employee_name || 'System User',
+          "'" + (log.user_id || log.employee_id || 'N/A'),
+          "'" + formatDate(log.punch_date),
+          log.in_time || '--:--',
+          log.out_time || '--:--',
+          hours,
+          config.label,
+          log.location || 'Office Zone'
+        ];
+        
+        return rowData.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',');
+      })
+    ];
+
+    const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `attendance_export_${startDate || 'all'}_to_${endDate || 'all'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const s = {
     container: { minHeight: '100vh', backgroundColor: '#f4f7fa', padding: '30px', fontFamily: "'Outfit', sans-serif" },
     header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' },
@@ -416,10 +467,10 @@ const AttendanceDashboard = ({ onBack }) => {
               <button onClick={() => { setStartDate(''); setEndDate(''); }} style={{ border: 'none', background: 'none', color: '#ef4444', fontWeight: '800', cursor: 'pointer', padding: '0 5px' }}>×</button>
             )}
           </div>
-          <button onClick={fetchAttendance} style={{ ...s.btnPrimary, backgroundColor: 'white', color: '#0B1E3F', border: '1px solid #e2e8f0' }}>
+          <button onClick={() => fetchAttendance()} style={{ ...s.btnPrimary, backgroundColor: 'white', color: '#0B1E3F', border: '1px solid #e2e8f0' }}>
             <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
           </button>
-          <button style={s.btnPrimary}>
+          <button onClick={handleExportCSV} style={s.btnPrimary}>
             <Download size={18} /> Export CSV
           </button>
         </div>

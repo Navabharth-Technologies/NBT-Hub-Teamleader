@@ -339,7 +339,27 @@ const Dashboard = ({ setActiveTab }) => {
       ]);
       if (bResp && bResp.ok) {
         const bData = await bResp.json();
-        setBirthdaysList(Array.isArray(bData) ? bData : ((bData && bData.data) || []));
+        const list = Array.isArray(bData) ? bData : ((bData && bData.data) || []);
+        
+        let combined = list.map(item => ({
+          ...item,
+          name: item.name || item.emp_name || item.employee_name || item.userName,
+          date: item.date_of_birth || item.dob || item.dateOfBirth || item.date || item.birthday || null
+        })).filter(item => item.name);
+
+        if (user) {
+          const myName = user.name || user.employee_name || user.emp_name;
+          const myDob = user.date_of_birth || user.dob || user.dateOfBirth || user.birthday || user.date;
+          if (myName && myDob) {
+            combined = combined.filter(p => (p.name || '').toLowerCase() !== myName.toLowerCase());
+            combined.push({
+              ...user,
+              name: myName,
+              date: myDob
+            });
+          }
+        }
+        setBirthdaysList(combined);
       }
       if (hResp && hResp.ok) {
         const hData = await hResp.json();
@@ -451,6 +471,9 @@ const Dashboard = ({ setActiveTab }) => {
 
   const handleSave = async () => {
     if (!user) return;
+    // Block saving if every task input is blank
+    const validTasks = (Array.isArray(todayTasks) ? todayTasks : []).filter(t => t && typeof t.text === 'string' && t.text.trim());
+    if (validTasks.length === 0) return;
     try {
       const payload = {
         userId: user.id || user.employee_id,
@@ -946,20 +969,28 @@ const Dashboard = ({ setActiveTab }) => {
                     <div key={i} style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle2 size={14} color="#16a34a" /> {t?.text}</div>
                   )) : <div style={{ color: '#64748b', fontSize: '13px', textAlign: 'center', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No log found.</div>}
                 </div>
-                <div style={{ marginTop: 'auto', paddingTop: '15px' }}>
-                  <div style={{ ...s.statusBadge, display: 'inline-block' }}>{yesterdayStatus}</div>
-                </div>
+                {Array.isArray(yesterdayTasks) && yesterdayTasks.length > 0 && (
+                  <div style={{ marginTop: 'auto', paddingTop: '15px' }}>
+                    <div style={{ ...s.statusBadge, display: 'inline-block' }}>{yesterdayStatus}</div>
+                  </div>
+                )}
               </div>
 
               <div style={{ padding: '24px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', height: '240px', display: 'flex', flexDirection: 'column' }}>
                 <div style={s.focusHeader}>
                   <div style={{ ...s.focusTitle, display: 'flex', alignItems: 'center', gap: '12px' }}><TrendingUp size={24} /> Today</div>
-                  <button
-                    style={{ ...s.editBtn, display: 'flex', alignItems: 'center', gap: '6px' }}
-                    onClick={(e) => { e.stopPropagation(); isEditingToday ? handleSave() : setIsEditingToday(true); }}
-                  >
-                    {isEditingToday ? 'Save' : <><Pencil size={12} /> Edit</>}
-                  </button>
+                  {(() => {
+                    const hasAnyTask = isEditingToday && (Array.isArray(todayTasks) ? todayTasks : []).some(t => t && typeof t.text === 'string' && t.text.trim());
+                    const canSave = !isEditingToday || hasAnyTask;
+                    return (
+                      <button
+                        style={{ ...s.editBtn, display: 'flex', alignItems: 'center', gap: '6px', opacity: isEditingToday && !hasAnyTask ? 0.4 : 1, cursor: isEditingToday && !hasAnyTask ? 'not-allowed' : 'pointer' }}
+                        onClick={(e) => { e.stopPropagation(); if (isEditingToday && !hasAnyTask) return; isEditingToday ? handleSave() : setIsEditingToday(true); }}
+                      >
+                        {isEditingToday ? 'Save' : <><Pencil size={12} /> Edit</>}
+                      </button>
+                    );
+                  })()}
                 </div>
                 <div style={{ flex: 1, overflowY: 'auto', paddingRight: '5px' }}>
                 {!isEditingToday ? (
@@ -1180,39 +1211,47 @@ const Dashboard = ({ setActiveTab }) => {
                   onClick={() => navigate('/birthdays')}
                   style={{ background: 'none', border: '1.5px solid #e2e8f0', borderRadius: '12px', padding: '6px 14px', fontSize: '11px', fontWeight: '900', color: '#3B5998', cursor: 'pointer' }}
                 >
-                  View All ({birthdaysList.length}) →
+                  View All →
                 </button>
               )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {Array.isArray(birthdaysList) && birthdaysList.length > 0 ? (
-                birthdaysList.slice(0, 2).map((b, i) => {
-                  let rawDob = b?.date || b?.date_of_birth || b?.dob || b?.birthday || '';
-                  const dob = parseSafeDate(rawDob);
-                  if (!dob) return null;
+                (() => {
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
-                  const thisYearBday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-                  if (thisYearBday < today) thisYearBday.setFullYear(today.getFullYear() + 1);
-                  const daysUntil = Math.ceil((thisYearBday - today) / (1000 * 60 * 60 * 24));
-                  const isToday = daysUntil === 0;
-                  return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '18px', backgroundColor: isToday ? '#fdf2f8' : '#f8fafc', border: `1px solid ${isToday ? '#ec4899' : '#e2e8f0'}` }}>
-                      <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: isToday ? '#ec4899' : '#e2e8f0', color: isToday ? 'white' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '900', flexShrink: 0 }}>
-                        {(b?.employee_name || b?.name || '?').charAt(0).toUpperCase()}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{b?.employee_name || b?.name}</div>
-                        <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700' }}>
-                          {`${String(dob.getDate()).padStart(2, '0')}/${String(dob.getMonth() + 1).padStart(2, '0')}/${dob.getFullYear()}`}
+                  
+                  const sortedBirthdays = birthdaysList
+                    .map(b => {
+                      let rawDob = b?.date || b?.date_of_birth || b?.dob || b?.birthday || '';
+                      const dob = parseSafeDate(rawDob);
+                      if (!dob) return null;
+                      
+                      const thisYearBday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+                      if (thisYearBday < today) thisYearBday.setFullYear(today.getFullYear() + 1);
+                      const daysUntil = Math.ceil((thisYearBday - today) / (1000 * 60 * 60 * 24));
+                      return { ...b, dob, thisYearBday, daysUntil };
+                    })
+                    .filter(Boolean)
+                    .sort((a, b) => a.daysUntil - b.daysUntil);
+
+                  return sortedBirthdays.slice(0, 2).map((b, i) => {
+                    const isToday = b.daysUntil === 0;
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', borderRadius: '18px', backgroundColor: isToday ? '#fdf2f8' : '#f8fafc', border: `1px solid ${isToday ? '#ec4899' : '#e2e8f0'}` }}>
+                        <div style={{ width: '38px', height: '38px', borderRadius: '12px', backgroundColor: isToday ? '#ec4899' : '#e2e8f0', color: isToday ? 'white' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: '900', flexShrink: 0 }}>
+                          {(b?.employee_name || b?.name || '?').charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{b?.employee_name || b?.name}</div>
+                          <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700' }}>
+                            {`${String(b.dob.getDate()).padStart(2, '0')}/${String(b.dob.getMonth() + 1).padStart(2, '0')}/${b.dob.getFullYear()}`}
+                          </div>
                         </div>
                       </div>
-                      <div style={{ fontSize: '10px', fontWeight: '900', padding: '4px 10px', borderRadius: '10px', backgroundColor: isToday ? '#ec4899' : '#f1f5f9', color: isToday ? 'white' : '#64748b' }}>
-                        {isToday ? '🎂 TODAY!' : `${daysUntil}d`}
-                      </div>
-                    </div>
-                  );
-                })
+                    );
+                  });
+                })()
               ) : (
                 <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', fontSize: '13px', fontWeight: '700' }}>No upcoming birthdays</div>
               )}
@@ -1230,7 +1269,7 @@ const Dashboard = ({ setActiveTab }) => {
                   onClick={() => navigate('/holidays')}
                   style={{ background: 'none', border: '1.5px solid #e2e8f0', borderRadius: '12px', padding: '6px 14px', fontSize: '11px', fontWeight: '900', color: '#3B5998', cursor: 'pointer' }}
                 >
-                  View All ({holidays.length}) →
+                  View All →
                 </button>
               )}
             </div>
@@ -1253,11 +1292,6 @@ const Dashboard = ({ setActiveTab }) => {
                           {hDate.toLocaleDateString('en-US', { weekday: 'long' })}
                         </div>
                       </div>
-                      {!isPast && (
-                        <div style={{ fontSize: '10px', fontWeight: '900', padding: '4px 10px', borderRadius: '10px', backgroundColor: '#dbeafe', color: '#1d4ed8' }}>
-                          {Math.ceil((hDate - today) / (1000 * 60 * 60 * 24))}d away
-                        </div>
-                      )}
                     </div>
                   );
                 })
@@ -1267,59 +1301,65 @@ const Dashboard = ({ setActiveTab }) => {
             </div>
           </div>
 
-          {/* Saturday Suggestions */}
-          {Array.isArray(suggestions) && suggestions.length > 0 && (
-            <div style={{ ...s.bigCard, width: isMobile ? '100%' : '100%' }}>
-              <div style={s.focusHeader}>
-                <div style={s.focusTitle}>
-                  <FileText size={24} color="#f59e0b" /> Saturday Suggestions
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {(() => {
-                  const unique = [];
-                  const seen = new Set();
-                  const sorted = [...(Array.isArray(suggestions) ? suggestions : [])]
-                    .filter(sug => sug)
-                    .sort((a, b) => new Date(b?.created_at) - new Date(a?.created_at));
-
-                  sorted.forEach(sug => {
-                    if (!sug) return;
-                    const d = parseSafeDate(sug.created_at);
-                    const dateKey = d ? d.toISOString().split('T')[0] : 'no-date';
-                    const userKey = cleanId(sug.employee_id || sug.employee_name || 'anon');
-                    const key = `${userKey}_${dateKey}`;
-
-                    if (!seen.has(key)) {
-                      unique.push(sug);
-                      seen.add(key);
-                    }
-                  });
-
-                  return unique.slice(0, 3).map((sug, i) => (
-                    <div key={i} style={{ padding: '14px 18px', borderRadius: '18px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', position: 'relative' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{sug?.employee_name || 'Anonymous'}</div>
-                        {sug?.created_at && (
-                          <div style={{ fontSize: '9px', fontWeight: '800', color: '#f59e0b', textTransform: 'uppercase', backgroundColor: '#fef3c7', padding: '2px 8px', borderRadius: '6px' }}>
-                            {(() => {
-                              const d = parseSafeDate(sug.created_at);
-                              if (!d) return '';
-                              return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-                            })()}
-                          </div>
-                        )}
-                      </div>
-                      {sug?.requirement && <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}><strong>Req:</strong> {sug.requirement}</div>}
-                      {sug?.suggestion && <div style={{ fontSize: '12px', color: '#475569' }}><strong>Suggestion:</strong> {sug.suggestion}</div>}
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-          )}
-
         </div>
+
+        {/* Saturday Suggestions - Full Width */}
+        {Array.isArray(suggestions) && suggestions.length > 0 && (
+          <div style={{ ...s.bigCard, width: '100%', marginTop: '32px' }}>
+            <div style={s.focusHeader}>
+              <div style={s.focusTitle}>
+                <FileText size={24} color="#f59e0b" /> Saturday Suggestions
+              </div>
+              <button
+                onClick={() => navigate('/saturday-suggestions')}
+                style={{ background: 'none', border: '1.5px solid #e2e8f0', borderRadius: '12px', padding: '6px 14px', fontSize: '11px', fontWeight: '900', color: '#f59e0b', cursor: 'pointer' }}
+              >
+                View All →
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {(() => {
+                const unique = [];
+                const seen = new Set();
+                const sorted = [...(Array.isArray(suggestions) ? suggestions : [])]
+                  .filter(sug => sug)
+                  .sort((a, b) => new Date(b?.created_at) - new Date(a?.created_at));
+
+                sorted.forEach(sug => {
+                  if (!sug) return;
+                  const d = parseSafeDate(sug.created_at);
+                  const dateKey = d ? d.toISOString().split('T')[0] : 'no-date';
+                  const userKey = cleanId(sug.employee_id || sug.employee_name || 'anon');
+                  const key = `${userKey}_${dateKey}`;
+
+                  if (!seen.has(key)) {
+                    unique.push(sug);
+                    seen.add(key);
+                  }
+                });
+
+                return unique.slice(0, 3).map((sug, i) => (
+                  <div key={i} style={{ padding: '14px 18px', borderRadius: '18px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', position: 'relative' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{sug?.employee_name || 'Anonymous'}</div>
+                      {sug?.created_at && (
+                        <div style={{ fontSize: '9px', fontWeight: '800', color: '#f59e0b', textTransform: 'uppercase', backgroundColor: '#fef3c7', padding: '2px 8px', borderRadius: '6px' }}>
+                          {(() => {
+                            const d = parseSafeDate(sug.created_at);
+                            if (!d) return '';
+                            return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                    {sug?.requirement && <div style={{ fontSize: '12px', color: '#475569', marginBottom: '4px' }}><strong>Req:</strong> {sug.requirement}</div>}
+                    {sug?.suggestion && <div style={{ fontSize: '12px', color: '#475569' }}><strong>Suggestion:</strong> {sug.suggestion}</div>}
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        )}
 
       </main>
       <style>{`

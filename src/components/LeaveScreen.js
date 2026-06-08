@@ -31,6 +31,12 @@ const LeaveScreen = ({ onBack }) => {
   const [pendingRequests, setPendingRequests] = useState([]);
   const tabsRef = useRef(null);
   const handledLeavesRef = useRef({});
+  const deepLinkHandledRef = useRef(false);
+
+  // Reset handled flag when location state changes
+  useEffect(() => {
+    deepLinkHandledRef.current = false;
+  }, [location.state]);
 
   const scrollTabs = (direction) => {
     if (tabsRef.current) {
@@ -48,6 +54,29 @@ const LeaveScreen = ({ onBack }) => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [allUsers, setAllUsers] = useState([]);
   const [feedback, setFeedback] = useState('');
+
+  const findRemark = (req, rolePrefixes) => {
+    if (!req) return null;
+    for (const key of Object.keys(req)) {
+      const lowerKey = key.toLowerCase();
+      if (lowerKey === 'remark' || lowerKey === 'reason') continue;
+
+      const suffixes = ['remark', 'comment', 'msg', 'message', 'note', 'reason', 'remarks', 'comments'];
+      const isMatch = rolePrefixes.some(p => {
+        return suffixes.some(s => lowerKey === `${p}_${s}` || lowerKey === `${p}${s}`);
+      });
+
+      if (isMatch && req[key] && String(req[key]).trim() !== '') {
+        return req[key];
+      }
+    }
+    return null;
+  };
+
+  const finalPmRemark = selectedRequest ? (findRemark(selectedRequest, ['pm', 'projectmanager', 'project_manager']) || selectedRequest.pm_comment || selectedRequest.pmComment || selectedRequest.pm_remark || selectedRequest.pmRemark || selectedRequest.pm_remarks || selectedRequest.pmRemarks) : null;
+  const finalTlRemark = selectedRequest ? (findRemark(selectedRequest, ['tl', 'rm', 'teamlead', 'team_leader', 'manager', 'reporting']) || selectedRequest.tl_comment || selectedRequest.tlComment || selectedRequest.rm_comment || selectedRequest.rmComment || selectedRequest.tl_remark || selectedRequest.tlRemark || selectedRequest.rm_remark || selectedRequest.rmRemark || selectedRequest.tl_remarks || selectedRequest.rm_remarks || selectedRequest.remarks || selectedRequest.rmRemarks) : null;
+  const finalHrRemark = selectedRequest ? (findRemark(selectedRequest, ['hr', 'humanresource']) || selectedRequest.hr_comment || selectedRequest.hrComment || selectedRequest.hr_remark || selectedRequest.hrRemark || selectedRequest.hr_remarks || selectedRequest.hrRemarks) : null;
+
   const [apiStats, setApiStats] = useState({
     balance: 0,
     totalTaken: 0,
@@ -85,7 +114,7 @@ const LeaveScreen = ({ onBack }) => {
 
   // Deep Link Logic
   useEffect(() => {
-    if (location.state && !loading) {
+    if (location.state && !loading && !deepLinkHandledRef.current) {
       const { requestId, notificationDesc, notificationTitle } = location.state;
       const combined = [...myLeaves, ...pendingRequests, ...teamHistory];
 
@@ -133,6 +162,7 @@ const LeaveScreen = ({ onBack }) => {
 
       if (found) {
         setSelectedRequest(found);
+        deepLinkHandledRef.current = true;
       }
     }
   }, [location.state, loading, myLeaves, pendingRequests, teamHistory]);
@@ -326,8 +356,13 @@ const LeaveScreen = ({ onBack }) => {
             rm_status: status,
             rmStatus: status,
             status: status,
-            pm_status: status,
-            pmStatus: status
+            pm_status: handledReq.pm_status || handledReq.pmStatus || 'Pending',
+            pmStatus: handledReq.pm_status || handledReq.pmStatus || 'Pending',
+            hr_status: handledReq.hr_status || handledReq.hrStatus || 'Pending',
+            hrStatus: handledReq.hr_status || handledReq.hrStatus || 'Pending',
+            rm_remarks: feedback,
+            remarks: feedback,
+            rmRemarks: feedback
           };
           const uid = cleanId(user?.employee_id || user?.empId || user?.id || user?.userId);
 
@@ -517,9 +552,9 @@ const LeaveScreen = ({ onBack }) => {
     const rm = String(req.rm_status || req.rmStatus || 'Pending').trim().toUpperCase();
     const hr = String(req.hr_status || req.hrStatus || 'Pending').trim().toUpperCase();
 
-    // Improved PM status logic: check if 'status' contains 'PENDING' case-insensitively
     const legacyStatus = String(req.status || '').toUpperCase();
-    const pm = String(req.pm_status || req.pmStatus || (legacyStatus.includes('PENDING') ? 'Pending' : (legacyStatus === '' ? 'Pending' : 'Approved'))).trim().toUpperCase();
+    const defaultPm = legacyStatus === 'APPROVED' ? 'Approved' : (legacyStatus === 'REJECTED' ? 'Rejected' : 'Pending');
+    const pm = String(req.pm_status || req.pmStatus || defaultPm).trim().toUpperCase();
 
     const requesterId = cleanId(req.user_id || req.userId || req.employee_id || req.employeeId);
     const requester = allUsers.find(u =>
@@ -720,7 +755,7 @@ const LeaveScreen = ({ onBack }) => {
         {/* Next Holiday */}
         <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          whileHover={{ scale: 1.02 }}
+          whileHover={{ scale: 1.02, rotate: 0.5 }}
           style={{ background: 'linear-gradient(135deg, #991b1b 0%, #dc2626 100%)', padding: '25px', borderRadius: '25px', color: 'white', position: 'relative', overflow: 'hidden', boxShadow: '0 20px 40px -12px rgba(220, 38, 38, 0.25)', border: '1px solid rgba(255,255,255,0.1)' }}
         >
           <motion.div animate={{ rotate: [0, 10, 0] }} transition={{ duration: 5, repeat: Infinity }} style={{ position: 'absolute', right: '-8px', top: '-8px', opacity: 0.2 }}>
@@ -1156,7 +1191,7 @@ const LeaveScreen = ({ onBack }) => {
                                 <span style={{ fontSize: '13px', color: '#0B1E3F', fontWeight: '900', display: 'block' }}>PM Approval</span>
                                 <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>By: {selectedRequest.pm_approved_by || allUsers.find(u => (u.role || '').toLowerCase().includes('project manager'))?.name || 'Project Manager'}</span>
                               </div>
-                              <span style={s.statusBadge(selectedRequest.pm_status || selectedRequest.pmStatus || (String(selectedRequest.status || '').includes('PENDING') ? 'Pending' : 'Approved'))}>{selectedRequest.pm_status || selectedRequest.pmStatus || (String(selectedRequest.status || '').includes('PENDING') ? 'Pending' : 'Approved')}</span>
+                              <span style={s.statusBadge(selectedRequest.pm_status || selectedRequest.pmStatus || 'Pending')}>{selectedRequest.pm_status || selectedRequest.pmStatus || 'Pending'}</span>
                             </div>
                           </>
                         );
@@ -1172,34 +1207,31 @@ const LeaveScreen = ({ onBack }) => {
                   </div>
                 </div>
 
-                {(selectedRequest.rm_remarks || selectedRequest.remarks || selectedRequest.rmRemarks) && (
-                  <div style={{ marginBottom: '30px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: '900', color: '#3B5998', display: 'block', marginBottom: '10px' }}>TEAM LEADER REMARKS</label>
-                    <div style={{ padding: '20px', backgroundColor: '#f1f5f9', borderRadius: '20px', border: '1px solid #e2e8f0', color: '#0B1E3F', fontSize: '14px', fontWeight: '700', lineHeight: '1.6' }}>
-                      {selectedRequest.rm_remarks || selectedRequest.remarks || selectedRequest.rmRemarks}
-                    </div>
+                {/* Team Leader Remarks */}
+                <div style={{ marginBottom: '30px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: '900', color: '#3B5998', display: 'block', marginBottom: '10px' }}>TEAM LEADER REMARKS</label>
+                  <div style={{ padding: '20px', backgroundColor: '#f1f5f9', borderRadius: '20px', border: '1px solid #e2e8f0', color: finalTlRemark ? '#0B1E3F' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalTlRemark ? 'normal' : 'italic' }}>
+                    {finalTlRemark || 'No remark yet.'}
                   </div>
-                )}
+                </div>
 
-                {(selectedRequest.pm_remarks || selectedRequest.pmRemarks || selectedRequest.pm_comment) && (
-                  <div style={{ marginBottom: '30px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: '900', color: '#10b981', display: 'block', marginBottom: '10px' }}>PM REMARKS</label>
-                    <div style={{ padding: '20px', backgroundColor: '#ecfdf5', borderRadius: '20px', border: '1px solid #d1fae5', color: '#047857', fontSize: '14px', fontWeight: '700', lineHeight: '1.6' }}>
-                      {selectedRequest.pm_remarks || selectedRequest.pmRemarks || selectedRequest.pm_comment}
-                    </div>
+                {/* PM Remarks */}
+                <div style={{ marginBottom: '30px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: '900', color: '#10b981', display: 'block', marginBottom: '10px' }}>PM REMARKS</label>
+                  <div style={{ padding: '20px', backgroundColor: '#ecfdf5', borderRadius: '20px', border: '1px solid #d1fae5', color: finalPmRemark ? '#047857' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalPmRemark ? 'normal' : 'italic' }}>
+                    {finalPmRemark || 'No remark yet.'}
                   </div>
-                )}
+                </div>
 
-                {(selectedRequest.hr_remarks || selectedRequest.hrRemarks || selectedRequest.hr_comment) && (
-                  <div style={{ marginBottom: '30px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: '900', color: '#8b5cf6', display: 'block', marginBottom: '10px' }}>HR REMARKS</label>
-                    <div style={{ padding: '20px', backgroundColor: '#f5f3ff', borderRadius: '20px', border: '1px solid #ede9fe', color: '#6d28d9', fontSize: '14px', fontWeight: '700', lineHeight: '1.6' }}>
-                      {selectedRequest.hr_remarks || selectedRequest.hrRemarks || selectedRequest.hr_comment}
-                    </div>
+                {/* HR Remarks */}
+                <div style={{ marginBottom: '30px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: '900', color: '#8b5cf6', display: 'block', marginBottom: '10px' }}>HR REMARKS</label>
+                  <div style={{ padding: '20px', backgroundColor: '#f5f3ff', borderRadius: '20px', border: '1px solid #ede9fe', color: finalHrRemark ? '#6d28d9' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalHrRemark ? 'normal' : 'italic' }}>
+                    {finalHrRemark || 'No remark yet.'}
                   </div>
-                )}
+                </div>
 
-                {activeTab === 'TEAM_PENDING' && (
+                {activeTab === 'TEAM_PENDING' && String(selectedRequest.rm_status || selectedRequest.rmStatus || 'Pending').trim().toUpperCase() === 'PENDING' && (
                   <div style={{ marginBottom: '30px' }}>
                     <label style={{ fontSize: '12px', fontWeight: '900', color: '#64748b', display: 'block', marginBottom: '10px' }}>ADD FEEDBACK / COMMENT</label>
                     <textarea
@@ -1211,7 +1243,7 @@ const LeaveScreen = ({ onBack }) => {
                   </div>
                 )}
 
-                {activeTab === 'TEAM_PENDING' && (
+                {activeTab === 'TEAM_PENDING' && String(selectedRequest.rm_status || selectedRequest.rmStatus || 'Pending').trim().toUpperCase() === 'PENDING' && (
                   <div style={{ display: 'flex', gap: '20px' }} className="request-action-btns">
                     <button
                       onClick={() => { handleAction(selectedRequest.id, 'Rejected'); setSelectedRequest(null); }}

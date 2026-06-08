@@ -189,7 +189,7 @@ const SaturdayRequirementsPopover = () => {
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: '800', color: '#334155' }}>
                                                 <Lightbulb size={16} color="#f59e0b" />
-                                                PORTAL SUGGESTIONS
+                                                SUGGESTIONS
                                             </label>
                                             <textarea
                                                 placeholder="Any ideas to make things better?"
@@ -199,7 +199,7 @@ const SaturdayRequirementsPopover = () => {
                                             />
                                         </div>
 
-                                         <button
+                                        <button
                                             onClick={handleSubmit}
                                             style={{
                                                 backgroundColor: (isSubmitting || (!feedback.requirements.trim() && !feedback.suggestions.trim())) ? '#cbd5e1' : '#3B5998',

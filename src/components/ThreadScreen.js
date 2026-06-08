@@ -41,10 +41,13 @@ export default function ThreadScreen() {
     const [winWidth, setWinWidth] = useState(window.innerWidth);
     const isMobile = winWidth < 768;
     const isTablet = winWidth < 1024;
-    const [reactorModal, setReactorModal] = useState(null); // { postId, emoji, users, count }
+    const [reactorModal, setReactorModal] = useState(null);
     const [loadingReactors, setLoadingReactors] = useState(false);
-    const [fullscreenMedia, setFullscreenMedia] = useState(null); // { src, type }
-    const [errorNotif, setErrorNotif] = useState(null); // { message }
+    const [fullscreenMedia, setFullscreenMedia] = useState(null);
+    const [errorNotif, setErrorNotif] = useState(null);
+    const [showRemoveFirstModal, setShowRemoveFirstModal] = useState(false);
+    const [showEditRemoveFirstModal, setShowEditRemoveFirstModal] = useState(false);
+    const [pendingEditPost, setPendingEditPost] = useState(null);
 
     const [editMediaFile, setEditMediaFile] = useState(null);
     const [editMediaType, setEditMediaType] = useState(null);
@@ -52,10 +55,26 @@ export default function ThreadScreen() {
     const [editRemoveMedia, setEditRemoveMedia] = useState(false);
     const editFileInputRef = useRef(null);
 
+    // ✅ FIX: Track optimistic media overrides per post so edits reflect immediately
+    const [postMediaOverrides, setPostMediaOverrides] = useState({});
+
     const showError = (message) => {
         setErrorNotif({ message });
         setTimeout(() => setErrorNotif(null), 4000);
     };
+
+    // Auto-close "Remove First" modals after 5 seconds
+    useEffect(() => {
+        if (!showRemoveFirstModal) return;
+        const t = setTimeout(() => setShowRemoveFirstModal(false), 5000);
+        return () => clearTimeout(t);
+    }, [showRemoveFirstModal]);
+
+    useEffect(() => {
+        if (!showEditRemoveFirstModal) return;
+        const t = setTimeout(() => setShowEditRemoveFirstModal(false), 5000);
+        return () => clearTimeout(t);
+    }, [showEditRemoveFirstModal]);
 
     useEffect(() => {
         fetchProfiles();
@@ -89,6 +108,12 @@ export default function ThreadScreen() {
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
         if (!file) return;
+        // Block adding new media if one is already attached
+        if (mediaPreview) {
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            setShowRemoveFirstModal(true);
+            return;
+        }
         setMediaFile(file);
         setMediaType(file.type.startsWith('video') ? 'video' : 'image');
         setMediaPreview(URL.createObjectURL(file));
@@ -104,6 +129,12 @@ export default function ThreadScreen() {
     const handleEditFileSelect = (e) => {
         const file = e.target.files[0];
         if (!file) return;
+        // Block adding new media if edit already has media attached
+        if (editMediaPreview) {
+            if (editFileInputRef.current) editFileInputRef.current.value = '';
+            setShowEditRemoveFirstModal(true);
+            return;
+        }
         setEditMediaFile(file);
         setEditMediaType(file.type.startsWith('video') ? 'video' : 'image');
         setEditMediaPreview(URL.createObjectURL(file));
@@ -160,16 +191,12 @@ export default function ThreadScreen() {
         const y = e.clientY;
         setFlyingEmoji({ emoji, x, y, postId: id });
         setActiveEmojiPicker(null);
-
-        // Emotional Reaction - Distinct from the footer 'Like' action
         onToggleLike(id, emoji);
-
         setTimeout(() => setFlyingEmoji(null), 3500);
     };
 
     const formatTime = (ts) => {
         if (!ts) return '';
-        // Use YYYY/MM/DD format to force local time interpretation across all browsers
         const d = new Date(typeof ts === 'string' ? ts.replace(/-/g, '/').replace('T', ' ').split('.')[0] : ts);
         if (isNaN(d.getTime())) return '...';
 
@@ -191,7 +218,6 @@ export default function ThreadScreen() {
             : (post.reactions?.[emoji] || 0);
         const dynamicCount = cachedData.length > 0 ? cachedData.length : fallbackCount;
 
-        // Open modal immediately with cached/count data
         setReactorModal({
             postId: post.id,
             emoji: emoji === 'like' ? '❤️' : emoji,
@@ -199,16 +225,12 @@ export default function ThreadScreen() {
             count: dynamicCount
         });
 
-        // Fetch live reactor list from API
         setLoadingReactors(true);
         try {
             let liveUsers = await fetchReactors(post.id, emoji);
-
-            // If 'like' returns empty, the backend may store likes as '❤️' — retry
             if ((!liveUsers || liveUsers.length === 0) && emoji === 'like') {
                 liveUsers = await fetchReactors(post.id, '❤️');
             }
-
             if (liveUsers && liveUsers.length > 0) {
                 setReactorModal(prev => prev ? { ...prev, users: liveUsers, count: liveUsers.length } : null);
             }
@@ -340,8 +362,14 @@ export default function ThreadScreen() {
                 <input type="file" ref={fileInputRef} onChange={handleFileSelect} hidden accept="image/*,video/*" />
 
                 <div style={{ display: 'flex', gap: '15px', marginTop: '15px', alignItems: 'center' }}>
-                    <div style={styles.mediaBtn} onClick={() => fileInputRef.current?.click()}><ImageIcon size={18} color="#10b981" /> Photo</div>
-                    <div style={styles.mediaBtn} onClick={() => fileInputRef.current?.click()}><Film size={18} color="#ef4444" /> Video</div>
+                    <div style={styles.mediaBtn} onClick={() => {
+                        if (mediaPreview) { setShowRemoveFirstModal(true); return; }
+                        fileInputRef.current?.click();
+                    }}><ImageIcon size={18} color="#10b981" /> Photo</div>
+                    <div style={styles.mediaBtn} onClick={() => {
+                        if (mediaPreview) { setShowRemoveFirstModal(true); return; }
+                        fileInputRef.current?.click();
+                    }}><Film size={18} color="#ef4444" /> Video</div>
                     <div style={{ flex: 1 }} />
                     <button style={styles.postBtn} onClick={handlePost} disabled={uploading}>
                         {uploading ? 'Publishing...' : 'Publish Thread'}
@@ -374,6 +402,7 @@ export default function ThreadScreen() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
             {threads.map(post => {
                 const authorId = user?.id || user?.empId || user?.userId || user?.employee_id;
                 const uid = post.userId || post.user_id;
@@ -461,18 +490,6 @@ export default function ThreadScreen() {
                                         onChange={(e) => setEditContent(e.target.value)}
                                     />
 
-                                    <input type="file" ref={editFileInputRef} onChange={handleEditFileSelect} hidden accept="image/*,video/*" />
-                                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                                        <div style={styles.mediaBtn} onClick={() => editFileInputRef.current?.click()}>
-                                            <ImageIcon size={18} color="#10b981" /> Replace Photo/Video
-                                        </div>
-                                        {(editMediaPreview || post.media_url || post.mediaUrl || post.media || post.image || post.media_path || post.file_path) && !editRemoveMedia && (
-                                            <div style={{ ...styles.mediaBtn, color: '#ef4444' }} onClick={() => { setEditRemoveMedia(true); setEditMediaFile(null); setEditMediaPreview(null); }}>
-                                                <Trash2 size={18} color="#ef4444" /> Remove Media
-                                            </div>
-                                        )}
-                                    </div>
-
                                     {(editMediaPreview && !editRemoveMedia) && (
                                         <div style={{ marginTop: '10px', position: 'relative', borderRadius: '15px', overflow: 'hidden', maxWidth: '300px' }}>
                                             <XCircle size={24} color="white" style={{ position: 'absolute', top: '10px', right: '10px', cursor: 'pointer', zIndex: 10 }} onClick={() => { setEditMediaFile(null); setEditMediaPreview(null); }} />
@@ -507,6 +524,18 @@ export default function ThreadScreen() {
                                                     removeMedia: editRemoveMedia
                                                 });
                                                 if (success) {
+                                                    // ✅ FIX: Optimistically update media display immediately after save
+                                                    if (editRemoveMedia) {
+                                                        // User removed media — set override to null to hide it
+                                                        setPostMediaOverrides(prev => ({ ...prev, [post.id]: null }));
+                                                    } else if (editMediaPreview) {
+                                                        // User replaced media — show the new blob preview right away
+                                                        setPostMediaOverrides(prev => ({
+                                                            ...prev,
+                                                            [post.id]: { src: editMediaPreview, type: editMediaType }
+                                                        }));
+                                                    }
+                                                    // If no media change, keep existing (override stays undefined = use post data)
                                                     setEditingPostId(null);
                                                     setEditTagline('');
                                                     setEditMediaFile(null);
@@ -537,17 +566,33 @@ export default function ThreadScreen() {
                             )}
                         </div>
 
-                        {/* Support multiple field names and direct base64/relative URLs with type safety */}
+                        {/* ✅ FIX: Media rendering now checks postMediaOverrides first for instant post-edit reflection */}
                         {!isEditing && (() => {
-                            const mediaPath = post.media_url || post.mediaUrl || post.media || post.image || post.media_path || post.file_path;
+                            const override = postMediaOverrides[post.id];
+
+                            // override === null means user explicitly removed media
+                            if (override === null) return null;
+
+                            // override has a value means user just uploaded new media — use it immediately
+                            const mediaPath = override?.src
+                                || post.media_url || post.mediaUrl || post.media
+                                || post.image || post.media_path || post.file_path;
+
                             if (!mediaPath || typeof mediaPath !== 'string') return null;
-                            const isVideo = post.media_type === 'video' || post.mediaType === 'video' || mediaPath.toLowerCase().includes('video') || mediaPath.toLowerCase().endsWith('.mp4');
+
+                            const isVideo = override?.type === 'video'
+                                || post.media_type === 'video'
+                                || post.mediaType === 'video'
+                                || mediaPath.toLowerCase().includes('video')
+                                || mediaPath.toLowerCase().endsWith('.mp4');
 
                             let src = mediaPath;
-                            if (!mediaPath.startsWith('http') && !mediaPath.startsWith('data:')) {
+                            // blob: URLs are already absolute — don't prepend BASE_URL
+                            if (!mediaPath.startsWith('http') && !mediaPath.startsWith('data:') && !mediaPath.startsWith('blob:')) {
                                 const separator = mediaPath.startsWith('/') ? '' : '/';
                                 src = `${BASE_URL}${separator}${mediaPath}`;
                             }
+
                             return (
                                 <div style={styles.postMedia}>
                                     {isVideo ? (
@@ -564,11 +609,8 @@ export default function ThreadScreen() {
                             );
                         })()}
 
-
-
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
                             {post.reactions && Object.entries(post.reactions).map(([emoji, count]) => {
-                                // Only render actual emoji reactions — skip metadata keys like 'like', 'badge', 'total', 'count'
                                 if (!EMOJI_LIST.includes(emoji)) return null;
                                 if (!count || count <= 0) return null;
                                 const hasReacted = post.userReactions?.[emoji] === true;
@@ -782,6 +824,61 @@ export default function ThreadScreen() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* REMOVE FIRST MODAL */}
+            <AnimatePresence>
+                {showRemoveFirstModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        style={styles.modalOverlay}
+                        onClick={() => setShowRemoveFirstModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.85, y: 30 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.85, y: 30 }}
+                            style={{ ...styles.modalContent, textAlign: 'center' }}
+                            onClick={e => e.stopPropagation()}
+                        >
+                            {/* <div style={{ fontSize: '48px', marginBottom: '12px' }}>🖼️</div> */}
+                            <div style={{ fontSize: '17px', fontWeight: '900', color: '#0B1E3F', marginBottom: '10px' }}>Remove Existing Media First</div>
+                            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', lineHeight: 1.6 }}>
+                                Please remove the current image or video before adding a new one.
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* EDIT - REMOVE FIRST MODAL */}
+            <AnimatePresence>
+                {showEditRemoveFirstModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        style={styles.modalOverlay}
+                        onClick={() => setShowEditRemoveFirstModal(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.85, y: 30 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.85, y: 30 }}
+                            style={{ ...styles.modalContent, textAlign: 'center' }}
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div style={{ fontSize: '48px', marginBottom: '12px' }}>🖼️</div>
+                            <div style={{ fontSize: '17px', fontWeight: '900', color: '#0B1E3F', marginBottom: '10px' }}>Remove Existing Media First</div>
+                            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', lineHeight: 1.6 }}>
+                                Please remove the current image or video before adding a new one.
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             <AnimatePresence>
                 {flyingEmoji && (
                     <motion.div initial={{ left: flyingEmoji.x, top: flyingEmoji.y, opacity: 0 }} animate={{ y: [0, -100, -200], x: [0, 50, -50], opacity: [0, 1, 0], scale: [1, 2, 1] }} transition={{ duration: 2 }} style={{ position: 'fixed', fontSize: '50px', zIndex: 999 }}>{flyingEmoji.emoji}</motion.div>

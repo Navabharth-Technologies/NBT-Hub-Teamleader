@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Send, ChevronLeft, ArrowLeft, Users, RefreshCw, User, Info } from 'lucide-react';
+import { LogOut, Send, ChevronLeft, ArrowLeft, Users, RefreshCw, User, Info, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { getTheme } from '../constants/Theme';
@@ -224,9 +224,9 @@ export default function ResignationScreen({ onBack }) {
     tab: (active) => ({ flex: 1, padding: isMobile ? '10px 10px' : '12px 20px', borderRadius: '14px', border: 'none', backgroundColor: active ? 'white' : 'transparent', color: active ? '#0B1E3F' : '#64748b', fontSize: isMobile ? '11px' : '13px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }),
     card: { backgroundColor: 'white', borderRadius: '35px', padding: isMobile ? '25px' : (isTablet ? '35px' : '50px'), boxShadow: '0 20px 60px rgba(0,0,0,0.03)', border: '1.5px solid #f1f5f9', marginBottom: '30px' },
     label: { fontSize: '11px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px', display: 'block' },
-    input: { width: '100%', padding: '16px 20px', borderRadius: '15px', backgroundColor: '#f8fafc', border: '1.5px solid #f1f5f9', fontSize: '14px', color: '#0B1E3F', fontWeight: '600', outline: 'none', boxSizing: 'border-box', marginBottom: '25px' },
-    textarea: { width: '100%', padding: '20px', borderRadius: '15px', backgroundColor: '#f8fafc', border: '1.5px solid #f1f5f9', fontSize: '14px', color: '#0B1E3F', fontWeight: '600', outline: 'none', boxSizing: 'border-box', minHeight: '160px', marginBottom: '25px', resize: 'none' },
-    select: { width: '100%', padding: '16px 20px', borderRadius: '15px', backgroundColor: '#f8fafc', border: '1.5px solid #f1f5f9', fontSize: '14px', color: '#0B1E3F', fontWeight: '600', outline: 'none', cursor: 'pointer', marginBottom: '25px', appearance: 'none' },
+    input: { width: '100%', padding: '16px 20px', borderRadius: '15px', backgroundColor: '#f8fafc', border: '1.5px solid #cbd5e1', fontSize: '14px', color: '#0B1E3F', fontWeight: '600', outline: 'none', boxSizing: 'border-box', marginBottom: '25px' },
+    textarea: { width: '100%', padding: '20px', borderRadius: '15px', backgroundColor: '#f8fafc', border: '1.5px solid #cbd5e1', fontSize: '14px', color: '#0B1E3F', fontWeight: '600', outline: 'none', boxSizing: 'border-box', minHeight: '160px', marginBottom: '25px', resize: 'none' },
+    select: { width: '100%', padding: '16px 20px', paddingRight: '45px', borderRadius: '15px', backgroundColor: '#f8fafc', border: '1.5px solid #cbd5e1', fontSize: '14px', color: '#0B1E3F', fontWeight: '600', outline: 'none', cursor: 'pointer', marginBottom: '25px', appearance: 'none' },
     submitBtn: { width: '100%', padding: '18px', borderRadius: '18px', backgroundColor: '#dc2626', color: 'white', border: 'none', fontSize: '15px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', boxShadow: '0 10px 25px rgba(220, 38, 38, 0.2)' },
     historyItem: { padding: isMobile ? '20px' : '25px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1px solid #f1f5f9', marginBottom: '15px' },
     statusBadge: (s) => {
@@ -332,13 +332,26 @@ export default function ResignationScreen({ onBack }) {
                 </div>
 
                 <label style={s.label}>Primary Reason <span style={{ color: '#ef4444' }}>*</span></label>
-                <select style={s.select} value={reason} onChange={e => setReason(e.target.value)}>
-                  <option value="">Select a reason</option>
-                  <option value="Better Career Opportunity">Better Career Opportunity</option>
-                  <option value="Personal Reasons">Personal Reasons</option>
-                  <option value="Higher Education">Higher Education</option>
-                  <option value="Other">Other</option>
-                </select>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <select style={s.select} value={reason} onChange={e => setReason(e.target.value)}>
+                    <option value="">Select a reason</option>
+                    <option value="Better Career Opportunity">Better Career Opportunity</option>
+                    <option value="Personal Reasons">Personal Reasons</option>
+                    <option value="Higher Education">Higher Education</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <div style={{
+                    position: 'absolute',
+                    right: '20px',
+                    top: 'calc(50% - 12.5px)', // Center vertically, adjusting for select's marginBottom of 25px
+                    pointerEvents: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: '#64748b'
+                  }}>
+                    <ChevronDown size={18} />
+                  </div>
+                </div>
 
                 <label style={s.label}>Formal Letter Content <span style={{ color: '#ef4444' }}>*</span></label>
                 <textarea style={s.textarea} placeholder="Write your formal letter..." value={detailedReason} onChange={e => setDetailedReason(e.target.value)} />

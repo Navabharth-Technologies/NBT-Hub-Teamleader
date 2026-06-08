@@ -14,6 +14,33 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
   const authValidRef = useRef(true);
 
   const [winWidth, setWinWidth] = useState(window.innerWidth);
+  const [usersMap, setUsersMap] = useState({});
+  const [taskDetails, setTaskDetails] = useState({});
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const cleanToken = (token && token !== 'undefined' && token !== 'null') ? token.replace(/['"]+/g, '').trim() : '';
+        if (!cleanToken) return;
+        const headers = { 'Authorization': `Bearer ${cleanToken}` };
+        const res = await fetch(API_ENDPOINTS.USERS, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          const map = {};
+          (Array.isArray(data) ? data : []).forEach(u => {
+            if (u && u.id) {
+              map[String(u.id)] = u.name;
+            }
+          });
+          setUsersMap(map);
+        }
+      } catch (err) {
+        console.error("Failed to load users for notifications:", err);
+      }
+    };
+    fetchUsers();
+  }, [user]);
 
   const parseDbDate = (dateStr) => {
     if (!dateStr) return new Date();
@@ -138,6 +165,40 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
       const sortedNotifications = mappedGlobal.sort((a, b) => b.rawDate - a.rawDate);
 
       setNotifications(sortedNotifications);
+
+      // Fetch details for task notifications
+      sortedNotifications.forEach(async (n) => {
+        if (!n.taskId) return;
+        const titleLower = String(n.title).toLowerCase();
+        const isTaskRelated = titleLower.includes('task') || 
+                             titleLower.includes('approved') || 
+                             titleLower.includes('rejected') || 
+                             titleLower.includes('completed') || 
+                             titleLower.includes('assigned');
+        if (!isTaskRelated) return;
+        
+        setTaskDetails(prev => {
+          if (prev[n.taskId]) return prev;
+          
+          const fetchDetail = async () => {
+            try {
+              const token = localStorage.getItem('token');
+              const cleanToken = (token && token !== 'undefined' && token !== 'null') ? token.replace(/['"]+/g, '').trim() : '';
+              const headers = cleanToken ? { 'Authorization': `Bearer ${cleanToken}` } : {};
+              const res = await fetch(API_ENDPOINTS.SINGLE_TASK_DETAIL(n.taskId), { headers });
+              if (res.ok) {
+                const detail = await res.json();
+                setTaskDetails(current => ({ ...current, [n.taskId]: detail }));
+              }
+            } catch (err) {
+              console.error(`Failed to fetch detail for task ${n.taskId}:`, err);
+            }
+          };
+          fetchDetail();
+          
+          return { ...prev, [n.taskId]: { loading: true } };
+        });
+      });
 
       if (sortedNotifications.length > 0) {
         const latestId = String(sortedNotifications[0].id);
@@ -366,33 +427,80 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
                           textOverflow: 'ellipsis',
                           transition: 'all 0.3s ease'
                         }}>{notif.title}</h4>
-                        <p style={{
-                          margin: 0,
-                          fontSize: '12px',
-                          color: !isRead ? '#3B5998' : '#94a3b8',
-                          fontWeight: !isRead ? '800' : '400',
-                          lineHeight: '1.4',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                          transition: 'all 0.3s ease'
-                        }}>{notif.description}</p>
-                        {/* Assignee chip for task notifications */}
-                        {(String(notif.title || '').toLowerCase().includes('task') || String(notif.title || '').toLowerCase().includes('assigned')) && (() => {
+                        {!(notif.type === 'QUIZ' || String(notif.title || '').toLowerCase().includes('quiz')) && (
+                          <p style={{
+                            margin: 0, 
+                            fontSize: '12px', 
+                            color: !isRead ? '#3B5998' : '#94a3b8', 
+                            fontWeight: !isRead ? '800' : '400', 
+                            lineHeight: '1.4',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            transition: 'all 0.3s ease'
+                          }}>{notif.description}</p>
+                        )}
+                        {/* Assignee / Completed / Approved-for / Rejected-for chip */}
+                        {(String(notif.title || '').toLowerCase().includes('task') ||
+                          String(notif.title || '').toLowerCase().includes('assigned') ||
+                          String(notif.title || '').toLowerCase().includes('approved') ||
+                          String(notif.title || '').toLowerCase().includes('completed') ||
+                          String(notif.title || '').toLowerCase().includes('rejected') ||
+                          String(notif.title || '').toLowerCase().includes('declined')) && (() => {
                           const desc = notif.description || '';
-                          // Extract "assigned to [Name]" or "by [Name]"
-                          let assignee = '';
-                          const toMatch = desc.match(/assigned to ([^:]+?)(?:\s*:|,|\s+by\s|$)/i);
-                          const byMatch = desc.match(/\bby\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s*$/i);
-                          if (toMatch) assignee = toMatch[1].trim();
-                          else if (byMatch) assignee = byMatch[1].trim();
-                          return assignee ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '5px' }}>
-                              <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: !isRead ? '#3B5998' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: '900', color: 'white', flexShrink: 0 }}>
-                                {assignee.charAt(0).toUpperCase()}
+                          const titleL = String(notif.title || '').toLowerCase();
+                          const isRejected = titleL.includes('rejected') || titleL.includes('declined');
+                          const isApproved = titleL.includes('approved') || titleL.includes('accepted');
+                          const isCompleted = titleL.includes('completed') || titleL.includes('done');
+                          let person = '';
+                          let chipLabel = '';
+                           
+                          const detail = taskDetails[notif.taskId];
+                          if (detail && detail.assignee_id && usersMap[String(detail.assignee_id)]) {
+                            person = usersMap[String(detail.assignee_id)];
+                            if (isCompleted) chipLabel = 'Completed';
+                            else if (isApproved) chipLabel = 'Approved';
+                            else if (isRejected) chipLabel = 'Rejected';
+                            else chipLabel = 'Assigned to';
+                          } else {
+                            // Always try to find the employee name (assigned to) first
+                            const assignedToMatch = desc.match(/assigned to ([^:,]+?)(?:\s*:|,|\s+has been|\s+by\s|$)/i);
+                            const completedByMatch = desc.match(/(?:completed|done|finished) by\s+(.+?)\s*$/i);
+                            const approvedForMatch = desc.match(/(?:approved|accepted) for\s+([^:,(]+?)(?:\s+by\s|$|\))/i);
+                            const rejectedForMatch = desc.match(/(?:rejected|declined) for\s+([^:,(]+?)(?:\s+by\s|$|\))/i);
+                            
+                            // Clean description of trailing (Approved/Rejected/Completed by Approver) parentheticals
+                            const cleanDesc = desc.replace(/\s*\((?:approved|rejected|declined|completed|done|finished|verified) by\s+.+?\)\s*$/i, '').trim();
+                            const byMatch = cleanDesc.match(/\bby\s+(.+?)\s*$/i);
+                            
+                            if (isCompleted && completedByMatch) {
+                              person = completedByMatch[1].trim();
+                              chipLabel = 'Completed';
+                            } else if (isApproved && approvedForMatch) {
+                              person = approvedForMatch[1].trim();
+                              chipLabel = 'Approved';
+                            } else if (isRejected && rejectedForMatch) {
+                              person = rejectedForMatch[1].trim();
+                              chipLabel = 'Rejected';
+                            } else if (assignedToMatch) {
+                              person = assignedToMatch[1].trim();
+                              chipLabel = isRejected ? 'Rejected' : isApproved ? 'Approved' : 'Assigned to';
+                            } else if (byMatch) {
+                              person = byMatch[1].trim();
+                              chipLabel = isCompleted ? 'Completed' : isRejected ? 'Rejected' : isApproved ? 'Approved' : 'By';
+                            }
+                          }
+                          const chipColor = isRejected ? '#ef4444' : isApproved ? '#16a34a' : isCompleted ? '#8b5cf6' : (!isRead ? '#3B5998' : '#94a3b8');
+                          return person ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px' }}>
+                              {chipLabel && (
+                                <span style={{ fontSize: '9px', fontWeight: '900', color: chipColor, textTransform: 'uppercase', letterSpacing: '0.4px', flexShrink: 0 }}>{chipLabel}:</span>
+                              )}
+                              <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: chipColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: '900', color: 'white', flexShrink: 0 }}>
+                                {person.charAt(0).toUpperCase()}
                               </div>
-                              <span style={{ fontSize: '10px', fontWeight: '900', color: !isRead ? '#3B5998' : '#94a3b8' }}>{assignee}</span>
+                              <span style={{ fontSize: '10px', fontWeight: '900', color: chipColor }}>{person}</span>
                             </div>
                           ) : null;
                         })()}
