@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { BASE_URL, API_ENDPOINTS, cleanId } from '../../config';
@@ -14,6 +15,7 @@ import {
 import TicketSection from './TicketSection';
 
 export default function ProfileScreen({ isNewJoinee, onNavigate }) {
+  const location = useLocation();
   const { user, logout, updateProfile, refreshUser } = useAuth();
   const [winWidth, setWinWidth] = useState(window.innerWidth);
   const isMobile = winWidth < 768;
@@ -159,6 +161,14 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     }
     return () => clearInterval(timer);
   }, [otpRequested, countdown, otpVerified]);
+
+  useEffect(() => {
+    if (location.state?.openSupport) {
+      setShowTicketModal(true);
+      // Clear state so it doesn't reopen on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   useEffect(() => {
     if (isEditingAbout && aboutTextAreaRef.current) {

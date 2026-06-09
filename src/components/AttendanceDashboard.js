@@ -256,7 +256,7 @@ const AttendanceDashboard = ({ onBack }) => {
           timestamp: new Date().toISOString(),
           status,
           work_time,
-          remark: !isAtOffice ? 'Home Checkout' : (status === 'HALF DAY' ? 'Auto Half Day (<4hrs)' : ''),
+          remark: action === 'checkin' ? 'Web Punch' : (status === 'HALF DAY' ? 'Half Day - Web Punch' : 'Web Punch'),
           location: displayAddress || 'Office Zone'
         })
       });

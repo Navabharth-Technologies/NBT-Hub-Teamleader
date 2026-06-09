@@ -20,6 +20,12 @@ export default function TicketSection({ onClose }) {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('new'); // 'new' or 'history'
+  const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
+
+  const triggerToast = (msg, type = 'success') => {
+    setToast({ show: true, msg, type });
+    setTimeout(() => setToast({ show: false, msg: '', type: 'success' }), 3000);
+  };
 
   useEffect(() => {
     const handleResize = () => setWinWidth(window.innerWidth);
@@ -41,7 +47,10 @@ export default function TicketSection({ onClose }) {
   };
 
   const handleSubmit = async () => {
-    if (!subject.trim() || !description.trim()) return alert("Please fill all fields");
+    if (!subject.trim() || !description.trim()) {
+      triggerToast("Please fill all fields", "error");
+      return;
+    }
     setLoading(true);
     try {
       const resp = await fetch(API_ENDPOINTS.SUPPORT_TICKETS, {
@@ -60,7 +69,7 @@ export default function TicketSection({ onClose }) {
         setSubject('');
         setDescription('');
         fetchTickets();
-        alert("Ticket submitted successfully!");
+        triggerToast("Ticket submitted successfully!", "success");
         setActiveTab('history');
       }
     } catch (err) {
@@ -95,6 +104,7 @@ export default function TicketSection({ onClose }) {
       overflow: 'hidden',
       boxShadow: '0 40px 100px rgba(0,0,0,0.3)',
       border: '1.5px solid rgba(255,255,255,0.2)',
+      position: 'relative',
     },
     header: {
       padding: '30px',
@@ -168,6 +178,26 @@ export default function TicketSection({ onClose }) {
         style={s.modal} 
         onClick={e => e.stopPropagation()}
       >
+        <AnimatePresence>
+          {toast.show && (
+            <motion.div
+              initial={{ opacity: 0, y: -20, x: '-50%' }}
+              animate={{ opacity: 1, y: 0, x: '-50%' }}
+              exit={{ opacity: 0, y: -20, x: '-50%' }}
+              style={{
+                position: 'absolute', top: '20px', left: '50%',
+                backgroundColor: toast.type === 'success' ? '#10b981' : '#ef4444',
+                color: 'white', padding: '12px 24px', borderRadius: '12px', zIndex: 10001,
+                display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '800', fontSize: '13px',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {toast.msg}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div style={s.header}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <div style={{ width: '45px', height: '45px', borderRadius: '14px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#315A9E' }}>
@@ -263,17 +293,23 @@ export default function TicketSection({ onClose }) {
                           <span style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{t.subject}</span>
                           <span style={s.badge(t.priority)}>{t.priority}</span>
                         </div>
-                        <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase' }}>
-                          #{t.id} • {t.department} • {new Date(t.timestamp || Date.now()).toLocaleDateString()}
+                        <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', marginBottom: (t.action || t.response) ? '8px' : '0' }}>
+                          #{t.id} • {t.department} • {new Date(Array.isArray(t.created_at) ? t.created_at[0] : (t.created_at || t.createdAt || t.timestamp || Date.now())).toLocaleDateString()}
                         </div>
+                        {(t.action || t.response) && (
+                          <div style={{ fontSize: '12px', color: '#315A9E', fontWeight: '600', backgroundColor: '#f8fafc', padding: '8px', borderRadius: '8px', borderLeft: '3px solid #315A9E' }}>
+                            <span style={{ fontWeight: '900', marginRight: '4px' }}>Response:</span> {t.action || t.response}
+                          </div>
+                        )}
                       </div>
                       <div style={{ 
                         padding: '6px 12px', borderRadius: '10px', 
                         fontSize: '10px', fontWeight: '900', 
-                        backgroundColor: t.status === 'RESOLVED' ? '#dcfce7' : '#fff9c4',
-                        color: t.status === 'RESOLVED' ? '#15803d' : '#854d0e'
+                        backgroundColor: String(t.status).toUpperCase() === 'RESOLVED' ? '#dcfce7' : '#fff9c4',
+                        color: String(t.status).toUpperCase() === 'RESOLVED' ? '#15803d' : '#854d0e',
+                        textTransform: 'uppercase'
                       }}>
-                        {t.status || 'PENDING'}
+                        {(!t.status || String(t.status).toUpperCase() === 'OPEN') ? 'PENDING' : t.status}
                       </div>
                     </div>
                   ))

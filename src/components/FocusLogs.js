@@ -199,7 +199,7 @@ export default function FocusLogs({ onBack }) {
     if (filteredLogs.length === 0) return alert("No logs to download");
     const doc = new jsPDF();
     const rangeTitle = (startDate && endDate) ? `${formatDisplayDate(startDate)} to ${formatDisplayDate(endDate)}` : 'All Time';
-    doc.text(`Personal Focus Logs: ${rangeTitle}`, 14, 15);
+    doc.text(`Focus Logs: ${rangeTitle}`, 14, 15);
 
     const tableColumn = ["Report Date", "Time", "Status", "Updated At", "Tasks"];
     const tableRows = [];

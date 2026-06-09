@@ -451,11 +451,11 @@ export default function DocumentsScreen({ onBack }) {
                   };
                   setForm(prev => ({
                     ...prev,
-                    separation: formatDate(latest.resignation_date || latest.resignationDate) || prev.separation,
-                    lwd: formatDate(latest.last_working_day || latest.lastWorkingDay) || prev.lwd,
-                    reason: latest.reason || prev.reason,
-                    detailed_reason: latest.letter_content || latest.detailedReason || latest.detailed_reason || prev.detailed_reason,
-                    attrition_bucket: (latest.status === 'PENDING' || latest.status === 'Approved') ? 'Resignation' : prev.attrition_bucket
+                    separation: prev.separation || formatDate(latest.resignation_date || latest.resignationDate),
+                    lwd: prev.lwd || formatDate(latest.last_working_day || latest.lastWorkingDay),
+                    reason: prev.reason || latest.reason,
+                    detailed_reason: prev.detailed_reason || latest.letter_content || latest.detailedReason || latest.detailed_reason,
+                    attrition_bucket: prev.attrition_bucket !== 'N/A' && prev.attrition_bucket ? prev.attrition_bucket : ((latest.status === 'PENDING' || latest.status === 'Approved') ? 'Resignation' : prev.attrition_bucket)
                   }));
                 }
               }
@@ -617,8 +617,8 @@ export default function DocumentsScreen({ onBack }) {
       if (/[A-Z]/.test(value)) {
         error = 'Email ID must be in lowercase only';
       } else {
-        const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
-        if (!emailRegex.test(value)) error = 'Invalid email format (lowercase only, e.g. user@domain.com)';
+        const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.com$/;
+        if (!emailRegex.test(value)) error = 'Invalid email format (lowercase only, must end with .com)';
       }
     }
 

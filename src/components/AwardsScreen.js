@@ -33,7 +33,7 @@ const getQuizPointsForPeriod = (qList, start, end) => {
     if (!qList || !Array.isArray(qList)) return 0;
     const startTime = parseDateLocal(start);
     const endTime = parseDateLocal(end);
-    
+
     return qList
         .map(q => {
             const rawDate = q.created_at || q.completion_date || q.date || q.timestamp || q.createdAt || q.updatedAt;
@@ -127,11 +127,18 @@ const AwardsScreen = ({ onBack }) => {
         { id: 'custom', title: "Custom Honor", rep: 0, desc: "Define your own milestone.", category: "Custom" }
     ]);
 
+    // Fetch user-independent data or data that shouldn't refresh on date filter change
+    useEffect(() => {
+        if (user) {
+            fetchTeam();
+            fetchGrantedHistory();
+        }
+    }, [user]);
+
+    // Fetch leaderboard data which depends on the date filters
     useEffect(() => {
         if (user) {
             fetchMyRewards();
-            fetchTeam();
-            fetchGrantedHistory();
         }
     }, [user, rankingType, startFilter, endFilter]);
 
@@ -159,7 +166,7 @@ const AwardsScreen = ({ onBack }) => {
             try {
                 const token = localStorage.getItem('token');
                 const eid = selectedEmployee.id || selectedEmployee.userId || selectedEmployee.employee_id;
-                
+
                 const res = await fetch(API_ENDPOINTS.REWARDS_USER(eid), {
                     headers: { 'Authorization': `Bearer ${token?.trim()}` }
                 });
@@ -171,7 +178,7 @@ const AwardsScreen = ({ onBack }) => {
                     const data = await res.json();
                     mainHistory = data.history || data.awards || (Array.isArray(data) ? data : (data.data || []));
                     mainTotal = Number(data.totalPoints || 0);
-                    
+
 
 
                     if (!mainTotal && mainHistory.length > 0) {
@@ -205,7 +212,7 @@ const AwardsScreen = ({ onBack }) => {
             if (res.ok) {
                 const data = await res.json();
                 let allRewards = data.awards || data.history || (Array.isArray(data) ? data : (data.data || data.records || []));
-                
+
                 const lbParams = new URLSearchParams();
                 if (startFilter) {
                     lbParams.append('start_date', startFilter);
@@ -242,7 +249,7 @@ const AwardsScreen = ({ onBack }) => {
                             }
                         });
                     } catch (e) {
-                        console.warn("Failed parsing master employees list:", e);
+                        console.warn("Failed parsing Master Employees list:", e);
                     }
                 }
 
@@ -289,7 +296,7 @@ const AwardsScreen = ({ onBack }) => {
                     lbList = (Array.isArray(lbData) ? lbData : (lbData.data || lbData.records || [])).map(u => {
                         const uId = cleanIdLocal(u.id || u.employee_id || u.userId);
                         const isFilteringActive = !!(startFilter || endFilter);
-                        
+
                         let quizPts = 0;
                         if (isFilteringActive) {
                             quizPts = getQuizPointsForPeriod(allQuizHistories[uId], startFilter, endFilter);
@@ -300,9 +307,9 @@ const AwardsScreen = ({ onBack }) => {
                             }
                             quizPts = userQuizData ? cleanNum(userQuizData.total_quiz_points || userQuizData.points || userQuizData.quizPoints || 0) : cleanNum(u.quizPoints || u.total_quiz_points || 0);
                         }
-                        
+
                         const rewardPts = cleanNum(u.rewardPoints || u.reward_points || u.points || 0);
-                        
+
                         return {
                             ...u,
                             total_points: rewardPts + quizPts,
@@ -452,12 +459,12 @@ const AwardsScreen = ({ onBack }) => {
 
                     if (cat === 'QUIZ' || cat === 'FUN QUIZ GAME' || name.includes('QUIZ')) return false;
                     if (cat === 'HR' || cat === 'ADMIN' || cat === 'RECRUITMENT' || cat === 'GAME') return false;
-                    
-                    const isHrDept = deg.includes('HR') || deg.includes('HUMAN RESOURCES') || deg.includes('RECRUIT') || 
-                                    deg.includes('PEOPLE OPS') || deg.includes('ADMIN') || deg.includes('TALENT') || 
-                                    deg.includes('OFFICE') || deg.includes('ACCOUNT') || deg.includes('OPERATIONS') ||
-                                    role === 'HR' || role === 'ADMIN';
-                    
+
+                    const isHrDept = deg.includes('HR') || deg.includes('HUMAN RESOURCES') || deg.includes('RECRUIT') ||
+                        deg.includes('PEOPLE OPS') || deg.includes('ADMIN') || deg.includes('TALENT') ||
+                        deg.includes('OFFICE') || deg.includes('ACCOUNT') || deg.includes('OPERATIONS') ||
+                        role === 'HR' || role === 'ADMIN';
+
                     if (isHrDept) return false;
 
                     const isVerifiedLeadership = (grantorId && (grantorId === managerId || grantorId === uid));
@@ -465,9 +472,9 @@ const AwardsScreen = ({ onBack }) => {
 
                     if (cat === 'PERFORMANCE' || cat === 'PM') return true;
 
-                    const isLeadershipDesignation = deg.includes('PROJECT MANAGER') || deg.includes('PM') || deg.includes('MANAGER') || 
-                                                   deg.includes('LEAD') || deg.includes('DIRECTOR') || deg.includes('TL') || 
-                                                   deg.includes('TEAM LEADER');
+                    const isLeadershipDesignation = deg.includes('PROJECT MANAGER') || deg.includes('PM') || deg.includes('MANAGER') ||
+                        deg.includes('LEAD') || deg.includes('DIRECTOR') || deg.includes('TL') ||
+                        deg.includes('TEAM LEADER');
                     if (isLeadershipDesignation) return true;
 
                     const isKnownPmTitle = pmTitles.some(t => name.includes(t));
@@ -475,7 +482,7 @@ const AwardsScreen = ({ onBack }) => {
 
                     return false;
                 });
-                
+
                 const hr = allRewards.filter(r => !pm.includes(r));
 
                 setDesignationMap(degMap);
@@ -532,7 +539,7 @@ const AwardsScreen = ({ onBack }) => {
             if (!uid) return;
             const token = localStorage.getItem('token');
             const fetchOptions = { headers: { 'Authorization': `Bearer ${token?.trim()}` } };
-            
+
             const [res, iRes] = await Promise.all([
                 fetch(API_ENDPOINTS.SUBORDINATES(uid), fetchOptions),
                 fetch(API_ENDPOINTS.INTERNS, fetchOptions).catch(() => ({ ok: false }))
@@ -574,7 +581,6 @@ const AwardsScreen = ({ onBack }) => {
                 }
             }));
             setTeamHistories(historyMap);
-            fetchMyRewards(historyMap);
         } catch { }
     };
 
@@ -583,17 +589,17 @@ const AwardsScreen = ({ onBack }) => {
         try {
             const token = localStorage.getItem('token');
             const uid = user?.employee_id || user?.userId || user?.id;
-            
+
             const query = `?start_date=${startFilter}&end_date=${endFilter}`;
             const res = await fetch(`${API_ENDPOINTS.REWARDS_GIVEN(uid)}${query}`, {
                 headers: { 'Authorization': `Bearer ${token?.trim()}` }
             });
-            
+
             if (res.ok) {
                 const data = await res.json();
                 const allLogs = data.awards || (Array.isArray(data) ? data : (data.records || data.data || []));
                 const myUid = cleanIdLocal(uid);
-                
+
                 const givenByMe = allLogs.filter(log => {
                     const gby = cleanIdLocal(log.granted_by || log.grantedBy || log.granted_id || log.grantor_id || log.userId);
                     return gby === myUid;
@@ -610,7 +616,7 @@ const AwardsScreen = ({ onBack }) => {
 
     const handleGrantAward = async () => {
         if (!selectedEmployee || !selectedAward) return;
-        
+
         const finalTitle = selectedAward.id === 'custom' ? customAwardTitle : selectedAward.title;
         const finalPoints = selectedAward.id === 'custom' ? Number(customAwardPoints) : Number(selectedAward.rep);
         const finalDesc = selectedAward.id === 'custom' ? `Custom leadership recognition: ${finalTitle}` : selectedAward.desc;
@@ -673,7 +679,7 @@ const AwardsScreen = ({ onBack }) => {
                 };
                 setGrantedHistory(prev => [newLog, ...prev]);
 
-                setSelectedAward(null); 
+                setSelectedAward(null);
                 setCustomAwardTitle('');
                 setCustomAwardPoints('');
                 fetchGrantedHistory();
@@ -794,19 +800,19 @@ const AwardsScreen = ({ onBack }) => {
                             </div>
                         </div>
 
-                        <div style={{ 
-                            display: 'flex', 
+                        <div style={{
+                            display: 'flex',
                             flexDirection: isMobile ? 'column' : 'row',
-                            alignItems: isMobile ? 'stretch' : 'center', 
-                            gap: '20px', 
-                            marginBottom: '30px', 
-                            backgroundColor: '#0B1E3F', 
-                            padding: isMobile ? '25px 20px' : '30px 40px', 
-                            borderRadius: isMobile ? '30px' : '40px', 
-                            color: 'white', 
-                            position: 'relative', 
-                            overflow: 'hidden', 
-                            boxShadow: '0 20px 40px rgba(11, 30, 63, 0.15)' 
+                            alignItems: isMobile ? 'stretch' : 'center',
+                            gap: '20px',
+                            marginBottom: '30px',
+                            backgroundColor: '#0B1E3F',
+                            padding: isMobile ? '25px 20px' : '30px 40px',
+                            borderRadius: isMobile ? '30px' : '40px',
+                            color: 'white',
+                            position: 'relative',
+                            overflow: 'hidden',
+                            boxShadow: '0 20px 40px rgba(11, 30, 63, 0.15)'
                         }}>
                             <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(251, 188, 5, 0.1) 0%, transparent 70%)' }} />
 
@@ -837,8 +843,8 @@ const AwardsScreen = ({ onBack }) => {
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: isTablet ? '1fr' : '1fr 1fr 1fr', gap: '20px', alignItems: 'start', marginBottom: '40px' }}>
-                            <div style={{ 
-                                backgroundColor: '#ffffff', padding: '25px', borderRadius: '24px', 
+                            <div style={{
+                                backgroundColor: '#ffffff', padding: '25px', borderRadius: '24px',
                                 border: '1.5px solid #fef3c7', boxShadow: '0 10px 40px rgba(217, 119, 6, 0.05)',
                                 height: '580px', display: 'flex', flexDirection: 'column'
                             }}>
@@ -856,16 +862,16 @@ const AwardsScreen = ({ onBack }) => {
                                             Achievement Tier
                                         </div>
                                         <div style={{ position: 'relative' }}>
-                                            <select 
+                                            <select
                                                 value={selectedAward?.id || ''}
                                                 onChange={(e) => {
                                                     const award = availableAwards.find(aw => aw.id === e.target.value);
                                                     setSelectedAward(award);
                                                 }}
-                                                style={{ 
-                                                    width: '100%', padding: '12px 15px', borderRadius: '12px', 
-                                                    border: '1.5px solid #fef3c7', backgroundColor: '#ffffff', 
-                                                    color: '#92400e', fontSize: '13px', fontWeight: '900', 
+                                                style={{
+                                                    width: '100%', padding: '12px 15px', borderRadius: '12px',
+                                                    border: '1.5px solid #fef3c7', backgroundColor: '#ffffff',
+                                                    color: '#92400e', fontSize: '13px', fontWeight: '900',
                                                     cursor: 'pointer', appearance: 'none', outline: 'none'
                                                 }}
                                             >
@@ -883,17 +889,17 @@ const AwardsScreen = ({ onBack }) => {
 
                                         <AnimatePresence>
                                             {selectedAward?.id === 'custom' && (
-                                                <motion.div 
-                                                    initial={{ opacity: 0, height: 0 }} 
-                                                    animate={{ opacity: 1, height: 'auto' }} 
+                                                <motion.div
+                                                    initial={{ opacity: 0, height: 0 }}
+                                                    animate={{ opacity: 1, height: 'auto' }}
                                                     exit={{ opacity: 0, height: 0 }}
                                                     style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px', overflow: 'hidden' }}
                                                 >
                                                     <div>
                                                         <div style={{ fontSize: '10px', fontWeight: '900', color: '#92400e', marginBottom: '5px', textTransform: 'uppercase' }}>Custom Milestone Title</div>
-                                                        <input 
-                                                            type="text" 
-                                                            placeholder="e.g. Exceptional Bug Crusher" 
+                                                        <input
+                                                            type="text"
+                                                            placeholder="e.g. Exceptional Bug Crusher"
                                                             value={customAwardTitle}
                                                             onChange={(e) => setCustomAwardTitle(e.target.value)}
                                                             style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1.5px solid #fde68a', backgroundColor: '#fffcf5', fontSize: '12px', fontWeight: '700', color: '#0B1E3F', outline: 'none' }}
@@ -901,9 +907,9 @@ const AwardsScreen = ({ onBack }) => {
                                                     </div>
                                                     <div>
                                                         <div style={{ fontSize: '10px', fontWeight: '900', color: '#92400e', marginBottom: '5px', textTransform: 'uppercase' }}>REP Value</div>
-                                                        <input 
-                                                            type="number" 
-                                                            placeholder="Enter points..." 
+                                                        <input
+                                                            type="number"
+                                                            placeholder="Enter points..."
                                                             value={customAwardPoints}
                                                             onChange={(e) => setCustomAwardPoints(e.target.value)}
                                                             style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1.5px solid #fde68a', backgroundColor: '#fffcf5', fontSize: '12px', fontWeight: '700', color: '#0B1E3F', outline: 'none' }}
@@ -920,16 +926,16 @@ const AwardsScreen = ({ onBack }) => {
                                             Target Subordinate
                                         </div>
                                         <div style={{ position: 'relative' }}>
-                                            <select 
-                                                value={selectedEmployee?.id || ''} 
+                                            <select
+                                                value={selectedEmployee?.id || ''}
                                                 onChange={(e) => {
                                                     const emp = team.find(m => (m.id || m.userId || m.employee_id) == e.target.value);
                                                     setSelectedEmployee(emp);
                                                 }}
-                                                style={{ 
-                                                    width: '100%', padding: '12px 15px', borderRadius: '12px', 
-                                                    border: '1.5px solid #e2e8f0', backgroundColor: '#f8fafc', 
-                                                    fontSize: '13px', fontWeight: '900', color: '#0B1E3F', 
+                                                style={{
+                                                    width: '100%', padding: '12px 15px', borderRadius: '12px',
+                                                    border: '1.5px solid #e2e8f0', backgroundColor: '#f8fafc',
+                                                    fontSize: '13px', fontWeight: '900', color: '#0B1E3F',
                                                     outline: 'none', cursor: 'pointer', appearance: 'none'
                                                 }}
                                             >
@@ -944,14 +950,14 @@ const AwardsScreen = ({ onBack }) => {
                                         </div>
                                     </div>
 
-                                    <button 
-                                        disabled={!selectedAward || !selectedEmployee || granting} 
-                                        onClick={handleGrantAward} 
-                                        style={{ 
-                                            width: '100%', padding: '15px', borderRadius: '12px', 
-                                            background: (!selectedAward || !selectedEmployee) ? '#f1f5f9' : 'linear-gradient(135deg, #fbbf24, #d97706)', 
-                                            color: (!selectedAward || !selectedEmployee) ? '#94a3b8' : 'white', 
-                                            border: 'none', fontSize: '13px', fontWeight: '1000', 
+                                    <button
+                                        disabled={!selectedAward || !selectedEmployee || granting}
+                                        onClick={handleGrantAward}
+                                        style={{
+                                            width: '100%', padding: '15px', borderRadius: '12px',
+                                            background: (!selectedAward || !selectedEmployee) ? '#f1f5f9' : 'linear-gradient(135deg, #fbbf24, #d97706)',
+                                            color: (!selectedAward || !selectedEmployee) ? '#94a3b8' : 'white',
+                                            border: 'none', fontSize: '13px', fontWeight: '1000',
                                             cursor: (!selectedAward || !selectedEmployee) ? 'not-allowed' : 'pointer'
                                         }}
                                     >
@@ -966,11 +972,11 @@ const AwardsScreen = ({ onBack }) => {
                                             const combined = [
                                                 ...grantedHistory.map(l => ({ ...l, type: 'TL' }))
                                             ].sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
-                                            
+
                                             return combined.slice(0, 3).map((log, i) => (
                                                 <div key={i} style={{ backgroundColor: '#fffcf5', padding: '10px', borderRadius: '10px', border: '1px solid #fde68a' }}>
                                                     <div style={{ fontSize: '10px', fontWeight: '900', color: '#0B1E3F' }}>
-                                                        {log.employee_name || log.targetName || log.award_name || log.title || 'Team Member'} 
+                                                        {log.employee_name || log.targetName || log.award_name || log.title || 'Team Member'}
                                                         <span style={{ color: '#d97706', marginLeft: '5px' }}>• +{log.points || log.rep} REP</span>
                                                     </div>
                                                     <div style={{ fontSize: '8px', fontWeight: '800', color: '#94a3b8', marginTop: '2px', textTransform: 'uppercase' }}>
@@ -988,12 +994,12 @@ const AwardsScreen = ({ onBack }) => {
                                         {(grantedHistory.length === 0 && (!history.pm || history.pm.length === 0) && (!history.hr || history.hr.length === 0)) && (
                                             <div style={{ fontSize: '10px', color: '#94a3b8', textAlign: 'center', padding: '10px' }}>No recent activity</div>
                                         )}
-                                        
-                                        <button 
+
+                                        <button
                                             onClick={() => setActiveView('AUDIT')}
-                                            style={{ 
-                                                background: 'none', border: 'none', color: '#d97706', 
-                                                fontSize: '11px', fontWeight: '1000', cursor: 'pointer', 
+                                            style={{
+                                                background: 'none', border: 'none', color: '#d97706',
+                                                fontSize: '11px', fontWeight: '1000', cursor: 'pointer',
                                                 textAlign: 'right', width: '100%', marginTop: '5px',
                                                 display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '5px'
                                             }}
@@ -1004,8 +1010,8 @@ const AwardsScreen = ({ onBack }) => {
                                 </div>
                             </div>
 
-                            <div style={{ 
-                                backgroundColor: '#ffffff', padding: '25px', borderRadius: '24px', 
+                            <div style={{
+                                backgroundColor: '#ffffff', padding: '25px', borderRadius: '24px',
                                 border: '1.5px solid #eff6ff', boxShadow: '0 10px 40px rgba(59, 89, 152, 0.05)',
                                 height: '580px', display: 'flex', flexDirection: 'column'
                             }}>
@@ -1028,7 +1034,7 @@ const AwardsScreen = ({ onBack }) => {
                                             .map((aw, i) => {
                                                 const gid = cleanIdLocal(aw.granted_by || aw.giver_id || aw.grantor_id);
                                                 const deg = designationMap[gid] || '';
-                                                
+
                                                 return (
                                                     <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} style={{ backgroundColor: '#fcfdfe', padding: '15px', borderRadius: '18px', border: `1px solid #e0f2fe` }}>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -1045,8 +1051,8 @@ const AwardsScreen = ({ onBack }) => {
                                 </div>
                             </div>
 
-                            <div style={{ 
-                                backgroundColor: '#ffffff', padding: '25px', borderRadius: '24px', 
+                            <div style={{
+                                backgroundColor: '#ffffff', padding: '25px', borderRadius: '24px',
                                 border: '1.5px solid #f0fdf4', boxShadow: '0 10px 40px rgba(74, 222, 128, 0.05)',
                                 height: '580px', display: 'flex', flexDirection: 'column'
                             }}>
@@ -1089,29 +1095,29 @@ const AwardsScreen = ({ onBack }) => {
                                                 const rawTitle = String(aw.title || aw.award_name || aw.reward_name || aw.awardName || '').trim();
                                                 const cat = String(aw.category || '').toUpperCase();
                                                 const isQuiz = cat === 'FUN QUIZ GAME' || cat === 'QUIZ' || rawTitle.toLowerCase().includes('points earned by quiz');
-                                                
+
                                                 const displayTitle = isQuiz ? 'Brain Teaser Achievement' : rawTitle;
 
                                                 return (
-                                                    <motion.div key={i} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} style={{ 
-                                                        backgroundColor: isQuiz ? '#fffbeb' : '#fcfdfe', 
-                                                        padding: '15px', borderRadius: '18px', 
-                                                        border: `1px solid ${isQuiz ? '#fef3c7' : '#dcfce7'}`, 
-                                                        position: 'relative' 
+                                                    <motion.div key={i} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} style={{
+                                                        backgroundColor: isQuiz ? '#fffbeb' : '#fcfdfe',
+                                                        padding: '15px', borderRadius: '18px',
+                                                        border: `1px solid ${isQuiz ? '#fef3c7' : '#dcfce7'}`,
+                                                        position: 'relative'
                                                     }}>
                                                         {isQuiz && <div style={{ position: 'absolute', top: '8px', right: '8px' }}><Zap size={12} color="#eab308" fill="#eab308" /></div>}
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, paddingRight: isQuiz ? '15px' : '0' }}>
-                                                                    <div style={{ fontSize: '13px', fontWeight: '900', color: '#1e293b' }}>{displayTitle}</div>
-                                                                </div>
-                                                                <div style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8', flexShrink: 0 }}>{aw.created_at || aw.date ? (() => { const p = String(aw.created_at || aw.date).split('T')[0].split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : ''; })() : 'Recent'}</div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, paddingRight: isQuiz ? '15px' : '0' }}>
+                                                                <div style={{ fontSize: '13px', fontWeight: '900', color: '#1e293b' }}>{displayTitle}</div>
                                                             </div>
-                                                            <div style={{ fontSize: '11px', fontWeight: '1000', color: isQuiz ? '#d97706' : '#15803d', marginTop: '4px' }}>+{aw.rep || aw.points} REP POINTS</div>
-                                                        </motion.div>
-                                                    );
-                                                })
-                                        ) : <div style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '12px', fontWeight: '800', border: '1.5px dashed #e2e8f0', borderRadius: '15px' }}>No HR or Quiz records in audit</div>}
-                                    </div>
+                                                            <div style={{ fontSize: '9px', fontWeight: '800', color: '#94a3b8', flexShrink: 0 }}>{aw.created_at || aw.date ? (() => { const p = String(aw.created_at || aw.date).split('T')[0].split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : ''; })() : 'Recent'}</div>
+                                                        </div>
+                                                        <div style={{ fontSize: '11px', fontWeight: '1000', color: isQuiz ? '#d97706' : '#15803d', marginTop: '4px' }}>+{aw.rep || aw.points} REP POINTS</div>
+                                                    </motion.div>
+                                                );
+                                            })
+                                    ) : <div style={{ padding: '40px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '12px', fontWeight: '800', border: '1.5px dashed #e2e8f0', borderRadius: '15px' }}>No HR or Quiz records in audit</div>}
+                                </div>
                             </div>
                         </div>
                     </motion.div>
@@ -1136,7 +1142,7 @@ const AwardsScreen = ({ onBack }) => {
                                 </button>
                                 <div>
                                     <h1 style={{ margin: 0, fontSize: '32px', fontWeight: '1000', color: '#0B1E3F', letterSpacing: '-1px' }}>Global Leaderboard</h1>
-                                    <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '15px', fontWeight: '800' }}>Overall ranking of all employees</p>
+                                    <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '15px', fontWeight: '800' }}>Overall ranking of all Employees</p>
                                 </div>
                             </div>
                             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: isTablet ? 'wrap' : 'nowrap', width: isTablet ? '100%' : 'auto' }}>
@@ -1154,7 +1160,7 @@ const AwardsScreen = ({ onBack }) => {
                             </div>
                         </div>
 
-                        <div style={{ 
+                        <div style={{
                             backgroundColor: '#fafbff', padding: '20px', borderRadius: '24px', border: '1.5px solid #e2e8f0',
                             boxShadow: '0 4px 15px rgba(0,0,0,0.02)', marginBottom: '30px'
                         }}>
@@ -1166,26 +1172,26 @@ const AwardsScreen = ({ onBack }) => {
                                     return sorted.map((p, i) => {
                                         const rank = uniqueScores.indexOf(p.total_points) + 1;
                                         return (
-                                        <motion.div 
-                                            key={i} 
-                                            whileHover={{ scale: 1.01, boxShadow: '0 10px 25px rgba(59, 130, 246, 0.15)', borderColor: '#bfdbfe', backgroundColor: '#f8fafc', zIndex: 10 }}
-                                            transition={{ duration: 0.2 }}
-                                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', backgroundColor: 'white', borderRadius: '15px', border: '1px solid #f1f5f9' }}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '900', color: '#3B5998' }}>
-                                                    {(p.name || p.employee_name || 'U').charAt(0).toUpperCase()}
+                                            <motion.div
+                                                key={i}
+                                                whileHover={{ scale: 1.01, boxShadow: '0 10px 25px rgba(59, 130, 246, 0.15)', borderColor: '#bfdbfe', backgroundColor: '#f8fafc', zIndex: 10 }}
+                                                transition={{ duration: 0.2 }}
+                                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', backgroundColor: 'white', borderRadius: '15px', border: '1px solid #f1f5f9' }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                    <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '900', color: '#3B5998' }}>
+                                                        {(p.name || p.employee_name || 'U').charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>{p.name || p.employee_name}</div>
+                                                        <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>Rank #{rank}</div>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>{p.name || p.employee_name}</div>
-                                                    <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>Rank #{rank}</div>
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                                                    <div style={{ fontSize: '15px', fontWeight: '1000', color: '#0B1E3F' }}>{p.total_points} <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>REP</span></div>
+                                                    <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>Quiz: {p.quizPoints || p.total_quiz_points || 0} | Awards: {p.rewardPoints || p.reward_points || 0}</div>
                                                 </div>
-                                            </div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                                                <div style={{ fontSize: '15px', fontWeight: '1000', color: '#0B1E3F' }}>{p.total_points} <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>REP</span></div>
-                                                <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>Quiz: {p.quizPoints || p.total_quiz_points || 0} | Awards: {p.rewardPoints || p.reward_points || 0}</div>
-                                            </div>
-                                        </motion.div>
+                                            </motion.div>
                                         );
                                     });
                                 })() : (
@@ -1233,7 +1239,7 @@ const AwardsScreen = ({ onBack }) => {
                             </div>
                         </div>
 
-                        <div style={{ 
+                        <div style={{
                             backgroundColor: '#fafbff', padding: '20px', borderRadius: '24px', border: '1.5px solid #e2e8f0',
                             boxShadow: '0 4px 15px rgba(0,0,0,0.02)', marginBottom: '30px'
                         }}>
@@ -1260,35 +1266,35 @@ const AwardsScreen = ({ onBack }) => {
                                         const globalUser = (quizLeaderboard || []).find(p => cleanIdLocal(p.employee_id || p.id || p.userId) === mid);
                                         const quizPts = globalUser ? cleanNum(globalUser.quizPoints || globalUser.total_quiz_points || 0) : 0;
                                         const allTimeRewards = globalUser ? cleanNum(globalUser.rewardPoints || globalUser.reward_points || 0) : mHistory.reduce((sum, log) => sum + (cleanNum(log.points) || cleanNum(log.rep) || 0), 0);
-                                        
+
                                         const displayQuiz = quizPts;
                                         const displayRewards = isFiltering ? rewardPeriodPoints : allTimeRewards;
                                         const finalPoints = displayQuiz + displayRewards;
 
                                         return { ...m, displayPoints: finalPoints, quizPoints: displayQuiz, rewardPoints: displayRewards };
                                     })
-                                    .sort((a, b) => b.displayPoints - a.displayPoints)
-                                    .map((m, i, arr) => {
-                                        const uniqueScores = [...new Set(arr.map(e => e.displayPoints))].sort((a, b) => b - a);
-                                        const rank = uniqueScores.indexOf(m.displayPoints) + 1;
-                                        return (
-                                        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', backgroundColor: 'white', borderRadius: '15px', border: '1px solid #f1f5f9' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '900', color: '#3B5998' }}>
-                                                    {(m.employee_name || m.name || 'E').charAt(0).toUpperCase()}
+                                        .sort((a, b) => b.displayPoints - a.displayPoints)
+                                        .map((m, i, arr) => {
+                                            const uniqueScores = [...new Set(arr.map(e => e.displayPoints))].sort((a, b) => b - a);
+                                            const rank = uniqueScores.indexOf(m.displayPoints) + 1;
+                                            return (
+                                                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', backgroundColor: 'white', borderRadius: '15px', border: '1px solid #f1f5f9' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                        <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '900', color: '#3B5998' }}>
+                                                            {(m.employee_name || m.name || 'E').charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>{m.employee_name || m.name}</div>
+                                                            <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>#{rank} in {isFiltering ? 'Period' : 'Team'} Leaderboard</div>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                                                        <div style={{ fontSize: '15px', fontWeight: '1000', color: '#0B1E3F' }}>{m.displayPoints} <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>REP</span></div>
+                                                        <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>Quiz: {m.quizPoints || 0} | Awards: {m.rewardPoints || 0}</div>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <div style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>{m.employee_name || m.name}</div>
-                                                    <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>#{rank} in {isFiltering ? 'Period' : 'Team'} Leaderboard</div>
-                                                </div>
-                                            </div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                                                <div style={{ fontSize: '15px', fontWeight: '1000', color: '#0B1E3F' }}>{m.displayPoints} <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '700' }}>REP</span></div>
-                                                <div style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>Quiz: {m.quizPoints || 0} | Awards: {m.rewardPoints || 0}</div>
-                                            </div>
-                                        </div>
-                                        );
-                                    });
+                                            );
+                                        });
                                 })() : (
                                     <div style={{ textAlign: 'center', padding: '20px', fontSize: '13px', color: '#94a3b8', fontWeight: '800' }}>No subordinates registered for auditing.</div>
                                 )}

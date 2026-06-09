@@ -28,6 +28,7 @@ const LeaveScreen = ({ onBack }) => {
   const theme = getTheme(user?.role);
   const [activeTab, setActiveTab] = useState('MY_HISTORY');
   const [showForm, setShowForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingRequests, setPendingRequests] = useState([]);
   const tabsRef = useRef(null);
   const handledLeavesRef = useRef({});
@@ -195,7 +196,17 @@ const LeaveScreen = ({ onBack }) => {
         const dataArr = Array.isArray(data) ? data : (data.data || []);
         setStatsArray(dataArr);
         if (dataArr.length > 0) {
-          setApiStats(dataArr[0]);
+          if (!filterMonth || filterMonth === 'all') {
+            const totalCasual = dataArr.reduce((sum, item) => sum + Number([item.leaves_taken, item.takenLeaves, item.total_leaves_taken].find(v => v !== undefined && v !== null) ?? 0), 0);
+            const totalLop = dataArr.reduce((sum, item) => sum + Number([item.LOP, item.total_lop, item.lop_taken, item.lopTaken, item.lop].find(v => v !== undefined && v !== null) ?? 0), 0);
+            setApiStats({
+              leaves_taken: totalCasual,
+              LOP: totalLop,
+              leaves_available: undefined
+            });
+          } else {
+            setApiStats(dataArr[0]);
+          }
         } else {
           setApiStats({ balance: 0, totalTaken: 0, pending: 0, approved: 0, total_taken: 0 });
         }
@@ -399,6 +410,8 @@ const LeaveScreen = ({ onBack }) => {
 
   const handleSubmitRequest = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     const token = localStorage.getItem('token');
     const uid = user?.employee_id || user?.empId || user?.id || user?.userId;
 
@@ -483,6 +496,8 @@ const LeaveScreen = ({ onBack }) => {
       }
     } catch (error) {
       setModalConfig({ show: true, message: "Error submitting request: " + error.message, type: 'error' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -684,8 +699,8 @@ const LeaveScreen = ({ onBack }) => {
                 style={{ width: '100%', padding: '12px 15px 12px 42px', borderRadius: '15px', border: '2px solid #e2e8f0', outline: 'none', fontSize: '14px', fontWeight: '800', color: '#0B1E3F', cursor: 'pointer', backgroundColor: 'transparent', boxSizing: 'border-box' }}
               >
                 <option value="all">All Months</option>
-                {/* Generate last 12 months for the dropdown */}
-                {Array.from({ length: 12 }).map((_, i) => {
+                {/* Generate months for the current year up to the current month */}
+                {Array.from({ length: new Date().getMonth() + 1 }).map((_, i) => {
                   const d = new Date();
                   d.setMonth(d.getMonth() - i);
                   const val = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -770,7 +785,7 @@ const LeaveScreen = ({ onBack }) => {
             </div>
           </div>
           <div style={{ marginTop: '15px', padding: '4px 10px', background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', borderRadius: '8px', fontSize: '9px', fontWeight: '1000', width: 'fit-content', textTransform: 'uppercase' }}>
-            🌴 Holiday
+            Holiday
           </div>
         </motion.div>
 
@@ -789,7 +804,7 @@ const LeaveScreen = ({ onBack }) => {
                 <span style={{ opacity: 0.6, fontSize: isMobile ? '12px' : '14px', fontWeight: '800' }}>PENDING</span>
               </div>
               <div style={{ marginTop: '15px', padding: '4px 10px', background: 'rgba(255,255,255,0.2)', borderRadius: '8px', fontSize: '9px', fontWeight: '1000', width: 'fit-content' }}>
-                ⌛ REVIEW
+                REVIEW
               </div>
             </>
           ) : (
@@ -1208,12 +1223,14 @@ const LeaveScreen = ({ onBack }) => {
                 </div>
 
                 {/* Team Leader Remarks */}
-                <div style={{ marginBottom: '30px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: '900', color: '#3B5998', display: 'block', marginBottom: '10px' }}>TEAM LEADER REMARKS</label>
-                  <div style={{ padding: '20px', backgroundColor: '#f1f5f9', borderRadius: '20px', border: '1px solid #e2e8f0', color: finalTlRemark ? '#0B1E3F' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalTlRemark ? 'normal' : 'italic' }}>
-                    {finalTlRemark || 'No remark yet.'}
+                {Number(selectedRequest.user_id || selectedRequest.userId) !== Number(user?.id || user?.employee_id || user?.empId) && (
+                  <div style={{ marginBottom: '30px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '900', color: '#3B5998', display: 'block', marginBottom: '10px' }}>TEAM LEADER REMARKS</label>
+                    <div style={{ padding: '20px', backgroundColor: '#f1f5f9', borderRadius: '20px', border: '1px solid #e2e8f0', color: finalTlRemark ? '#0B1E3F' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalTlRemark ? 'normal' : 'italic' }}>
+                      {finalTlRemark || 'No remark yet.'}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* PM Remarks */}
                 <div style={{ marginBottom: '30px' }}>
@@ -1346,7 +1363,9 @@ const LeaveScreen = ({ onBack }) => {
 
                 <div style={{ display: 'flex', gap: '15px' }}>
                   <button type="button" onClick={() => setShowForm(false)} style={{ flex: 1, padding: winWidth < 480 ? '12px' : '15px', borderRadius: '15px', border: '1.5px solid #f1f5f9', background: 'white', fontWeight: '900', cursor: 'pointer', fontSize: winWidth < 480 ? '13px' : '14px' }}>Cancel</button>
-                  <button type="submit" style={{ flex: 1, padding: winWidth < 480 ? '12px' : '15px', borderRadius: '15px', border: 'none', background: '#0B1E3F', color: 'white', fontWeight: '900', cursor: 'pointer', fontSize: winWidth < 480 ? '13px' : '14px', boxShadow: '0 10px 20px rgba(11, 30, 63, 0.2)' }}>Submit</button>
+                  <button type="submit" disabled={isSubmitting} style={{ flex: 1, padding: winWidth < 480 ? '12px' : '15px', borderRadius: '15px', border: 'none', background: isSubmitting ? '#94a3b8' : '#0B1E3F', color: 'white', fontWeight: '900', cursor: isSubmitting ? 'not-allowed' : 'pointer', fontSize: winWidth < 480 ? '13px' : '14px', boxShadow: isSubmitting ? 'none' : '0 10px 20px rgba(11, 30, 63, 0.2)' }}>
+                    {isSubmitting ? 'Submitting...' : 'Submit'}
+                  </button>
                 </div>
               </form>
             </motion.div>

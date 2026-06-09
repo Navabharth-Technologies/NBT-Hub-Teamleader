@@ -35,7 +35,7 @@ export default function LoginScreen() {
     setInfoMessage('');
     setEmailError('');
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.com$/i;
     if (!emailRegex.test(email.trim())) {
       setEmailError('Please enter a valid email address.');
       return;

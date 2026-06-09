@@ -143,6 +143,8 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
             dynamicTitle = lowerMsg.includes('has been') ? 'Task Update' : 'New Task Assigned';
           } else if (lowerMsg.includes('reward') || lowerMsg.includes('points')) {
             dynamicTitle = 'Reward Earned';
+          } else if (lowerMsg.includes('ticket')) {
+            dynamicTitle = 'Ticket Resolve';
           } else {
             dynamicTitle = 'System Alert';
           }
@@ -170,16 +172,16 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
       sortedNotifications.forEach(async (n) => {
         if (!n.taskId) return;
         const titleLower = String(n.title).toLowerCase();
-        const isTaskRelated = titleLower.includes('task') || 
-                             titleLower.includes('approved') || 
-                             titleLower.includes('rejected') || 
-                             titleLower.includes('completed') || 
-                             titleLower.includes('assigned');
+        const isTaskRelated = titleLower.includes('task') ||
+          titleLower.includes('approved') ||
+          titleLower.includes('rejected') ||
+          titleLower.includes('completed') ||
+          titleLower.includes('assigned');
         if (!isTaskRelated) return;
-        
+
         setTaskDetails(prev => {
           if (prev[n.taskId]) return prev;
-          
+
           const fetchDetail = async () => {
             try {
               const token = localStorage.getItem('token');
@@ -195,7 +197,7 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
             }
           };
           fetchDetail();
-          
+
           return { ...prev, [n.taskId]: { loading: true } };
         });
       });
@@ -273,7 +275,7 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
                         try {
                           const token = localStorage.getItem('token');
                           const cleanToken = (token && token !== 'undefined' && token !== 'null') ? token.replace(/['"]+/g, '').trim() : '';
-                          fetch(API_ENDPOINTS.NOTIFICATIONS_MARK_READ_ALL(uid), {
+                          fetch(API_ENDPOINTS.NOTIFICATIONS_READ_ALL(uid), {
                             method: 'PUT',
                             headers: { 'Authorization': `Bearer ${cleanToken}` }
                           }).catch(console.error);
@@ -326,7 +328,7 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
                           try {
                             const token = localStorage.getItem('token');
                             const cleanToken = (token && token !== 'undefined' && token !== 'null') ? token.replace(/['"]+/g, '').trim() : '';
-                            fetch(API_ENDPOINTS.NOTIFICATIONS_MARK_READ(dbId), {
+                            fetch(API_ENDPOINTS.NOTIFICATIONS_READ(dbId), {
                               method: 'PUT',
                               headers: { 'Authorization': `Bearer ${cleanToken}` }
                             }).catch(console.error);
@@ -353,6 +355,8 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
                           nDesc.includes('assigned to')
                         ) {
                           tab = 'PROJECTS';
+                        } else if (nType === 'TICKET' || nTitle.includes('ticket') || nDesc.includes('ticket') || nTitle.includes('support')) {
+                          tab = 'SUPPORT';
                         }
 
                         if (typeof onOpenTask === 'function') {
@@ -362,11 +366,17 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
                           if (tab === 'LEAVE') path = '/leave';
                           else if (tab === 'THREAD') path = '/thread';
                           else if (tab === 'FUN') path = '/fun';
-                          
-                          const navState = (tab === 'LEAVE')
-                            ? { requestId: notif.leaveId || notif.id, notificationDesc: notif.description, notificationTitle: notif.title }
-                            : { taskId: notif.taskId || notif.id, notificationDesc: notif.description, notificationTitle: notif.title };
-                          
+                          else if (tab === 'SUPPORT') path = '/profile';
+
+                          let navState;
+                          if (tab === 'LEAVE') {
+                            navState = { requestId: notif.leaveId || notif.id, notificationDesc: notif.description, notificationTitle: notif.title };
+                          } else if (tab === 'SUPPORT') {
+                            navState = { openSupport: true, notificationDesc: notif.description, notificationTitle: notif.title };
+                          } else {
+                            navState = { taskId: notif.taskId || notif.id, notificationDesc: notif.description, notificationTitle: notif.title };
+                          }
+
                           onNavigate(path, navState);
                         }
                         setIsOpen(false);
@@ -429,10 +439,10 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
                         }}>{notif.title}</h4>
                         {!(notif.type === 'QUIZ' || String(notif.title || '').toLowerCase().includes('quiz')) && (
                           <p style={{
-                            margin: 0, 
-                            fontSize: '12px', 
-                            color: !isRead ? '#3B5998' : '#94a3b8', 
-                            fontWeight: !isRead ? '800' : '400', 
+                            margin: 0,
+                            fontSize: '12px',
+                            color: !isRead ? '#3B5998' : '#94a3b8',
+                            fontWeight: !isRead ? '800' : '400',
                             lineHeight: '1.4',
                             display: '-webkit-box',
                             WebkitLineClamp: 2,
@@ -448,62 +458,62 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
                           String(notif.title || '').toLowerCase().includes('completed') ||
                           String(notif.title || '').toLowerCase().includes('rejected') ||
                           String(notif.title || '').toLowerCase().includes('declined')) && (() => {
-                          const desc = notif.description || '';
-                          const titleL = String(notif.title || '').toLowerCase();
-                          const isRejected = titleL.includes('rejected') || titleL.includes('declined');
-                          const isApproved = titleL.includes('approved') || titleL.includes('accepted');
-                          const isCompleted = titleL.includes('completed') || titleL.includes('done');
-                          let person = '';
-                          let chipLabel = '';
-                           
-                          const detail = taskDetails[notif.taskId];
-                          if (detail && detail.assignee_id && usersMap[String(detail.assignee_id)]) {
-                            person = usersMap[String(detail.assignee_id)];
-                            if (isCompleted) chipLabel = 'Completed';
-                            else if (isApproved) chipLabel = 'Approved';
-                            else if (isRejected) chipLabel = 'Rejected';
-                            else chipLabel = 'Assigned to';
-                          } else {
-                            // Always try to find the employee name (assigned to) first
-                            const assignedToMatch = desc.match(/assigned to ([^:,]+?)(?:\s*:|,|\s+has been|\s+by\s|$)/i);
-                            const completedByMatch = desc.match(/(?:completed|done|finished) by\s+(.+?)\s*$/i);
-                            const approvedForMatch = desc.match(/(?:approved|accepted) for\s+([^:,(]+?)(?:\s+by\s|$|\))/i);
-                            const rejectedForMatch = desc.match(/(?:rejected|declined) for\s+([^:,(]+?)(?:\s+by\s|$|\))/i);
-                            
-                            // Clean description of trailing (Approved/Rejected/Completed by Approver) parentheticals
-                            const cleanDesc = desc.replace(/\s*\((?:approved|rejected|declined|completed|done|finished|verified) by\s+.+?\)\s*$/i, '').trim();
-                            const byMatch = cleanDesc.match(/\bby\s+(.+?)\s*$/i);
-                            
-                            if (isCompleted && completedByMatch) {
-                              person = completedByMatch[1].trim();
-                              chipLabel = 'Completed';
-                            } else if (isApproved && approvedForMatch) {
-                              person = approvedForMatch[1].trim();
-                              chipLabel = 'Approved';
-                            } else if (isRejected && rejectedForMatch) {
-                              person = rejectedForMatch[1].trim();
-                              chipLabel = 'Rejected';
-                            } else if (assignedToMatch) {
-                              person = assignedToMatch[1].trim();
-                              chipLabel = isRejected ? 'Rejected' : isApproved ? 'Approved' : 'Assigned to';
-                            } else if (byMatch) {
-                              person = byMatch[1].trim();
-                              chipLabel = isCompleted ? 'Completed' : isRejected ? 'Rejected' : isApproved ? 'Approved' : 'By';
+                            const desc = notif.description || '';
+                            const titleL = String(notif.title || '').toLowerCase();
+                            const isRejected = titleL.includes('rejected') || titleL.includes('declined');
+                            const isApproved = titleL.includes('approved') || titleL.includes('accepted');
+                            const isCompleted = titleL.includes('completed') || titleL.includes('done');
+                            let person = '';
+                            let chipLabel = '';
+
+                            const detail = taskDetails[notif.taskId];
+                            if (detail && detail.assignee_id && usersMap[String(detail.assignee_id)]) {
+                              person = usersMap[String(detail.assignee_id)];
+                              if (isCompleted) chipLabel = 'Completed';
+                              else if (isApproved) chipLabel = 'Approved';
+                              else if (isRejected) chipLabel = 'Rejected';
+                              else chipLabel = 'Assigned to';
+                            } else {
+                              // Always try to find the employee name (assigned to) first
+                              const assignedToMatch = desc.match(/assigned to ([^:,]+?)(?:\s*:|,|\s+has been|\s+by\s|$)/i);
+                              const completedByMatch = desc.match(/(?:completed|done|finished) by\s+(.+?)\s*$/i);
+                              const approvedForMatch = desc.match(/(?:approved|accepted) for\s+([^:,(]+?)(?:\s+by\s|$|\))/i);
+                              const rejectedForMatch = desc.match(/(?:rejected|declined) for\s+([^:,(]+?)(?:\s+by\s|$|\))/i);
+
+                              // Clean description of trailing (Approved/Rejected/Completed by Approver) parentheticals
+                              const cleanDesc = desc.replace(/\s*\((?:approved|rejected|declined|completed|done|finished|verified) by\s+.+?\)\s*$/i, '').trim();
+                              const byMatch = cleanDesc.match(/\bby\s+(.+?)\s*$/i);
+
+                              if (isCompleted && completedByMatch) {
+                                person = completedByMatch[1].trim();
+                                chipLabel = 'Completed';
+                              } else if (isApproved && approvedForMatch) {
+                                person = approvedForMatch[1].trim();
+                                chipLabel = 'Approved';
+                              } else if (isRejected && rejectedForMatch) {
+                                person = rejectedForMatch[1].trim();
+                                chipLabel = 'Rejected';
+                              } else if (assignedToMatch) {
+                                person = assignedToMatch[1].trim();
+                                chipLabel = isRejected ? 'Rejected' : isApproved ? 'Approved' : 'Assigned to';
+                              } else if (byMatch) {
+                                person = byMatch[1].trim();
+                                chipLabel = isCompleted ? 'Completed' : isRejected ? 'Rejected' : isApproved ? 'Approved' : 'By';
+                              }
                             }
-                          }
-                          const chipColor = isRejected ? '#ef4444' : isApproved ? '#16a34a' : isCompleted ? '#8b5cf6' : (!isRead ? '#3B5998' : '#94a3b8');
-                          return person ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px' }}>
-                              {chipLabel && (
-                                <span style={{ fontSize: '9px', fontWeight: '900', color: chipColor, textTransform: 'uppercase', letterSpacing: '0.4px', flexShrink: 0 }}>{chipLabel}:</span>
-                              )}
-                              <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: chipColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: '900', color: 'white', flexShrink: 0 }}>
-                                {person.charAt(0).toUpperCase()}
+                            const chipColor = isRejected ? '#ef4444' : isApproved ? '#16a34a' : isCompleted ? '#8b5cf6' : (!isRead ? '#3B5998' : '#94a3b8');
+                            return person ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px' }}>
+                                {chipLabel && (
+                                  <span style={{ fontSize: '9px', fontWeight: '900', color: chipColor, textTransform: 'uppercase', letterSpacing: '0.4px', flexShrink: 0 }}>{chipLabel}:</span>
+                                )}
+                                <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: chipColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: '900', color: 'white', flexShrink: 0 }}>
+                                  {person.charAt(0).toUpperCase()}
+                                </div>
+                                <span style={{ fontSize: '10px', fontWeight: '900', color: chipColor }}>{person}</span>
                               </div>
-                              <span style={{ fontSize: '10px', fontWeight: '900', color: chipColor }}>{person}</span>
-                            </div>
-                          ) : null;
-                        })()}
+                            ) : null;
+                          })()}
                       </div>
 
                       {/* Unread Blue dot */}
