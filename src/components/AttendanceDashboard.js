@@ -58,7 +58,7 @@ const AttendanceDashboard = ({ onBack }) => {
   const displayAddress = isAtOffice ? OFFICE_ADDRESS : "NAVABHARATH TECHNOLOGIES, 2nd Floor, 667/B, Chitrabhanu Road, Kuvempu Nagara, Mysuru, Karnataka 570023"
 
   const [error, setError] = useState(null);
-  
+
   // Default range: Start of month to end of month (local timezone-safe)
   const formatLocalDate = (date) => {
     const y = date.getFullYear();
@@ -368,15 +368,15 @@ const AttendanceDashboard = ({ onBack }) => {
     }
 
     const headers = ["Employee Name", "Employee ID", "Date", "Punch In", "Punch Out", "Hours", "Status", "Audit Location"];
-    
+
     const csvRows = [
       headers.join(','),
       ...filteredLogs.map(log => {
         let hours = '0:00';
         if (log.in_time && log.in_time !== '--:--') {
           const [ih, im] = log.in_time.split(':').map(Number);
-          const [oh, om] = (log.out_time && log.out_time !== '--:--' && log.out_time !== '00:00:00') 
-            ? log.out_time.split(':').map(Number) 
+          const [oh, om] = (log.out_time && log.out_time !== '--:--' && log.out_time !== '00:00:00')
+            ? log.out_time.split(':').map(Number)
             : [new Date().getHours(), new Date().getMinutes()];
           let diff = (oh * 60 + om) - (ih * 60 + im);
           if (diff < 0) diff += 1440;
@@ -384,7 +384,7 @@ const AttendanceDashboard = ({ onBack }) => {
           const m = diff % 60;
           hours = `${h}:${String(m).padStart(2, '0')}`;
         }
-        
+
         const config = getStatusConfig(log);
         const rowData = [
           log.user_name || log.userName || log.employee_name || 'System User',
@@ -396,7 +396,7 @@ const AttendanceDashboard = ({ onBack }) => {
           config.label,
           log.location || 'Office Zone'
         ];
-        
+
         return rowData.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',');
       })
     ];

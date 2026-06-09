@@ -229,7 +229,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     setUser(null);
-    window.location.hash = '/login';
+    // Hard reload kills all background polling intervals instantly
+    window.location.replace(window.location.pathname + '#/login');
   };
 
   const updateProfile = async (field, value) => {

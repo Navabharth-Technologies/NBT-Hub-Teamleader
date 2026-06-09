@@ -45,6 +45,7 @@ export default function ThreadScreen() {
     const [loadingReactors, setLoadingReactors] = useState(false);
     const [fullscreenMedia, setFullscreenMedia] = useState(null);
     const [errorNotif, setErrorNotif] = useState(null);
+    const [deleteConfirm, setDeleteConfirm] = useState({ type: null, postId: null, commentId: null });
     const [showRemoveFirstModal, setShowRemoveFirstModal] = useState(false);
     const [showEditRemoveFirstModal, setShowEditRemoveFirstModal] = useState(false);
     const [pendingEditPost, setPendingEditPost] = useState(null);
@@ -249,19 +250,19 @@ export default function ThreadScreen() {
         taglineBadge: { display: 'inline-block', padding: '4px 10px', borderRadius: '8px', background: '#f0f9ff', color: '#315A9E', fontSize: isMobile ? '8px' : '9px', fontWeight: '900', textTransform: 'uppercase', marginBottom: '12px', border: '1px solid #e0f2fe' },
         postMedia: { marginTop: '20px', borderRadius: '25px', overflow: 'hidden', border: '1.5px solid #f8fafc', maxHeight: isMobile ? '300px' : '380px', maxWidth: '100%', width: 'fit-content', backgroundColor: '#fdfdfd', display: 'flex', justifyContent: 'flex-start', alignItems: 'center' },
         footer: { display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '15px', marginTop: '15px', gap: isMobile ? '5px' : '10px', flexWrap: isMobile ? 'wrap' : 'nowrap' },
-        action: (active, color) => ({
-            display: 'flex',
-            alignItems: 'center',
-            gap: isMobile ? '4px' : '8px',
-            color: active ? 'white' : color,
-            backgroundColor: active ? color : '#f8fafc',
+        action: (active, activeColor, inactiveColor = '#64748b') => ({ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: isMobile ? '4px' : '8px', 
+            color: active ? 'white' : inactiveColor, 
+            backgroundColor: active ? activeColor : '#f8fafc',
             padding: isMobile ? '6px 8px' : '8px 16px',
             borderRadius: '12px',
             fontSize: isMobile ? '9px' : (isTablet ? '11px' : '12px'),
             fontWeight: '900',
             cursor: 'pointer',
             transition: 'all 0.2s ease',
-            border: active ? `1.5px solid ${color}` : '1.5px solid #f1f5f9',
+            border: active ? `1.5px solid ${activeColor}` : '1.5px solid #f1f5f9',
             position: 'relative',
             flex: isMobile ? '1 1 auto' : 'none',
             justifyContent: 'center'
@@ -464,7 +465,9 @@ export default function ThreadScreen() {
                                         <Edit3 size={16} />
                                     </button>
                                     <button
-                                        onClick={() => deletePost(post.id)}
+                                        onClick={() => {
+                                            setDeleteConfirm({ type: 'thread', postId: post.id, commentId: null });
+                                        }}
                                         style={{ border: 'none', background: '#fef2f2', color: '#ef4444', padding: '10px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                         title="Delete post"
                                     >
@@ -642,7 +645,7 @@ export default function ThreadScreen() {
                                         {activeReaction}
                                     </span>
                                 ) : (
-                                    <Heart size={isMobile ? 16 : 18} fill="none" stroke="#ef4444" strokeWidth={2.5} />
+                                    <Heart size={isMobile ? 16 : 18} fill="none" stroke="#64748b" strokeWidth={2.5} />
                                 )}
                                 {likeCount > 0 && (
                                     <span style={{ fontSize: isMobile ? '10px' : '12px', fontWeight: '900' }}>{likeCount}</span>
@@ -726,12 +729,8 @@ export default function ThreadScreen() {
                                                                 {isMyComment && (
                                                                     <div style={{ display: 'flex', gap: '8px' }}>
                                                                         <button onClick={() => { setEditingCommentId(c.id); setEditCommentContent(cText); }} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px' }}><Edit3 size={13} /></button>
-                                                                        <button onClick={async () => {
-                                                                            const success = await deleteComment(post.id, c.id);
-                                                                            if (success) {
-                                                                                const comments = await fetchComments(post.id);
-                                                                                setPostComments(prev => ({ ...prev, [post.id]: comments }));
-                                                                            }
+                                                                        <button onClick={() => {
+                                                                            setDeleteConfirm({ type: 'comment', postId: post.id, commentId: c.id });
                                                                         }} style={{ border: 'none', background: 'none', color: '#fda4af', cursor: 'pointer', padding: '2px' }}><Trash2 size={13} /></button>
                                                                     </div>
                                                                 )}
@@ -980,6 +979,48 @@ export default function ThreadScreen() {
                             onClick={(e) => e.stopPropagation()}
                         />
                     </motion.div>
+                )}
+
+                {deleteConfirm.type && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            style={{ backgroundColor: 'white', padding: '30px', borderRadius: '24px', width: '90%', maxWidth: '360px', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}
+                        >
+                            <div style={{ width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                                <Trash2 size={24} color="#ef4444" />
+                            </div>
+                            <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', fontWeight: '900', color: '#0f172a' }}>Delete {deleteConfirm.type === 'thread' ? 'Thread' : 'Comment'}</h3>
+                            <p style={{ margin: '0 0 24px 0', fontSize: '13px', color: '#64748b', fontWeight: '600' }}>Are you sure you want to delete this {deleteConfirm.type}? This action cannot be undone.</p>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button
+                                    onClick={() => setDeleteConfirm({ type: null, postId: null, commentId: null })}
+                                    style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1.5px solid #e2e8f0', backgroundColor: 'white', color: '#64748b', fontSize: '13px', fontWeight: '800', cursor: 'pointer' }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        if (deleteConfirm.type === 'thread') {
+                                            deletePost(deleteConfirm.postId);
+                                        } else if (deleteConfirm.type === 'comment') {
+                                            const success = await deleteComment(deleteConfirm.postId, deleteConfirm.commentId);
+                                            if (success) {
+                                                const comments = await fetchComments(deleteConfirm.postId);
+                                                setPostComments(prev => ({ ...prev, [deleteConfirm.postId]: comments }));
+                                            }
+                                        }
+                                        setDeleteConfirm({ type: null, postId: null, commentId: null });
+                                    }}
+                                    style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', backgroundColor: '#ef4444', color: 'white', fontSize: '13px', fontWeight: '800', cursor: 'pointer', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.3)' }}
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
         </div>

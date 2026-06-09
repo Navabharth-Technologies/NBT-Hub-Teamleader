@@ -186,7 +186,8 @@ export default function BirthdaysScreen() {
             .filter(Boolean)
             .sort((a, b) => a.thisYearBDate.getMonth() - b.thisYearBDate.getMonth() || a.thisYearBDate.getDate() - b.thisYearBDate.getDate())
             .map((b, i) => {
-              const formattedDate = `${String(b.rawDate.getDate()).padStart(2, '0')}/${String(b.rawDate.getMonth() + 1).padStart(2, '0')}/${b.rawDate.getFullYear()}`;
+              const birthdayDisplayYear = b.isPassed ? b.thisYearBDate.getFullYear() + 1 : b.thisYearBDate.getFullYear();
+              const formattedDate = `${String(b.rawDate.getDate()).padStart(2, '0')}/${String(b.rawDate.getMonth() + 1).padStart(2, '0')}/${birthdayDisplayYear}`;
 
               return (
                 <div key={b.id || i} style={{ ...s.item, ...(b.isToday ? { border: '2px solid #e11d48', backgroundColor: '#fff1f2' } : b.isUpcoming ? s.upcoming : {}) }}>

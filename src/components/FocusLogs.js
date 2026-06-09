@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Calendar, Download, ArrowLeft, Search, Filter, Clock, FileText, CheckCircle2, ShieldCheck } from 'lucide-react';
+import BackButton from './BackButton';
 import { API_ENDPOINTS } from '../config';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
@@ -22,6 +23,8 @@ export default function FocusLogs({ onBack }) {
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [winWidth, setWinWidth] = useState(window.innerWidth);
   const isMobile = winWidth < 768;
+  const startDateRef = useRef(null);
+  const endDateRef = useRef(null);
 
   useEffect(() => {
     const handleResize = () => setWinWidth(window.innerWidth);
@@ -310,25 +313,7 @@ export default function FocusLogs({ onBack }) {
 
 
         <header style={{ ...s.header, display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <button
-            onClick={handleBack}
-            style={{
-              padding: isMobile ? '8px' : '12px',
-              borderRadius: '12px',
-              backgroundColor: 'white',
-              border: '1.5px solid #e2e8f0',
-              cursor: 'pointer',
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-              outline: 'none',
-              width: 'fit-content'
-            }}
-          >
-            <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
-          </button>
+          <BackButton onClick={handleBack} />
           <div>
             <h1 style={{ ...s.title, marginBottom: '2px' }}>{targetUser ? `${targetUser.name}'s Focus Logs` : 'Daily Report'}</h1>
             <p style={{ ...s.subtitle, margin: 0 }}>{targetUser ? `Reviewing task reports for ${targetUser.name}.` : 'Personal visibility for task reporting.'}</p>
@@ -339,16 +324,56 @@ export default function FocusLogs({ onBack }) {
         <div style={s.filterBar}>
           <div style={s.label}><Calendar size={18} /> DATE RANGE</div>
 
-          <div style={s.dateInputBox}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3B5998' }} />
-            <input type="date" style={s.input} value={startDate} onChange={e => setStartDate(e.target.value)} />
+          <div style={{ ...s.dateInputBox, position: 'relative' }}>
+            <Calendar 
+                size={18} 
+                color="#3B5998" 
+                style={{ cursor: 'pointer' }}
+                onClick={() => { try { startDateRef.current?.showPicker(); } catch (e) { startDateRef.current?.focus(); startDateRef.current?.click(); } }} 
+            />
+            <span style={{ fontSize: '14px', fontWeight: '800', color: startDate ? '#1e293b' : '#94a3b8' }}>
+              {formatDisplayDate(startDate)}
+            </span>
+            <input
+              ref={startDateRef}
+              type="date"
+              style={{
+                position: 'absolute',
+                width: 0,
+                height: 0,
+                opacity: 0,
+                pointerEvents: 'none'
+              }}
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+            />
           </div>
 
           <span style={s.toText}>TO</span>
 
-          <div style={s.dateInputBox}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-            <input type="date" style={s.input} value={endDate} onChange={e => setEndDate(e.target.value)} />
+          <div style={{ ...s.dateInputBox, position: 'relative' }}>
+            <Calendar 
+                size={18} 
+                color="#10b981" 
+                style={{ cursor: 'pointer' }}
+                onClick={() => { try { endDateRef.current?.showPicker(); } catch (e) { endDateRef.current?.focus(); endDateRef.current?.click(); } }}
+            />
+            <span style={{ fontSize: '14px', fontWeight: '800', color: endDate ? '#1e293b' : '#94a3b8' }}>
+              {formatDisplayDate(endDate)}
+            </span>
+            <input
+              ref={endDateRef}
+              type="date"
+              style={{
+                position: 'absolute',
+                width: 0,
+                height: 0,
+                opacity: 0,
+                pointerEvents: 'none'
+              }}
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
+            />
           </div>
 
           <button style={s.clearBtn} onClick={handleClear}>Clear</button>
