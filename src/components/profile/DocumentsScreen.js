@@ -746,6 +746,7 @@ export default function DocumentsScreen({ onBack }) {
     const reader = new FileReader();
     reader.onloadend = () => {
       setForm(prev => ({ ...prev, [key]: reader.result }));
+      setErrors(prev => ({ ...prev, [key]: null }));
     };
     reader.readAsDataURL(file);
 
