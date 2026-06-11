@@ -340,7 +340,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
   const handleRequestOTP = async () => {
     setModalError(null);
     try {
-      const res = await fetch(API_ENDPOINTS.REQUEST_OTP, {
+      const res = await fetch(API_ENDPOINTS.PASSWORD_REQUEST_OTP, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email })
@@ -363,7 +363,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
       return;
     }
     try {
-      const verifyUrl = `${BASE_URL}/api/password/verify-otp`;
+      const verifyUrl = API_ENDPOINTS.PASSWORD_VERIFY_OTP;
       const res = await fetch(verifyUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -393,7 +393,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
     if (passData.new !== passData.confirm) return setModalError('Passwords do not match');
 
     try {
-      const res = await fetch(API_ENDPOINTS.RESET_PASSWORD_OTP, {
+      const res = await fetch(API_ENDPOINTS.PASSWORD_RESET, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email, otp: passData.otp, newPassword: passData.new })
