@@ -16,7 +16,7 @@ const LOCKED_FIELDS = [
   'designation', 'department',
   'gross_salary_a', 'salary', 'pt', 'bgv_status', 'approved_by_ceo',
   'onboarding_link', 'appointment_letter', 'onboarding_doc_completed', 'id_card',
-  'emp_id', 'doj', 'lwd', 'asset_name', 'asset_serial_no', 'asset_charger_details',
+  'emp_id', 'doj', 'asset_name', 'asset_serial_no', 'asset_charger_details',
   'has_mouse', 'has_keyboard', 'has_laptop_stand', 'has_ruf_pad', 'has_pendrive',
   'has_mobile', 'has_camera', 'has_headphone', 'has_tablet'
 ];
@@ -181,6 +181,7 @@ const SECTIONS = [
       { key: 'total_experience', label: 'Total Experience (Years)', type: 'text' },
       { key: 'experience_letter_photo', label: 'Experience Letter', type: 'file' },
       { key: 'separation', label: 'Separation Date', type: 'text', placeholder: 'DD/MM/YYYY' },
+{ key: 'lwd', label: 'Last Working Day', type: 'text', placeholder: 'DD/MM/YYYY' },
       { key: 'attrition_bucket', label: 'Attrition Bucket', type: 'select', options: ['N/A', 'Resignation', 'Performance', 'Behavioral', 'Medical'] },
       { key: 'reason', label: 'Primary Reason', type: 'text' },
       { type: 'header', label: 'Salary Proof' },
@@ -528,8 +529,9 @@ export default function DocumentsScreen({ onBack }) {
 
     if (!value) return null;
 
-    const nameFields = ['emp_name', 'father_husband_name', 'nominee_name', 'bank_name', 'religion', 'nationality', 'place', 'moved', 'state', 'college', 'university', 'bank_branch'];
-    const numericFields = ['contact_no', 'emergency_contact_no', 'aadhar_number', 'bank_account_no', 'age', 'edu_completion_year', 'previous_experience', 'total_experience'];
+    const nameFields = ['emp_name', 'father_husband_name', 'nominee_name', 'bank_name', 'religion', 'nationality', 'place', 'moved', 'state', 'college', 'university', 'bank_branch', 'supervisor_l1', 'supervisor_l2', 'previous_organization'];
+    const numericFields = ['contact_no', 'emergency_contact_no', 'aadhar_number', 'bank_account_no', 'age', 'edu_completion_year'];
+    const decimalFields = ['previous_experience', 'total_experience'];
     const percentageFields = ['sslc_percentage', 'puc_percentage', 'ug_pg_percentage'];
 
     if (key === 'date_of_birth') {
@@ -579,6 +581,21 @@ export default function DocumentsScreen({ onBack }) {
         if (key === 'aadhar_number' && value.length !== 12) error = 'Must be exactly 12 digits';
         if (key === 'age' && (Number(value) < 18 || Number(value) > 100)) error = 'Invalid age range (18-100)';
       }
+    } else if (decimalFields.includes(key)) {
+      if (/[^0-9.]/.test(value)) {
+        error = 'Only numbers and a single decimal point are allowed';
+      } else if ((value.match(/\./g) || []).length > 1) {
+        error = 'Only a single decimal point is allowed';
+      } else if (value.includes('-') || parseFloat(value) < 0) {
+        error = 'Negative numbers are not allowed';
+      } else {
+        const num = parseFloat(value);
+        if (isNaN(num)) {
+          error = 'Enter a valid number';
+        } else if (num > 100) {
+          error = 'Experience cannot exceed 100 years';
+        }
+      }
     } else if (percentageFields.includes(key)) {
       if (/[^0-9.]/.test(value)) {
         error = 'Only numbers and a single decimal point are allowed';
@@ -620,6 +637,11 @@ export default function DocumentsScreen({ onBack }) {
         const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.com$/;
         if (!emailRegex.test(value)) error = 'Invalid email format (lowercase only, must end with .com)';
       }
+    } else if (key === 'blood_group') {
+      const validGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+      if (!validGroups.includes(String(value).toUpperCase())) {
+        error = 'Allowed values: A+, A-, B+, B-, AB+, AB-, O+, O-';
+      }
     }
 
     return error;
@@ -658,10 +680,11 @@ export default function DocumentsScreen({ onBack }) {
     let cleanValue = value;
 
     // 1. Immediate Sanitization (Input Restrictions)
-    const nameFields = ['emp_name', 'father_husband_name', 'nominee_name', 'bank_name', 'religion', 'nationality', 'place', 'moved', 'state', 'college', 'university', 'bank_branch', 'process'];
-    const numericFields = ['contact_no', 'emergency_contact_no', 'aadhar_number', 'bank_account_no', 'age', 'edu_completion_year', 'previous_experience', 'total_experience', 'emp_id'];
+    const nameFields = ['emp_name', 'father_husband_name', 'nominee_name', 'bank_name', 'religion', 'nationality', 'place', 'moved', 'state', 'college', 'university', 'bank_branch', 'process', 'supervisor_l1', 'supervisor_l2', 'previous_organization'];
+    const numericFields = ['contact_no', 'emergency_contact_no', 'aadhar_number', 'bank_account_no', 'age', 'edu_completion_year', 'emp_id'];
+    const decimalFields = ['previous_experience', 'total_experience'];
     const percentageFields = ['sslc_percentage', 'puc_percentage', 'ug_pg_percentage'];
-
+    
     if (nameFields.includes(key)) {
       // Remove numbers, special characters (except space/dot), and emojis
       cleanValue = value.replace(/[^a-zA-Z\s.]/g, '');
@@ -671,21 +694,34 @@ export default function DocumentsScreen({ onBack }) {
       if ((key === 'contact_no' || key === 'emergency_contact_no') && cleanValue.length > 0 && !/^[6-9]/.test(cleanValue)) {
         return;
       }
-    } else if (percentageFields.includes(key)) {
-      cleanValue = value;
+    } else if (decimalFields.includes(key) || percentageFields.includes(key)) {
+      // Allow digits and a single decimal point with one digit after it
+      cleanValue = value.replace(/[^0-9.]/g, '');
+      const parts = cleanValue.split('.');
+      if (parts.length > 2) {
+        cleanValue = parts[0] + '.' + parts[1];
+      }
+      if (parts[1] && parts[1].length > 1) {
+        cleanValue = parts[0] + '.' + parts[1].charAt(0);
+      }
     } else if (key.includes('email')) {
-      // Do not force lowercase or alter text during typing to avoid cursor reset.
-      // Spaces are removed, other uppercase/format checks are performed in validateField.
-      cleanValue = value.replace(/\s/g, '');
+        // Do not force lowercase or alter text during typing to avoid cursor reset.
+        // Spaces are removed, other uppercase/format checks are performed in validateField.
+        cleanValue = value.replace(/\s/g, '');
     } else if (key === 'pan_number' || key === 'ifsc_code' || key === 'voter_id') {
-      // Alphanumeric only, forced uppercase
-      cleanValue = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        // Alphanumeric only, forced uppercase
+        cleanValue = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     } else if (key === 'blood_group') {
-      // Allow only letters and symbols +, -
-      cleanValue = value.replace(/[^a-zA-Z+-]/g, '').toUpperCase();
+        // Allow only A, B, O, +, -
+        cleanValue = value.replace(/[^aboABO+-]/g, '').toUpperCase();
+        // Ensure nothing can be typed after the + or - sign
+        const match = cleanValue.match(/^([ABO]*[+-]?)/);
+        if (match) {
+            cleanValue = match[1];
+        }
     } else if (['date_of_birth', 'doj', 'separation', 'lwd'].includes(key)) {
-      // Allow only digits and slashes for date fields
-      cleanValue = value.replace(/[^0-9/]/g, '');
+        // Allow only digits and slashes for date fields
+        cleanValue = value.replace(/[^0-9/]/g, '');
     }
 
     // 2. Length Caps
@@ -737,6 +773,7 @@ export default function DocumentsScreen({ onBack }) {
     // Real-time validation error feedback
     const error = validateField(key, cleanValue);
     setErrors(prev => ({ ...prev, [key]: error }));
+    setToast(prev => prev?.type === 'error' ? null : prev);
   };
 
   const handleFileUpload = async (key, file) => {
@@ -747,6 +784,7 @@ export default function DocumentsScreen({ onBack }) {
     reader.onloadend = () => {
       setForm(prev => ({ ...prev, [key]: reader.result }));
       setErrors(prev => ({ ...prev, [key]: null }));
+      setToast(prev => prev?.type === 'error' ? null : prev);
     };
     reader.readAsDataURL(file);
 
@@ -763,7 +801,9 @@ export default function DocumentsScreen({ onBack }) {
       });
 
       if (res.ok) {
-        setToast({ type: 'success', msg: `${key.replace(/_/g, ' ').toUpperCase()} uploaded successfully!` });
+        let displayLabel = key.replace(/_/g, ' ').toUpperCase();
+        if (displayLabel.includes('UG PG')) displayLabel = displayLabel.replace('UG PG', 'UG / PG');
+        setToast({ type: 'success', msg: `${displayLabel} uploaded successfully!` });
       } else {
         if (res.status === 404) {
           console.warn('Backend upload endpoint not found. Image kept in local state for preview.');
@@ -796,14 +836,14 @@ export default function DocumentsScreen({ onBack }) {
     }
 
     if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      setToast({ type: 'error', msg: 'Please fix the highlighted errors in this section before saving.' });
-      setTimeout(() => setToast(null), 3000);
-
-      // Scroll the first invalid field into view smoothly
-      const firstErrorKey = Object.keys(newErrors)[0];
+      const [firstKey, firstMsg] = Object.entries(newErrors)[0];
+      let displayLabel = firstKey.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+      if (displayLabel.toLowerCase().includes('ug pg')) displayLabel = displayLabel.replace(/ug pg/i, 'UG / PG');
+      setToast({ type: 'error', msg: `${displayLabel}: ${firstMsg}` });
+      setErrors({ [firstKey]: firstMsg });
+      
       setTimeout(() => {
-        const errorEl = document.getElementById(`field-${firstErrorKey}`);
+        const errorEl = document.getElementById(`field-${firstKey}`);
         if (errorEl) {
           errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
@@ -880,11 +920,13 @@ export default function DocumentsScreen({ onBack }) {
 
             // Send DD/MM/YYYY format for users table storage (compatibility with style 103 parsing)
             if (originalDob) {
-              syncBody.date_of_birth = originalDob;
-              syncBody.dateOfBirth = originalDob;
+              const formattedDob = originalDob.replace(/-/g, '/');
+              syncBody.date_of_birth = formattedDob;
+              syncBody.dateOfBirth = formattedDob;
+              syncBody.dob = formattedDob;
 
               console.log(`[SYNC DEBUG] Target Email: ${targetEmail}`);
-              console.log(`[SYNC DEBUG] Target DOB: ${originalDob}`);
+              console.log(`[SYNC DEBUG] Target DOB: ${formattedDob}`);
             }
 
             if (sanitizedForm.contact_no) {
@@ -1382,7 +1424,8 @@ export default function DocumentsScreen({ onBack }) {
                 }
 
                 const isLockedForRole = LOCKED_FIELDS.includes(field.key) && !isAdmin;
-                const isDisabled = (activeSection === 'assets') || !isEditing || isLockedForRole;
+                const isDisabled = (activeSection === 'assets') || !isEditing || isLockedForRole || field.key === 'bank_name' || field.key === 'bank_branch';
+                const isAutoFetched = field.key === 'bank_name' || field.key === 'bank_branch';
 
                 return (
                   <div key={field.key} style={{
@@ -1391,7 +1434,7 @@ export default function DocumentsScreen({ onBack }) {
                     justifyContent: field.type === 'boolean' ? 'space-between' : 'flex-start',
                     alignItems: field.type === 'boolean' ? 'center' : 'stretch',
                     gap: '12px',
-                    opacity: isLockedForRole ? 0.7 : 1,
+                    opacity: (isLockedForRole || isAutoFetched) ? 0.7 : 1,
                     gridColumn: !isMobile && field.fullWidth ? '1 / -1' : 'auto',
                     padding: '12px 0',
                     alignSelf: 'start'
@@ -1400,7 +1443,7 @@ export default function DocumentsScreen({ onBack }) {
                       <label style={{ fontSize: isMobile ? '11px' : '12px', fontWeight: '900', color: '#000000', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
                         {field.label} {REQUIRED_FIELDS.includes(field.key) && <span style={{ color: '#ef4444' }}>*</span>}
                       </label>
-                      {(isLockedForRole || field.key === 'emp_name') && <Shield size={10} color="#000000" />}
+                      {(isLockedForRole || field.key === 'emp_name' || isAutoFetched) && <Shield size={10} color="#000000" />}
                     </div>
 
                     {field.type === 'select' ? (
@@ -1588,10 +1631,21 @@ export default function DocumentsScreen({ onBack }) {
                                 const url = form[field.key].startsWith('http') || form[field.key].startsWith('data:') ? form[field.key] : `${BASE_URL}${form[field.key]}`;
                                 if (isPDF(url)) {
                                   if (url.startsWith('data:application/pdf')) {
-                                    fetch(url).then(res => res.blob()).then(blob => {
+                                    try {
+                                      const parts = url.split(',');
+                                      const bstr = atob(parts[1]);
+                                      let n = bstr.length;
+                                      const u8arr = new Uint8Array(n);
+                                      while (n--) {
+                                        u8arr[n] = bstr.charCodeAt(n);
+                                      }
+                                      const blob = new Blob([u8arr], { type: 'application/pdf' });
                                       const blobUrl = URL.createObjectURL(blob);
                                       window.open(blobUrl, '_blank');
-                                    });
+                                    } catch (err) {
+                                      console.error("Failed to open PDF blob:", err);
+                                      window.open(url, '_blank');
+                                    }
                                   } else {
                                     window.open(url, '_blank');
                                   }

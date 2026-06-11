@@ -59,7 +59,7 @@ export default function TicketSection({ onClose }) {
         body: JSON.stringify({
           userId: user.id,
           assignee: user?.name || user?.employee_name || user?.username || 'Unknown',
-          subject,
+          subject: `[${department}] ${subject}`,
           description,
           priority,
           department
@@ -286,15 +286,27 @@ export default function TicketSection({ onClose }) {
                     No support tickets found in your history.
                   </div>
                 ) : (
-                  tickets.map(t => (
+                  tickets.map(t => {
+                    let displayCategory = t.department || 'SUPPORT';
+                    let displaySubject = t.subject;
+
+                    if (displaySubject && displaySubject.startsWith('[')) {
+                      const closeBracketIndex = displaySubject.indexOf(']');
+                      if (closeBracketIndex !== -1) {
+                        displayCategory = displaySubject.substring(1, closeBracketIndex);
+                        displaySubject = displaySubject.substring(closeBracketIndex + 1).trim();
+                      }
+                    }
+
+                    return (
                     <div key={t.id} style={s.ticketItem}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{t.subject}</span>
+                          <span style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{displaySubject}</span>
                           <span style={s.badge(t.priority)}>{t.priority}</span>
                         </div>
                         <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700', textTransform: 'uppercase', marginBottom: (t.action || t.response) ? '8px' : '0' }}>
-                          #{t.id} • {t.department} • {new Date(Array.isArray(t.created_at) ? t.created_at[0] : (t.created_at || t.createdAt || t.timestamp || Date.now())).toLocaleDateString()}
+                          #{t.id} • {displayCategory} • {new Date(Array.isArray(t.created_at) ? t.created_at[0] : (t.created_at || t.createdAt || t.timestamp || Date.now())).toLocaleDateString()}
                         </div>
                         {(t.action || t.response) && (
                           <div style={{ fontSize: '12px', color: '#315A9E', fontWeight: '600', backgroundColor: '#f8fafc', padding: '8px', borderRadius: '8px', borderLeft: '3px solid #315A9E' }}>
@@ -312,7 +324,8 @@ export default function TicketSection({ onClose }) {
                         {(!t.status || String(t.status).toUpperCase() === 'OPEN') ? 'PENDING' : t.status}
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 )}
               </motion.div>
             )}

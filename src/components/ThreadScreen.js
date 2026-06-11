@@ -635,7 +635,6 @@ export default function ThreadScreen() {
 
                         <div style={styles.footer}>
                             <div
-                                onClick={() => onToggleLike(post.id)}
                                 onMouseEnter={() => setActiveEmojiPicker(post.id)}
                                 onMouseLeave={() => setActiveEmojiPicker(null)}
                                 style={{ ...styles.action(!!activeReaction, '#ef4444'), gap: '6px', minWidth: isMobile ? '44px' : '56px' }}
@@ -728,10 +727,10 @@ export default function ThreadScreen() {
                                                                 <span style={{ fontSize: '12px', fontWeight: '1000', color: '#0B1E3F' }}>{cUser}</span>
                                                                 {isMyComment && (
                                                                     <div style={{ display: 'flex', gap: '8px' }}>
-                                                                        <button onClick={() => { setEditingCommentId(c.id); setEditCommentContent(cText); }} style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px' }}><Edit3 size={13} /></button>
+                                                                        <button onClick={() => { setEditingCommentId(c.id); setEditCommentContent(cText); }} style={{ border: 'none', background: '#1e293b', color: 'white', cursor: 'pointer', padding: '2px' }}><Edit3 size={16} strokeWidth={2.5} /></button>
                                                                         <button onClick={() => {
                                                                             setDeleteConfirm({ type: 'comment', postId: post.id, commentId: c.id });
-                                                                        }} style={{ border: 'none', background: 'none', color: '#fda4af', cursor: 'pointer', padding: '2px' }}><Trash2 size={13} /></button>
+                                                                        }} style={{ border: 'none', background: '#1e293b', color: 'white', cursor: 'pointer', padding: '2px' }}><Trash2 size={16} strokeWidth={2.5} /></button>
                                                                     </div>
                                                                 )}
                                                             </div>

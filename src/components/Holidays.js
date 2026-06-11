@@ -59,14 +59,14 @@ export default function HolidaysScreen() {
     headerCard: {
       backgroundColor: 'white',
       borderRadius: '45px',
-      padding: winWidth < 768 ? '40px 20px' : '60px',
+      padding: winWidth < 768 ? '20px' : '30px 40px',
       textAlign: 'center',
       boxShadow: '0 20px 60px rgba(0,0,0,0.02)',
       border: '1px solid #f1f5f9',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      gap: '15px',
+      gap: '8px',
       marginBottom: '40px'
     },
     iconBox: {
@@ -80,14 +80,14 @@ export default function HolidaysScreen() {
       color: '#0B1E3F',
       marginBottom: '10px'
     },
-    title: { fontSize: winWidth < 768 ? '32px' : '48px', fontWeight: '900', color: '#0B1E3F', marginBottom: '5px' },
+    title: { fontSize: winWidth < 768 ? '32px' : '48px', fontWeight: '900', color: '#0B1E3F', marginBottom: '2px' },
     subtitle: { fontSize: '11px', fontWeight: '900', color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '2px' },
     grid: {
       display: 'grid',
       gridTemplateColumns: winWidth < 768 ? '1fr' : (winWidth < 1024 ? '1fr 1fr' : 'repeat(4, 1fr)'),
       gap: '24px',
       width: '100%',
-      marginTop: '40px'
+      marginTop: '20px'
     },
     holidayCard: (passed) => ({
       backgroundColor: passed ? 'rgba(255, 255, 255, 0.7)' : '#ffffff',
@@ -146,9 +146,6 @@ export default function HolidaysScreen() {
             >
               <ArrowLeft size={isMobile ? 20 : 24} color="#0B1E3F" strokeWidth={3} />
             </button>
-          </div>
-          <div style={s.iconBox}>
-            <CalendarIcon size={40} strokeWidth={1.5} />
           </div>
           <h1 style={s.title}>NBT Calendar</h1>
           <div style={s.subtitle}>OFFICIAL CORPORATE HOLIDAYS 2026</div>
