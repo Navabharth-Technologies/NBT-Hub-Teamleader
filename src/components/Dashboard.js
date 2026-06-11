@@ -1243,9 +1243,9 @@ const Dashboard = ({ setActiveTab }) => {
                           {(b?.employee_name || b?.name || '?').charAt(0).toUpperCase()}
                         </div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '13px', fontWeight: '900', color: '#0B1E3F' }}>{b?.employee_name || b?.name}</div>
-                          <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700' }}>
-                            {`${String(b.dob.getDate()).padStart(2, '0')}/${String(b.dob.getMonth() + 1).padStart(2, '0')}/${b.dob.getFullYear()}`}
+                          <div style={{ fontSize: '13px', fontWeight: '900', color: isToday ? '#be185d' : '#0B1E3F' }}>{b?.employee_name || b?.name || 'Unknown'}</div>
+                          <div style={{ fontSize: '11px', color: isToday ? '#f43f5e' : '#64748b', fontWeight: '700', marginTop: '4px' }}>
+                            {isToday ? 'Today is their birthday! 🎉' : `${String(b.dob.getDate()).padStart(2, '0')}/${String(b.dob.getMonth() + 1).padStart(2, '0')}/${b.thisYearBday.getFullYear()}`}
                           </div>
                         </div>
                       </div>
