@@ -435,7 +435,8 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          transition: 'all 0.3s ease'
+                          transition: 'all 0.3s ease',
+                          textTransform: 'capitalize'
                         }}>{notif.title}</h4>
                         {!(notif.type === 'QUIZ' || String(notif.title || '').toLowerCase().includes('quiz')) && (
                           <p style={{
@@ -448,7 +449,8 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
                             WebkitLineClamp: 2,
                             WebkitBoxOrient: 'vertical',
                             overflow: 'hidden',
-                            transition: 'all 0.3s ease'
+                            transition: 'all 0.3s ease',
+                            textTransform: 'capitalize'
                           }}>{notif.description}</p>
                         )}
                         {/* Assignee / Completed / Approved-for / Rejected-for chip */}

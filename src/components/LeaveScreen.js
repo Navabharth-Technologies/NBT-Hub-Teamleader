@@ -13,14 +13,14 @@ const LeaveScreen = ({ onBack }) => {
     const cleanDate = dateStr.split('T')[0];
     const parts = cleanDate.split('-');
     if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
+    return `${day}-${month}-${year}`;
   };
 
   const { user } = useAuth();
@@ -1135,7 +1135,7 @@ const LeaveScreen = ({ onBack }) => {
                       <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #f1f5f9' }}>
                         <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '800', display: 'block', marginBottom: '5px' }}>LEAVE DURATION</span>
                         <div style={{ fontSize: '14px', color: '#0B1E3F', fontWeight: '1000', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                          <span>📅 {(selectedRequest.start_date || selectedRequest.startDate || '').split('T')[0].replace(/-/g, '/')} to {(selectedRequest.end_date || selectedRequest.endDate || '').split('T')[0].replace(/-/g, '/')}</span>
+                          <span>📅 {(selectedRequest.start_date || selectedRequest.startDate || '').split('T')[0].split('-').reverse().join('-')} to {(selectedRequest.end_date || selectedRequest.endDate || '').split('T')[0].split('-').reverse().join('-')}</span>
                           {(selectedRequest.isHalfDay || selectedRequest.is_half_day) && (
                             <span style={{ fontSize: '11px', fontWeight: '900', color: '#0ea5e9', backgroundColor: '#f0f9ff', padding: '4px 12px', borderRadius: '25px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                               ⏰ Half Day Session
