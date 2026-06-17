@@ -1217,7 +1217,7 @@ const LeaveScreen = ({ onBack }) => {
 
                 <div style={{ marginBottom: '30px' }}>
                   <label style={{ fontSize: '12px', fontWeight: '900', color: '#64748b', display: 'block', marginBottom: '10px' }}>REASON FOR LEAVE</label>
-                  <div style={{ padding: '25px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1px solid #f1f5f9', color: '#0B1E3F', fontSize: '15px', fontWeight: '700', lineHeight: '1.6' }}>
+                  <div style={{ padding: '25px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1px solid #f1f5f9', color: '#0B1E3F', fontSize: '15px', fontWeight: '700', lineHeight: '1.6', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                     {selectedRequest.reason || selectedRequest.reason_for_leave || 'No reason provided.'}
                   </div>
                 </div>
@@ -1226,7 +1226,7 @@ const LeaveScreen = ({ onBack }) => {
                 {Number(selectedRequest.user_id || selectedRequest.userId) !== Number(user?.id || user?.employee_id || user?.empId) && (
                   <div style={{ marginBottom: '30px' }}>
                     <label style={{ fontSize: '12px', fontWeight: '900', color: '#3B5998', display: 'block', marginBottom: '10px' }}>TEAM LEADER REMARKS</label>
-                    <div style={{ padding: '20px', backgroundColor: '#f1f5f9', borderRadius: '20px', border: '1px solid #e2e8f0', color: finalTlRemark ? '#0B1E3F' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalTlRemark ? 'normal' : 'italic' }}>
+                    <div style={{ padding: '20px', backgroundColor: '#f1f5f9', borderRadius: '20px', border: '1px solid #e2e8f0', color: finalTlRemark ? '#0B1E3F' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalTlRemark ? 'normal' : 'italic', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                       {finalTlRemark || 'No remark yet.'}
                     </div>
                   </div>
@@ -1235,7 +1235,7 @@ const LeaveScreen = ({ onBack }) => {
                 {/* PM Remarks */}
                 <div style={{ marginBottom: '30px' }}>
                   <label style={{ fontSize: '12px', fontWeight: '900', color: '#10b981', display: 'block', marginBottom: '10px' }}>PM REMARKS</label>
-                  <div style={{ padding: '20px', backgroundColor: '#ecfdf5', borderRadius: '20px', border: '1px solid #d1fae5', color: finalPmRemark ? '#047857' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalPmRemark ? 'normal' : 'italic' }}>
+                  <div style={{ padding: '20px', backgroundColor: '#ecfdf5', borderRadius: '20px', border: '1px solid #d1fae5', color: finalPmRemark ? '#047857' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalPmRemark ? 'normal' : 'italic', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                     {finalPmRemark || 'No remark yet.'}
                   </div>
                 </div>
@@ -1243,7 +1243,7 @@ const LeaveScreen = ({ onBack }) => {
                 {/* HR Remarks */}
                 <div style={{ marginBottom: '30px' }}>
                   <label style={{ fontSize: '12px', fontWeight: '900', color: '#8b5cf6', display: 'block', marginBottom: '10px' }}>HR REMARKS</label>
-                  <div style={{ padding: '20px', backgroundColor: '#f5f3ff', borderRadius: '20px', border: '1px solid #ede9fe', color: finalHrRemark ? '#6d28d9' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalHrRemark ? 'normal' : 'italic' }}>
+                  <div style={{ padding: '20px', backgroundColor: '#f5f3ff', borderRadius: '20px', border: '1px solid #ede9fe', color: finalHrRemark ? '#6d28d9' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalHrRemark ? 'normal' : 'italic', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                     {finalHrRemark || 'No remark yet.'}
                   </div>
                 </div>
