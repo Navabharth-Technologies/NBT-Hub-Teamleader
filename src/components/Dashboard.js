@@ -255,6 +255,69 @@ const Dashboard = ({ setActiveTab }) => {
         membersList = [...membersList, ...internsList];
       }
 
+      // 3b. Fetch team resignations + service certs in parallel to identify resigned employees
+      //     The /api/subordinates endpoint may not return status fields for resigned members,
+      //     so we cross-reference with the resignation and service certificate data.
+      let resignedEmployeeIds = new Set();
+      try {
+        const [resignResp, certResp] = await Promise.all([
+          fetch(API_ENDPOINTS.TEAM_RESIGNATIONS, fetchOptions).catch(() => ({ ok: false })),
+          fetch(`${BASE_URL}/api/service-certificates`, fetchOptions).catch(() => ({ ok: false }))
+        ]);
+
+        if (resignResp.ok) {
+          const resignData = await resignResp.json();
+          const resignList = Array.isArray(resignData) ? resignData : (resignData?.data || []);
+          resignList.forEach(r => {
+            const empId = String(r.employee_id || r.user_id || '').trim();
+            if (!empId) return;
+            const status = (r.status || '').toUpperCase();
+            const hrStatus = (r.hr_status || '').toUpperCase();
+            const pmStatus = (r.pm_status || '').toUpperCase();
+            // Mark as fully resigned: overall Approved, or both HR+PM approved
+            if (
+              status === 'APPROVED' ||
+              (hrStatus === 'APPROVED' && pmStatus === 'APPROVED')
+            ) {
+              resignedEmployeeIds.add(empId);
+            }
+          });
+        }
+
+        if (certResp.ok) {
+          const certData = await certResp.json();
+          const certList = Array.isArray(certData) ? certData : (certData?.data || certData?.requests || []);
+          certList.forEach(c => {
+            const empId = String(c.user_id || c.employee_id || '').trim();
+            if (!empId) return;
+            const certStatus = (c.status || '').toUpperCase();
+            // Service cert fully approved → employee has fully exited
+            if (certStatus === 'APPROVED' || certStatus === 'COMPLETED') {
+              resignedEmployeeIds.add(empId);
+            }
+          });
+        }
+      } catch (e) {
+        // Non-fatal — if we can't fetch resignations/certs, fall back to status-field check only
+      }
+
+      // FILTER: Remove resigned/inactive employees so they disappear from Team Collaboration panel
+      const isActiveEmployee = (m) => {
+        if (!m) return false;
+        // Cross-reference: if employee appears in resigned IDs set, exclude them
+        const memberId = String(m.id || m.employee_id || '').trim();
+        if (memberId && resignedEmployeeIds.has(memberId)) return false;
+        // Also check status fields on the member object (for backends that do set them)
+        const status = String(m.status || '').toLowerCase().trim();
+        if (['relieved', 'resigned', 'inactive', 'terminated', 'former'].includes(status)) return false;
+        const empStatus = String(m.employment_status || m.employmentStatus || '').toLowerCase().trim();
+        if (['relieved', 'resigned', 'inactive', 'terminated', 'former'].includes(empStatus)) return false;
+        if (Number(m.is_blocked) === 1 || m.is_blocked === true || String(m.is_blocked).toLowerCase() === 'true') return false;
+        if (m.isActive === false || m.is_active === false || Number(m.is_active) === 0 || String(m.isActive).toLowerCase() === 'false') return false;
+        return true;
+      };
+      membersList = membersList.filter(isActiveEmployee);
+
       setTeamMembers(membersList);
 
       const deadlines = {};

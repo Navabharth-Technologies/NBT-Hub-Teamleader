@@ -6,7 +6,7 @@ import {
   AlertCircle, History, User, Calendar, Briefcase,
   FileText, Download, ShieldCheck, Shield, ChevronDown, Mail,
   MousePointer2, Keyboard, Monitor, Smartphone,
-  Tablet, Camera, Database, Headphones
+  Tablet, Camera, Database, Headphones, Check
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { BASE_URL, API_ENDPOINTS } from '../../config';
@@ -48,12 +48,127 @@ const ServiceCertificateScreen = ({ onBack }) => {
   const [otherPurpose, setOtherPurpose] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [requestStatus, setRequestStatus] = useState('idle'); // idle, success, error
+  const [errorModal, setErrorModal] = useState(null);
+  const [resignationStatus, setResignationStatus] = useState(null);
+  const [isExitCompleted, setIsExitCompleted] = useState(false);
+  const [checkingResignation, setCheckingResignation] = useState(true);
+  const [showEntrancePopup, setShowEntrancePopup] = useState(false);
+
   const [profileData, setProfileData] = useState({
     name: user?.name || 'User',
     empId: cleanDisplayId(user?.employee_id || user?.id),
     designation: user?.designation || user?.role || 'Member',
     role: user?.role || ''
   });
+
+  useEffect(() => {
+    const checkResignationAndExit = async () => {
+      const uid = employeeId || user?.employee_id || user?.id;
+      if (!uid) {
+        setCheckingResignation(false);
+        return;
+      }
+      try {
+        const token = localStorage.getItem('token');
+        const cleanToken = (token && token !== 'undefined' && token !== 'null') ? token.replace(/['"]+/g, '').trim() : '';
+
+        const resignationMyUrl = API_ENDPOINTS.RESIGNATION_MY || `${BASE_URL}/api/resignations/my`;
+        let url = resignationMyUrl;
+        const isOwn = !employeeId || employeeId === 'undefined' || employeeId === 'null' || String(employeeId) === String(user?.employee_id) || String(employeeId) === String(user?.id);
+        if (!isOwn) {
+          url = `${BASE_URL}/api/resignations?employee_id=${uid}`;
+        }
+
+        const res = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${cleanToken}` }
+        });
+
+        if (res.ok) {
+          const raw = await res.json();
+          let data = Array.isArray(raw) ? raw : (raw.data || raw.value || []);
+
+          if (!isOwn && !url.includes('employee_id')) {
+            data = data.filter(r => String(r.employee_id || r.userId || r.user_id) === String(uid));
+          }
+
+          const activeRes = data.find(r => (r.status || '').toUpperCase() !== 'REVOKED') || data[0];
+          if (activeRes) {
+            const statusUpper = (activeRes.status || '').toUpperCase();
+            setResignationStatus(statusUpper);
+            if (statusUpper !== 'APPROVED' && isOwn) {
+              setShowEntrancePopup(true);
+            }
+
+            const exitRes = await fetch(`${BASE_URL}/api/exit-formalities/resignation/${activeRes.id}`, {
+              headers: { 'Authorization': `Bearer ${cleanToken}` }
+            });
+            if (exitRes.ok) {
+              const exitData = await exitRes.json();
+              if (exitData && (exitData.id || (Array.isArray(exitData) && exitData.length > 0))) {
+                setIsExitCompleted(true);
+              } else {
+                setIsExitCompleted(false);
+              }
+            } else {
+              setIsExitCompleted(false);
+            }
+          } else {
+            setResignationStatus(null);
+            setIsExitCompleted(false);
+            if (isOwn) {
+              setShowEntrancePopup(true);
+            }
+          }
+        } else {
+          if (!isOwn) {
+            const allRes = await fetch(`${BASE_URL}/api/resignations`, {
+              headers: { 'Authorization': `Bearer ${cleanToken}` }
+            });
+            if (allRes.ok) {
+              const raw = await allRes.json();
+              const data = (Array.isArray(raw) ? raw : (raw.data || raw.value || [])).filter(r => String(r.employee_id || r.userId || r.user_id) === String(uid));
+              const activeRes = data.find(r => (r.status || '').toUpperCase() !== 'REVOKED') || data[0];
+              if (activeRes) {
+                const statusUpper = (activeRes.status || '').toUpperCase();
+                setResignationStatus(statusUpper);
+                if (statusUpper !== 'APPROVED' && isOwn) {
+                  setShowEntrancePopup(true);
+                }
+                const exitRes = await fetch(`${BASE_URL}/api/exit-formalities/resignation/${activeRes.id}`, {
+                  headers: { 'Authorization': `Bearer ${cleanToken}` }
+                });
+                if (exitRes.ok) {
+                  const exitData = await exitRes.json();
+                  if (exitData && (exitData.id || (Array.isArray(exitData) && exitData.length > 0))) {
+                    setIsExitCompleted(true);
+                  } else {
+                    setIsExitCompleted(false);
+                  }
+                } else {
+                  setIsExitCompleted(false);
+                }
+              } else {
+                setResignationStatus(null);
+                setIsExitCompleted(false);
+                if (isOwn) {
+                  setShowEntrancePopup(true);
+                }
+              }
+            }
+          } else {
+            setResignationStatus(null);
+            setIsExitCompleted(false);
+            setShowEntrancePopup(true);
+          }
+        }
+      } catch (err) {
+        console.warn("Error checking resignation & exit status:", err);
+      } finally {
+        setCheckingResignation(false);
+      }
+    };
+    checkResignationAndExit();
+  }, [employeeId, user]);
 
   const formatDateTime = (ts) => {
     if (!ts) return 'N/A';
@@ -62,16 +177,16 @@ const ServiceCertificateScreen = ({ onBack }) => {
       const parts = ts.split('T');
       const datePart = parts[0];
       const timePart = parts[1] ? parts[1].split('.')[0] : '00:00:00';
-      
+
       const [year, month, day] = datePart.split('-');
       const [hh, mm, ss] = timePart.split(':');
-      
+
       let hour = parseInt(hh);
       const ampm = hour >= 12 ? 'pm' : 'am';
       hour = hour % 12;
       hour = hour ? hour : 12;
       const formattedTime = `${String(hour).padStart(2, '0')}:${mm}:${ss ? ss.substring(0, 2) : '00'} ${ampm}`;
-      
+
       return `${year}/${month}/${day} at ${formattedTime}`;
     } catch (e) {
       return ts;
@@ -80,17 +195,18 @@ const ServiceCertificateScreen = ({ onBack }) => {
 
 
 
-  const isOwnProfile = !employeeId || String(employeeId) === String(user?.employee_id) || String(employeeId) === String(user?.id);
+  const isOwnProfile = !employeeId || employeeId === 'undefined' || employeeId === 'null' || String(employeeId) === String(user?.employee_id) || String(employeeId) === String(user?.id);
 
   useEffect(() => {
     const fetchFullProfile = async () => {
       try {
         const token = localStorage.getItem('token');
-        const isOwn = !employeeId || String(employeeId) === String(user?.employee_id) || String(employeeId) === String(user?.id);
+        const cleanToken = (token && token !== 'undefined' && token !== 'null') ? token.replace(/['"]+/g, '').trim() : '';
+        const isOwn = !employeeId || employeeId === 'undefined' || employeeId === 'null' || String(employeeId) === String(user?.employee_id) || String(employeeId) === String(user?.id);
         const url = isOwn ? API_ENDPOINTS.MY_EMPLOYEE_PROFILE : `${BASE_URL}/api/profile/${employeeId || user?.email}`;
         const resp = await fetch(url, {
-          headers: { 
-            'Authorization': `Bearer ${token?.trim()}`,
+          headers: {
+            'Authorization': `Bearer ${cleanToken}`,
             'Accept': 'application/json'
           }
         });
@@ -122,11 +238,14 @@ const ServiceCertificateScreen = ({ onBack }) => {
   const fetchHistory = async () => {
     try {
       const uid = employeeId || user?.employee_id || user?.id;
-      if (!uid) return;
-      
+      if (!uid || uid === 'undefined' || uid === 'null') return;
+
       const token = localStorage.getItem('token');
-      const resp = await fetch(API_ENDPOINTS.SERVICE_CERTIFICATES_USER(uid), {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const cleanToken = (token && token !== 'undefined' && token !== 'null') ? token.replace(/['"]+/g, '').trim() : '';
+      const isOwn = !employeeId || employeeId === 'undefined' || employeeId === 'null' || String(employeeId) === String(user?.employee_id) || String(employeeId) === String(user?.id);
+      const url = isOwn ? API_ENDPOINTS.SERVICE_CERTIFICATES_MY : API_ENDPOINTS.SERVICE_CERTIFICATES_USER(uid);
+      const resp = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${cleanToken}` }
       });
       if (resp.ok) {
         const data = await resp.json();
@@ -154,11 +273,12 @@ const ServiceCertificateScreen = ({ onBack }) => {
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem('token');
+      const cleanToken = (token && token !== 'undefined' && token !== 'null') ? token.replace(/['"]+/g, '').trim() : '';
       const resp = await fetch(API_ENDPOINTS.SERVICE_CERTIFICATES(), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${cleanToken}`
         },
         body: JSON.stringify({
           employee_id: profileData.empId,
@@ -190,11 +310,11 @@ const ServiceCertificateScreen = ({ onBack }) => {
         fetchHistory(); // Refresh history after successful submission
       } else {
         const errorData = await resp.json();
-        alert(errorData.message || 'Failed to submit application');
+        setErrorModal(errorData.message || 'Failed to submit application');
       }
     } catch (err) {
       console.error('Submission Error:', err);
-      alert('An error occurred. Please try again.');
+      setErrorModal('An error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -224,7 +344,7 @@ const ServiceCertificateScreen = ({ onBack }) => {
     const fetchCurrentAssets = async () => {
       const uid = employeeId || user?.employee_id || user?.id;
       if (!uid) return;
-      
+
       setAssetForm({
         brand: '', serial: '', mouse: false, keyboard: false, laptop_stand: false,
         company_mobile: false, external_camera: false, earphone_headphone: false,
@@ -233,36 +353,39 @@ const ServiceCertificateScreen = ({ onBack }) => {
       setHasSubmittedAssets(false);
       setAssetStatus(null);
       setAssetRecordId(null);
-      
+
       setIsAssetLoading(true);
       try {
         const token = localStorage.getItem('token');
+        const cleanToken = (token && token !== 'undefined' && token !== 'null') ? token.replace(/['"]+/g, '').trim() : '';
+        const isOwn = !employeeId || employeeId === 'undefined' || employeeId === 'null' || String(employeeId) === String(user?.employee_id) || String(employeeId) === String(user?.id);
+        const historyUrl = isOwn ? API_ENDPOINTS.SERVICE_CERTIFICATES_MY : API_ENDPOINTS.SERVICE_CERTIFICATES_USER(uid);
         const [res, hRes] = await Promise.all([
           fetch(API_ENDPOINTS.MY_ASSETS(uid), {
-            headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+            headers: { 'Authorization': `Bearer ${cleanToken}`, 'Accept': 'application/json' }
           }),
-          fetch(API_ENDPOINTS.SERVICE_CERTIFICATES_USER(uid), {
-            headers: { 'Authorization': `Bearer ${token}` }
+          fetch(historyUrl, {
+            headers: { 'Authorization': `Bearer ${cleanToken}` }
           })
         ]);
-        
+
         let fetchedHistory = [];
         if (hRes.ok) fetchedHistory = await hRes.json();
 
         if (res.ok) {
           const data = await res.json();
           const asset = Array.isArray(data) ? (data.length > 0 ? data[0] : null) : data;
-          
+
           if (asset && (asset.id || asset.employee_id || asset.laptop_details)) {
             const isT = (val) => {
               if (val === true || val === 1 || val === '1' || val === 'true') return true;
               return String(val || '').toLowerCase().trim() === 'yes';
             };
-            
+
             setAssetRecordId(asset.id);
             setAssetForm({
               brand: asset.laptop_details || '',
-              serial: asset.serial_no || '', 
+              serial: asset.serial_no || '',
               mouse: isT(asset.mouse),
               keyboard: isT(asset.keyboard),
               laptop_stand: isT(asset.laptop_stand),
@@ -273,10 +396,10 @@ const ServiceCertificateScreen = ({ onBack }) => {
               pendrive: isT(asset.pendrive),
               ruf_pad: isT(asset.ruf_pad)
             });
-            
+
             let status = asset.status;
             let assetReq = null;
-            
+
             if (Array.isArray(fetchedHistory)) {
               assetReq = fetchedHistory.find(h => h.purpose === 'Professional Asset Declaration');
               if (assetReq) status = assetReq.status;
@@ -284,7 +407,7 @@ const ServiceCertificateScreen = ({ onBack }) => {
 
             setAssetStatus(status || null);
             setAssetSubmittedDate(assetReq ? assetReq.created_at : (asset.created_at || asset.updated_at || null));
-            
+
             // Only consider it "submitted" if there's an actual entry in the certificate requests table
             setHasSubmittedAssets(!!assetReq);
           } else {
@@ -300,13 +423,13 @@ const ServiceCertificateScreen = ({ onBack }) => {
             }
           }
         }
-      } catch (err) { 
-        console.error('Asset Fetch Error:', err); 
+      } catch (err) {
+        console.error('Asset Fetch Error:', err);
       } finally {
         setIsAssetLoading(false);
       }
     };
-    
+
     fetchCurrentAssets();
   }, [employeeId, user]);
 
@@ -317,12 +440,13 @@ const ServiceCertificateScreen = ({ onBack }) => {
     setIsAssetSubmitting(true);
     try {
       const token = localStorage.getItem('token');
+      const cleanToken = (token && token !== 'undefined' && token !== 'null') ? token.replace(/['"]+/g, '').trim() : '';
       const resp = await fetch(API_ENDPOINTS.SERVICE_CERTIFICATES(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${cleanToken}`
         },
         body: JSON.stringify({
           id: assetRecordId,
@@ -331,7 +455,7 @@ const ServiceCertificateScreen = ({ onBack }) => {
           designation_at_request: profileData.designation,
           status: 'Pending Audit',
           admin_remark: 'Hardware Declaration Submitted',
-          laptop_details: assetForm.brand, 
+          laptop_details: assetForm.brand,
           asset_name: assetForm.brand,
           serial_number: assetForm.serial || '',
           serial_no: assetForm.serial || '',
@@ -364,15 +488,15 @@ const ServiceCertificateScreen = ({ onBack }) => {
           try {
             const errData = JSON.parse(errText);
             errMsg = errData.message || errData.error || JSON.stringify(errData);
-          } catch(e) {
+          } catch (e) {
             errMsg = `Status ${resp.status}: ${errText.substring(0, 50)}`;
           }
-        } catch(e) {}
-        alert(errMsg);
+        } catch (e) { }
+        setErrorModal(errMsg);
       }
     } catch (err) {
       console.error('Asset Submission Error:', err);
-      alert('Network error or server is down. Please try again.');
+      setErrorModal('Network error or server is down. Please try again.');
     } finally {
       setIsAssetSubmitting(false);
     }
@@ -456,6 +580,29 @@ const ServiceCertificateScreen = ({ onBack }) => {
                 <div style={{ fontSize: '14px', fontWeight: '800', color: '#10274A' }}>VIEW ONLY MODE</div>
                 <div style={{ fontSize: '12px', color: '#64748b', marginTop: '5px' }}>Team Leaders can only view request history for their members.</div>
               </div>
+            ) : checkingResignation ? (
+              <div style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
+                <div style={{ width: '24px', height: '24px', border: '3px solid #64748b40', borderTop: '3px solid #64748b', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 10px' }}></div>
+                <div style={{ fontSize: '13px', fontWeight: '600' }}>Checking clearance status...</div>
+              </div>
+            ) : (resignationStatus !== 'APPROVED' || !isExitCompleted) ? (
+              <div style={{
+                padding: '30px',
+                textAlign: 'center',
+                background: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+                borderRadius: '20px',
+                border: '1.5px solid #fca5a5',
+                boxShadow: '0 8px 24px rgba(220, 38, 38, 0.03)',
+                color: '#b91c1c'
+              }}>
+                <div style={{ width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#fecaca', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#dc2626' }}>
+                  <AlertCircle size={28} />
+                </div>
+                <h3 style={{ fontSize: '16px', fontWeight: '900', color: '#991b1b', marginBottom: '8px' }}>Request Locked</h3>
+                <p style={{ fontSize: '13px', color: '#991b1b90', lineHeight: '1.5', margin: 0, fontWeight: '600' }}>
+                  Experience letter requests are only available after your resignation is approved by TL, PM, and HR, and exit formalities are fully completed.
+                </p>
+              </div>
             ) : (
               <form onSubmit={handleSubmit}>
                 <div style={{ marginBottom: '25px' }}>
@@ -478,9 +625,8 @@ const ServiceCertificateScreen = ({ onBack }) => {
                     >
                       <option value="" disabled>Select Purpose</option>
                       <option value="Higher Education">Higher Education</option>
-                      <option value="Bank Loan / Financial">Bank Loan / Financial</option>
-                      <option value="Visa / Immigration">Visa / Immigration</option>
-                      <option value="Job Change">Internal Movement / Job Change</option>
+                      <option value="New Job Opportunity">New Job Opportunity</option>
+                      <option value="Personal Reasons">Personal Reasons</option>
                       <option value="Other">Other (Specify below)</option>
                     </select>
                     <ChevronDown size={16} color="#64748b" style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -622,17 +768,17 @@ const ServiceCertificateScreen = ({ onBack }) => {
                       alignItems: 'center',
                       gap: '6px'
                     }}>
-                      <div style={{ 
-                        width: '6px', 
-                        height: '6px', 
-                        borderRadius: '50%', 
-                        backgroundColor: (assetStatus === 'Approved' || assetStatus === 'Verified' || assetStatus === 'Yes') ? '#10b981' : '#f59e0b' 
+                      <div style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        backgroundColor: (assetStatus === 'Approved' || assetStatus === 'Verified' || assetStatus === 'Yes') ? '#10b981' : '#f59e0b'
                       }}></div>
-                      <span style={{ 
-                        fontSize: '10px', 
-                        fontWeight: '800', 
-                        color: (assetStatus === 'Approved' || assetStatus === 'Verified' || assetStatus === 'Yes') ? '#166534' : '#9a3412', 
-                        textTransform: 'uppercase' 
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: '800',
+                        color: (assetStatus === 'Approved' || assetStatus === 'Verified' || assetStatus === 'Yes') ? '#166534' : '#9a3412',
+                        textTransform: 'uppercase'
                       }}>
                         {(assetStatus === 'Approved' || assetStatus === 'Verified' || assetStatus === 'Yes') ? 'VERIFIED' : assetStatus}
                       </span>
@@ -696,7 +842,7 @@ const ServiceCertificateScreen = ({ onBack }) => {
                     ].map(item => {
                       const active = assetForm[item.key];
                       return (
-                        <div 
+                        <div
                           key={item.key}
                           onClick={() => setAssetForm({ ...assetForm, [item.key]: !active })}
                           style={{
@@ -866,6 +1012,132 @@ const ServiceCertificateScreen = ({ onBack }) => {
           </div>
         </div>
       </div>
+
+      {/* Entrance Warning Modal */}
+      <AnimatePresence>
+        {showEntrancePopup && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.3)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 99999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px'
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '28px',
+                padding: '40px 30px',
+                maxWidth: '480px',
+                width: '100%',
+                boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)',
+                border: '1px solid #f1f5f9',
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center'
+              }}
+            >
+              <div style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                backgroundColor: '#fee2e2',
+                color: '#ef4444',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '24px'
+              }}>
+                <AlertCircle size={32} />
+              </div>
+              <h3 style={{
+                fontSize: '20px',
+                fontWeight: '900',
+                color: '#0f172a',
+                marginBottom: '16px',
+                lineHeight: '1.3'
+              }}>
+                Resignation Approval Required
+              </h3>
+              <p style={{
+                fontSize: '14px',
+                color: '#475569',
+                lineHeight: '1.6',
+                marginBottom: '32px',
+                fontWeight: '600'
+              }}>
+                You should get approval for your resignation first then only you can apply for experience letter.
+              </p>
+              <button
+                onClick={() => setShowEntrancePopup(false)}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  borderRadius: '16px',
+                  backgroundColor: '#0f172a',
+                  color: 'white',
+                  border: 'none',
+                  fontSize: '15px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  boxShadow: '0 10px 20px rgba(15, 23, 42, 0.15)',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#1e293b'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#0f172a'}
+              >
+                Okay
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {errorModal && (
+          <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} style={{ backgroundColor: 'white', borderRadius: '30px', padding: '40px', maxWidth: '400px', width: '100%', boxShadow: '0 30px 60px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+              {typeof errorModal === 'object' && errorModal.isSuccess ? (
+                <div style={{ width: '60px', height: '60px', borderRadius: '30px', backgroundColor: '#f0fdf4', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                  <Check size={30} />
+                </div>
+              ) : (
+                <div style={{ width: '60px', height: '60px', borderRadius: '30px', backgroundColor: '#fef2f2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                  <AlertCircle size={30} />
+                </div>
+              )}
+              <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#10274A', marginBottom: '15px' }}>
+                {typeof errorModal === 'object' ? errorModal.title || 'Notice' : 'Notice'}
+              </h2>
+              <p style={{ fontSize: '14px', color: '#64748b', fontWeight: '600', marginBottom: '30px', lineHeight: '1.5' }}>
+                {typeof errorModal === 'object' ? errorModal.message : errorModal}
+              </p>
+              <button onClick={() => {
+                const onClose = typeof errorModal === 'object' ? errorModal.onClose : null;
+                setErrorModal(null);
+                if (onClose) onClose();
+              }} style={{ ...s.submitBtn, backgroundColor: '#10274A', padding: '15px', width: '100%', marginTop: 0 }}>Okay</button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

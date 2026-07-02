@@ -220,7 +220,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
         if (profile.date_of_birth || profile.dob) setDob(standardizeDate(profile.date_of_birth || profile.dob));
         if (profile.about_me) setAboutMe(profile.about_me);
         if (profile.designation) setDesignation(profile.designation);
-        
+
         const jd = profile.joining_date || profile.joiningDate || profile.doj;
         if (jd) {
           const finalJd = Array.isArray(jd) ? jd[0] : jd;
@@ -309,7 +309,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           const finalImg = imgPath.startsWith('http') || imgPath.startsWith('data:') ? imgPath : `${BASE_URL}${imgPath}`;
           setProfileImage(finalImg);
           setImgError(false); // reset error state for new image
-          
+
           // Use the global refresh utility instead of making redundant PUT requests
           // since the backend /upload-image endpoint already updated the DB.
           if (refreshUser) {
@@ -651,7 +651,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                   </span>
                 )}
               </div>
-              <button 
+              <button
                 style={styles.editAvatarBtn}
                 onClick={() => fileInputRef.current?.click()}
                 title="Change Profile Image"
@@ -684,7 +684,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
                 {winWidth >= 1024 && <div style={{ width: '1.5px', height: '14px', backgroundColor: '#e2e8f0' }} />}
 
-                <div 
+                <div
                   onClick={() => onNavigate?.('DOCUMENTS')}
                   style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
                   title="Click to edit contact details"
@@ -754,7 +754,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
               <div style={styles.infoValue}>{reportingManager.name || "Not Assigned"}</div>
             </div>
           </motion.div>
-          
+
           {/* Role Info Card */}
           <motion.div whileHover={{ scale: 1.05, y: -2 }} transition={{ type: 'spring', stiffness: 300 }} style={styles.infoCard}>
             <div style={styles.iconCircle}>
@@ -863,7 +863,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                               onChange={e => setPassData({ ...passData, [f.key]: e.target.value })}
                             />
                             {f.setShow && passData[f.key]?.length > 0 && (
-                              <div 
+                              <div
                                 onClick={() => f.setShow(!f.show)}
                                 style={{ position: 'absolute', right: '20px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center' }}
                               >
@@ -932,7 +932,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                                   onChange={e => setPassData({ ...passData, [f.key]: e.target.value })}
                                 />
                                 {f.setShow && passData[f.key]?.length > 0 && (
-                                  <div 
+                                  <div
                                     onClick={() => f.setShow(!f.show)}
                                     style={{ position: 'absolute', right: '20px', top: '50%', transform: 'translateY(-50%)', cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center' }}
                                   >
@@ -968,7 +968,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
                         }}>
                           {logoutAllDevices && (
                             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                              <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              <path d="M2 6L5 9L10 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                           )}
                         </div>
@@ -1011,7 +1011,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : (isTablet ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)'), gap: isMobile ? '15px' : '25px' }}>
             {[
               { id: 'slip', title: 'MONTHLY PAY SLIP', desc: 'Download salary statement', icon: <FileText size={22} />, color: '#16a34a', darkBorder: true },
-              { id: 'exp', title: 'EXPERIENCE LETTER', desc: 'Apply for service certificate', icon: <Fingerprint size={22} />, color: '#2563eb', highlight: true },
+              { id: 'exp', title: 'EXPERIENCE LETTER', desc: 'Apply for Experience Letter', icon: <Fingerprint size={22} />, color: '#2563eb', highlight: true },
               { id: 'res', title: 'RESIGNATION LETTER', desc: 'Submit formal exit notice', icon: <LogOut size={22} />, color: '#dc2626', darkBorder: true }
             ].map((doc, idx) => (
               <DocCard key={idx} doc={doc} onNavigate={onNavigate} />
@@ -1154,7 +1154,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
         {showLogoutModal && (
           <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(15px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               style={{ backgroundColor: 'white', borderRadius: '40px', padding: '40px', width: '100%', maxWidth: '450px', textAlign: 'center', boxShadow: '0 30px 100px rgba(0,0,0,0.5)' }}
@@ -1166,7 +1166,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
               <p style={{ color: '#64748b', fontSize: '15px', fontWeight: '600', lineHeight: '1.6', marginBottom: '35px' }}>
                 Your vault signature has been re-established. To finalize these changes, please re-authenticate with your new credentials.
               </p>
-              <button 
+              <button
                 onClick={handleFinalLogout}
                 style={{ width: '100%', padding: '20px', borderRadius: '20px', backgroundColor: '#0B1E3F', color: 'white', fontWeight: '900', border: 'none', cursor: 'pointer', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: '0 15px 30px rgba(11, 30, 63, 0.25)' }}
               >

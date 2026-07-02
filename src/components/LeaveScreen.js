@@ -1314,9 +1314,24 @@ const LeaveScreen = ({ onBack }) => {
                   <div style={{ position: 'relative' }}>
                     <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })} style={{ width: '100%', padding: winWidth < 480 ? '10px 12px' : '14px 16px', borderRadius: '15px', border: '2px solid #f1f5f9', outline: 'none', fontSize: winWidth < 480 ? '14px' : '15px', fontWeight: '700', appearance: 'none', backgroundColor: '#fff', color: '#0B1E3F' }} required>
                       <option value="" disabled>Select Leave Category</option>
-                      <option value="Casual Leave">Casual Leave</option>
-                      <option value="LOP">LOP</option>
-                      <option value="Earned Leaves">Earned Leaves</option>
+                      {(() => {
+                        const joiningDate = user?.joining_date || user?.date_of_joining || user?.joiningDate || null;
+                        const hasOneYear = joiningDate
+                          ? (Date.now() - new Date(joiningDate).getTime()) >= 365 * 24 * 60 * 60 * 1000
+                          : false;
+                        const hasCasualBalance = Number(currentBalance || 0) > 0;
+                        return (
+                          <>
+                            <option value="Casual Leave" disabled={!hasCasualBalance} style={{ color: !hasCasualBalance ? '#94a3b8' : undefined }}>
+                              Casual Leave{!hasCasualBalance ? ' (No balance)' : ''}
+                            </option>
+                            <option value="LOP">LOP</option>
+                            <option value="Earned Leaves" disabled={!hasOneYear} style={{ color: !hasOneYear ? '#94a3b8' : undefined }}>
+                              Earned Leaves{!hasOneYear ? ' (Available after 1 year)' : ''}
+                            </option>
+                          </>
+                        );
+                      })()}
                     </select>
                     <div style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
                       <ChevronDown size={18} color="#0B1E3F" />

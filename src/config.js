@@ -121,8 +121,10 @@ export const API_ENDPOINTS = {
   ALL_LEAVES_COMPREHENSIVE: `${BASE_URL}/api/leaves/comprehensive`,
   TEAM_LEAVES: `${BASE_URL}/api/leave/team`,
   RESIGNATIONS: `${BASE_URL}/api/resignations`,
-  TEAM_RESIGNATIONS: (tlId) => `${BASE_URL}/api/resignations/team/${cleanId(tlId)}`,
+  TEAM_RESIGNATIONS: `${BASE_URL}/api/resignations/team`,
+  RESIGNATION_UPDATE: (id) => `${BASE_URL}/api/resignations/${cleanId(id)}`,
   REVOKE_RESIGNATION: (id) => `${BASE_URL}/api/resignations/revoke/${cleanId(id)}`,
+  EXIT_FORMALITIES: `${BASE_URL}/api/exit-formalities`,
   MY_PAYSLIPS: (userId) => `${BASE_URL}/api/pay-slips/my`,
   REWARDS_MY: `${BASE_URL}/api/rewards/my`,
   REWARDS_GIVE: `${BASE_URL}/api/rewards`,
@@ -147,5 +149,6 @@ export const API_ENDPOINTS = {
   INTERNS: `${BASE_URL}/api/interns`,
   BANK_IFSC: (code) => `${BASE_URL}/api/bank/ifsc/${code}`,
   QUIZ_USER_POINTS: `${BASE_URL}/api/quizzes/user-points`,
-  QUIZ_LEADERBOARD: `${BASE_URL}/api/quizzes/leaderboard`
+  QUIZ_LEADERBOARD: `${BASE_URL}/api/quizzes/leaderboard`,
+  EXIT_FEEDBACK: `${BASE_URL}/api/exit-feedback`
 };

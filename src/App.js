@@ -30,10 +30,60 @@ import { useAuth } from './context/AuthContext';
 import { ThreadProvider } from './context/ThreadContext';
 import { getTheme } from './constants/Theme';
 import LoginScreen from './components/LoginScreen';
+import { BASE_URL } from './config';
+import { useEffect } from 'react';
 
+
+// 🔄 Service Certificate Revocation → Re-activation Check
+// If HR deletes a service cert from DB, the resigned employee is re-activated automatically.
+function useCertRevocationReactivation(user, setUser) {
+  useEffect(() => {
+    if (!user) return;
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    if (!token) return;
+    const cleanToken = token.replace(/['"+]+/g, '').trim();
+
+    const status = String(user?.status || '').toLowerCase().trim();
+    const empStatus = String(user?.employment_status || user?.employmentStatus || '').toLowerCase().trim();
+    const isInactive =
+      ['relieved', 'resigned', 'inactive', 'terminated', 'former'].includes(status) ||
+      ['relieved', 'resigned', 'inactive', 'terminated', 'former'].includes(empStatus) ||
+      Number(user?.is_active) === 0 ||
+      user?.is_active === false;
+
+    if (!isInactive) return;
+
+    (async () => {
+      try {
+        const certRes = await fetch(`${BASE_URL}/api/service-certificates/my`, {
+          headers: { Authorization: `Bearer ${cleanToken}` }
+        });
+        if (!certRes.ok) return;
+        const certData = await certRes.json();
+        const certs = Array.isArray(certData) ? certData : (certData.data || certData.requests || []);
+
+        if (certs.length === 0) {
+          if (setUser) {
+            setUser(prev => ({
+              ...prev,
+              status: 'active',
+              employment_status: 'active',
+              is_active: 1,
+              isActive: true
+            }));
+          }
+        }
+      } catch (e) {
+        // Fail gracefully
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.employee_id]);
+}
 
 function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, setUser } = useAuth();
+  useCertRevocationReactivation(user, setUser);
   const theme = getTheme(user?.role);
   const location = useLocation();
   const navigate = useNavigate();

@@ -14,8 +14,8 @@ export default function TicketSection({ onClose }) {
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('Medium');
-  const [department, setDepartment] = useState('Technical');
-  const [departments] = useState(['Infrastructure', 'Technical', 'HR']);
+  const [department, setDepartment] = useState('Service letter');
+  const [departments] = useState(['Service letter', 'Payroll issues', 'payslips', 'ID card issues', 'Technical', 'HR']);
   
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -142,6 +142,25 @@ export default function TicketSection({ onClose }) {
     }),
     label: { fontSize: '11px', fontWeight: '900', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px', display: 'block' },
     input: { width: '100%', padding: '16px 20px', borderRadius: '15px', backgroundColor: 'white', border: '1.5px solid #f1f5f9', fontSize: '14px', color: '#0B1E3F', fontWeight: '600', outline: 'none', boxSizing: 'border-box', marginBottom: '20px' },
+    selectInput: {
+      width: '100%',
+      padding: '16px 20px',
+      borderRadius: '15px',
+      backgroundColor: 'white',
+      border: '1.5px solid #f1f5f9',
+      fontSize: '14px',
+      color: '#0B1E3F',
+      fontWeight: '600',
+      outline: 'none',
+      boxSizing: 'border-box',
+      marginBottom: '20px',
+      appearance: 'none',
+      backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%230b1e3f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>")`,
+      backgroundRepeat: 'no-repeat',
+      backgroundPosition: 'right 20px center',
+      backgroundSize: '16px',
+      cursor: 'pointer'
+    },
     textarea: { width: '100%', padding: '20px', borderRadius: '15px', backgroundColor: 'white', border: '1.5px solid #f1f5f9', fontSize: '14px', color: '#0B1E3F', fontWeight: '600', outline: 'none', boxSizing: 'border-box', minHeight: '140px', marginBottom: '20px', resize: 'none' },
     
     submitBtn: { width: '100%', padding: '16px', borderRadius: '15px', backgroundColor: '#0B1E3F', color: 'white', border: 'none', fontSize: '14px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '10px' },
@@ -228,21 +247,15 @@ export default function TicketSection({ onClose }) {
                 exit={{ opacity: 0, x: 20 }}
               >
                 <label style={s.label}>Category</label>
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                <select
+                  style={s.selectInput}
+                  value={department}
+                  onChange={e => setDepartment(e.target.value)}
+                >
                   {departments.map(d => (
-                    <button 
-                      key={d} 
-                      onClick={() => setDepartment(d)}
-                      style={{ 
-                        padding: '10px 18px', borderRadius: '12px', border: department === d ? 'none' : '1.5px solid #f1f5f9',
-                        backgroundColor: department === d ? '#315A9E' : 'white',
-                        color: department === d ? 'white' : '#64748b', fontSize: '12px', fontWeight: '900', cursor: 'pointer'
-                      }}
-                    >
-                      {d}
-                    </button>
+                    <option key={d} value={d}>{d}</option>
                   ))}
-                </div>
+                </select>
 
                 <label style={s.label}>Subject</label>
                 <input style={s.input} placeholder="Briefly describe the issue" value={subject} onChange={e => setSubject(e.target.value)} />
