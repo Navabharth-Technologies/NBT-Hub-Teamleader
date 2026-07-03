@@ -306,7 +306,12 @@ export default function ResignationScreen({ onBack }) {
                                  mgrIdClean === `EMP${cleanUid}` ||
                                  mgrIdClean === `INT${cleanUid}`;
                                  
-          const isOverrideMatch = (cleanUid === '202516' && empIdClean === '20259');
+          const isSahana = (
+            String(user?.employee_id || '').includes('202516') ||
+            String(user?.id || '').includes('202516') ||
+            String(user?.email || '').toLowerCase().trim() === 'sahana@navabharathtechnologies.com'
+          );
+          const isOverrideMatch = isSahana && empIdClean === '20259';
                                  
           return isSubordinate || isManagerMatch || isOverrideMatch;
         });
