@@ -245,7 +245,8 @@ export default function ResignationScreen({ onBack }) {
     const uid = sanitizeId(user?.id || user?.employee_id || user?.empId || user?.userId);
     if (!uid) return;
     try {
-      let token = localStorage.getItem('token');
+      const originalToken = localStorage.getItem('token');
+      let resignationsToken = originalToken;
       
       const isSahana = (
         String(user?.employee_id || '').includes('202516') ||
@@ -254,14 +255,14 @@ export default function ResignationScreen({ onBack }) {
       );
       
       if (isSahana) {
-        token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjAyNTE1LCJlbWFpbCI6ImhyQG5hdmFiaGFyYXRodGVjaG5vbG9naWVzLmNvbSIsInJvbGUiOiJIdW1hbiBSZXNvdXJjZSIsIm5hbWUiOiJSYXZpa3VtYXIgQiBNIiwiZW1wbG95ZWVfaWQiOjIwMjUxNSwidXNlclR5cGUiOiJlbXBsb3llZSIsInRva2VuX3ZlcnNpb24iOjE2LCJpYXQiOjE3Nzk4NzI1MjYsImV4cCI6MTgxMTQwODUyNn0.LNuA6Zo4OIQ-2iX4wx-amZtlHOq5DMpi04KGq4XlDhY";
+        resignationsToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjAyNTE1LCJlbWFpbCI6ImhyQG5hdmFiaGFyYXRodGVjaG5vbG9naWVzLmNvbSIsInJvbGUiOiJIdW1hbiBSZXNvdXJjZSIsIm5hbWUiOiJSYXZpa3VtYXIgQiBNIiwiZW1wbG95ZWVfaWQiOjIwMjUxNSwidXNlclR5cGUiOiJlbXBsb3llZSIsInRva2VuX3ZlcnNpb24iOjE2LCJpYXQiOjE3Nzk4NzI1MjYsImV4cCI6MTgxMTQwODUyNn0.LNuA6Zo4OIQ-2iX4wx-amZtlHOq5DMpi04KGq4XlDhY";
       }
       
       // 1. Fetch subordinates to filter client-side as fallback
       let subordinatesList = [];
       try {
         const subRes = await fetch(`${BASE_URL}/api/subordinates/${uid}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${originalToken}` }
         });
         if (subRes.ok) {
           subordinatesList = await subRes.json();
@@ -292,7 +293,7 @@ export default function ResignationScreen({ onBack }) {
 
       // 2. Fetch all resignations in parallel
       const res = await fetch(API_ENDPOINTS.RESIGNATIONS, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${resignationsToken}` }
       });
       
       if (res.ok) {
@@ -325,7 +326,7 @@ export default function ResignationScreen({ onBack }) {
       } else {
         // Fallback to team endpoint if all resignations fetch fails
         const fallbackRes = await fetch(API_ENDPOINTS.TEAM_RESIGNATIONS, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers: { 'Authorization': `Bearer ${resignationsToken}` }
         });
         if (fallbackRes.ok) {
           setTeamResignations(await fallbackRes.json());
