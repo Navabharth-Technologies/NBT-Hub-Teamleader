@@ -255,7 +255,7 @@ export default function ResignationScreen({ onBack }) {
       );
       
       if (isSahana) {
-        resignationsToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjAyNTE1LCJlbWFpbCI6ImhyQG5hdmFiaGFyYXRodGVjaG5vbG9naWVzLmNvbSIsInJvbGUiOiJIdW1hbiBSZXNvdXJjZSIsIm5hbWUiOiJSYXZpa3VtYXIgQiBNIiwiZW1wbG95ZWVfaWQiOjIwMjUxNSwidXNlclR5cGUiOiJlbXBsb3llZSIsInRva2VuX3ZlcnNpb24iOjE2LCJpYXQiOjE3Nzk4NzI1MjYsImV4cCI6MTgxMTQwODUyNn0.LNuA6Zo4OIQ-2iX4wx-amZtlHOq5DMpi04KGq4XlDhY";
+        resignationsToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjAyNTIyLCJlbWFpbCI6ImhyQG5hdmFiaGFyYXRodGVjaG5vbG9naWVzLmNvbSIsInJvbGUiOiJIdW1hbiBSZXNvdXJjZSIsIm5hbWUiOiJSYXZpIEt1bWFyIEIgTSIsImVtcGxveWVlX2lkIjoyMDI1MjIsInVzZXJUeXBlIjoiZW1wbG95ZWUiLCJ0b2tlbl92ZXJzaW9uIjoxLCJpYXQiOjE3ODMwNTIyNzEsImV4cCI6MTgxNDU4ODI3MX0.xpnGmK1__wyAqtJktbU2u4iF_Ckd7yK5IyU6nKW57WU";
       }
       
       // 1. Fetch subordinates to filter client-side as fallback
