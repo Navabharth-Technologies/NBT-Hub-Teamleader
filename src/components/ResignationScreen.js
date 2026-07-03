@@ -242,12 +242,83 @@ export default function ResignationScreen({ onBack }) {
   };
 
   const fetchTeamHistory = async () => {
+    const uid = sanitizeId(user?.id || user?.employee_id || user?.empId || user?.userId);
+    if (!uid) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(API_ENDPOINTS.TEAM_RESIGNATIONS, {
+      
+      // 1. Fetch subordinates to filter client-side as fallback
+      let subordinatesList = [];
+      try {
+        const subRes = await fetch(`${BASE_URL}/api/subordinates/${uid}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (subRes.ok) {
+          subordinatesList = await subRes.json();
+        }
+      } catch (subErr) {
+        console.warn("Failed to fetch subordinates:", subErr);
+      }
+
+      const subIds = new Set();
+      subordinatesList.forEach(s => {
+        if (s.employee_id) {
+          subIds.add(String(s.employee_id).trim());
+          subIds.add(cleanId(s.employee_id));
+        }
+        if (s.id) {
+          subIds.add(String(s.id).trim());
+          subIds.add(cleanId(s.id));
+        }
+        if (s.emp_id) {
+          subIds.add(String(s.emp_id).trim());
+          subIds.add(cleanId(s.emp_id));
+        }
+        if (s.empId) {
+          subIds.add(String(s.empId).trim());
+          subIds.add(cleanId(s.empId));
+        }
+      });
+
+      // 2. Fetch all resignations in parallel
+      const res = await fetch(API_ENDPOINTS.RESIGNATIONS, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) setTeamResignations(await res.json());
+      
+      if (res.ok) {
+        const allResignations = await res.json();
+        
+        // Filter resignations:
+        // - employee reports to this manager (is in subordinates list)
+        // - OR resignation is explicitly linked to this manager
+        const filtered = allResignations.filter(r => {
+          const empIdStr = String(r.employee_id || r.emp_id || r.id || '').trim();
+          const empIdClean = cleanId(empIdStr);
+          const mgrIdStr = String(r.manager_id || r.reporting_manager_id || '').trim();
+          const mgrIdClean = cleanId(mgrIdStr);
+          const cleanUid = cleanId(uid);
+          
+          const isSubordinate = subIds.has(empIdStr) || subIds.has(empIdClean);
+          const isManagerMatch = mgrIdStr === uid || 
+                                 mgrIdClean === cleanUid || 
+                                 mgrIdStr === `EMP${uid}` || 
+                                 mgrIdStr === `INT${uid}` ||
+                                 mgrIdClean === `EMP${cleanUid}` ||
+                                 mgrIdClean === `INT${cleanUid}`;
+                                 
+          return isSubordinate || isManagerMatch;
+        });
+        
+        setTeamResignations(filtered);
+      } else {
+        // Fallback to team endpoint if all resignations fetch fails
+        const fallbackRes = await fetch(API_ENDPOINTS.TEAM_RESIGNATIONS, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (fallbackRes.ok) {
+          setTeamResignations(await fallbackRes.json());
+        }
+      }
     } catch (e) {
       console.error('Fetch Team Resignations Error:', e);
     }

@@ -280,6 +280,7 @@ const Dashboard = ({ setActiveTab }) => {
               (hrStatus === 'APPROVED' && pmStatus === 'APPROVED')
             ) {
               resignedEmployeeIds.add(empId);
+              resignedEmployeeIds.add(cleanId(empId));
             }
           });
         }
@@ -294,6 +295,7 @@ const Dashboard = ({ setActiveTab }) => {
             // Service cert fully approved → employee has fully exited
             if (certStatus === 'APPROVED' || certStatus === 'COMPLETED') {
               resignedEmployeeIds.add(empId);
+              resignedEmployeeIds.add(cleanId(empId));
             }
           });
         }
@@ -306,7 +308,7 @@ const Dashboard = ({ setActiveTab }) => {
         if (!m) return false;
         // Cross-reference: if employee appears in resigned IDs set, exclude them
         const memberId = String(m.id || m.employee_id || '').trim();
-        if (memberId && resignedEmployeeIds.has(memberId)) return false;
+        if (memberId && (resignedEmployeeIds.has(memberId) || resignedEmployeeIds.has(cleanId(memberId)))) return false;
         // Also check status fields on the member object (for backends that do set them)
         const status = String(m.status || '').toLowerCase().trim();
         if (['relieved', 'resigned', 'inactive', 'terminated', 'former'].includes(status)) return false;
