@@ -114,8 +114,8 @@ const AwardsScreen = ({ onBack }) => {
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    const [startFilter, setStartFilter] = useState(formatLocalDate(firstDay));
-    const [endFilter, setEndFilter] = useState(formatLocalDate(lastDay));
+    const [startFilter, setStartFilter] = useState('');
+    const [endFilter, setEndFilter] = useState('');
     const [activeView, setActiveView] = useState('MAIN');
 
     const [availableAwards] = useState([
@@ -177,12 +177,12 @@ const AwardsScreen = ({ onBack }) => {
                 if (res.ok) {
                     const data = await res.json();
                     mainHistory = data.history || data.awards || (Array.isArray(data) ? data : (data.data || []));
-                    mainTotal = Number(data.totalPoints || 0);
+                    mainTotal = cleanNum(data.totalPoints || 0);
 
 
 
                     if (!mainTotal && mainHistory.length > 0) {
-                        mainTotal = mainHistory.reduce((sum, r) => sum + (Number(r.points) || Number(r.rep) || 0), 0);
+                        mainTotal = mainHistory.reduce((sum, r) => sum + (cleanNum(r.points) || cleanNum(r.rep) || 0), 0);
                     }
                 }
 
@@ -409,9 +409,9 @@ const AwardsScreen = ({ onBack }) => {
 
                 allRewards.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
 
-                const totalPointsInHistory = quizHistory.reduce((sum, c) => sum + Number(c.total_points || 0), 0);
+                const totalPointsInHistory = quizHistory.reduce((sum, c) => sum + cleanNum(c.total_points || 0), 0);
                 const myOverallQuiz = quizOnlyList.find(s => cleanIdLocal(s.employee_id || s.user_id || s.id) === uid);
-                const overallPoints = Number(myOverallQuiz?.total_quiz_points || myOverallQuiz?.points || 0);
+                const overallPoints = cleanNum(myOverallQuiz?.total_quiz_points || myOverallQuiz?.points || 0);
                 const legacyPoints = overallPoints - totalPointsInHistory;
 
                 if (legacyPoints > 0) {
@@ -658,7 +658,7 @@ const AwardsScreen = ({ onBack }) => {
                 showFeedback(`Successfully awarded "${finalTitle}" to ${selectedEmployee.employee_name || selectedEmployee.name}`, 'success');
                 setSelectedMemberRewards(prev => ({
                     ...prev,
-                    totalPoints: Number(prev.totalPoints) + finalPoints,
+                    totalPoints: cleanNum(prev.totalPoints) + finalPoints,
                     history: [{
                         reward_name: finalTitle,
                         points: finalPoints,
@@ -1075,7 +1075,7 @@ const AwardsScreen = ({ onBack }) => {
                                                     const rawTitle = String(aw.title || aw.award_name || aw.reward_name || aw.awardName || '').trim().toLowerCase();
                                                     const cat = String(aw.category || '').toUpperCase();
                                                     const isQuiz = cat === 'FUN QUIZ GAME' || cat === 'QUIZ' || rawTitle.includes('quiz') || rawTitle.includes('brain teaser');
-                                                    if (isQuiz) return sum + (Number(aw.points) || Number(aw.rep) || 0);
+                                                    if (isQuiz) return sum + (cleanNum(aw.points) || cleanNum(aw.rep) || 0);
                                                     return sum;
                                                 }, 0);
                                             return `${totalHrPoints} REP TOTAL`;
