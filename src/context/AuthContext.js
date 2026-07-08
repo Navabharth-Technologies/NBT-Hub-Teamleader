@@ -110,14 +110,39 @@ export const checkAuthOnce = () => {
 export const resetAuthState = () => { _authPromise = null; _authResult = null; };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUserState] = useState(null);
+
+  const adjustLoggedUser = (u) => {
+    if (!u) return u;
+    const empId = String(u.employee_id || u.id || u.empId || '').trim();
+    const email = String(u.email || '').toLowerCase().trim();
+    if (empId === '202512' || email === 'rakesh@navabharathtechnologies.com') {
+      return {
+        ...u,
+        name: 'Rakesh Gowda H N',
+        user_name: 'Rakesh Gowda H N',
+        employee_name: 'Rakesh Gowda H N',
+        empName: 'Rakesh Gowda H N'
+      };
+    }
+    return u;
+  };
+
+  const setUser = (val) => {
+    setUserState(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      return adjustLoggedUser(next);
+    });
+  };
+
   const [loading, setLoading] = useState(true);
 
   // Utility to save to storage while stripping heavy base64 images to avoid QuotaExceededError
   const safeSaveUser = (userData) => {
     if (!userData) return;
     try {
-      const stripped = { ...userData };
+      const adjusted = adjustLoggedUser(userData);
+      const stripped = { ...adjusted };
       const imgFields = ['profileImage', 'profile_image', 'profile_pic', 'profile_picture', 'avatar'];
         imgFields.forEach(f => {
           // If it's a massive base64 string (starts with data:), don't store it in localStorage

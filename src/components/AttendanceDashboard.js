@@ -186,7 +186,27 @@ const AttendanceDashboard = ({ onBack }) => {
       }
 
       const data = await attendanceRes.json();
-      const logsArray = Array.isArray(data) ? data : (data.value || data.data || data.logs || []);
+      const rawLogs = Array.isArray(data) ? data : (data.value || data.data || data.logs || []);
+      const logsArray = rawLogs.map(log => {
+        const empId = String(log.user_id || log.employee_id || '').trim();
+        if (empId === '202512') {
+          return {
+            ...log,
+            user_name: 'Rakesh Gowda H N',
+            userName: 'Rakesh Gowda H N',
+            employee_name: 'Rakesh Gowda H N'
+          };
+        }
+        if (empId === '202522') {
+          return {
+            ...log,
+            user_name: 'Ravi Kumar B M',
+            userName: 'Ravi Kumar B M',
+            employee_name: 'Ravi Kumar B M'
+          };
+        }
+        return log;
+      });
 
       const gapData = gapsRes && gapsRes.ok ? await gapsRes.json().catch(() => []) : [];
       setGaps(Array.isArray(gapData) ? gapData : []);
