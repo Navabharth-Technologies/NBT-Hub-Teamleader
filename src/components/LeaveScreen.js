@@ -202,13 +202,28 @@ const LeaveScreen = ({ onBack }) => {
             setApiStats({
               leaves_taken: totalCasual,
               LOP: totalLop,
-              leaves_available: undefined
+              leaves_available: undefined,
+              availableLeaves: undefined,
+              leaveBalance: undefined,
+              availableBalance: undefined,
+              balance: undefined
             });
           } else {
             setApiStats(dataArr[0]);
           }
         } else {
-          setApiStats({ balance: 0, totalTaken: 0, pending: 0, approved: 0, total_taken: 0 });
+          setApiStats({
+            leaves_taken: undefined,
+            leaves_available: undefined,
+            availableLeaves: undefined,
+            leaveBalance: undefined,
+            availableBalance: undefined,
+            balance: undefined,
+            totalTaken: 0,
+            pending: 0,
+            approved: 0,
+            total_taken: 0
+          });
         }
       }
     } catch (err) {
@@ -575,7 +590,7 @@ const LeaveScreen = ({ onBack }) => {
     const requester = allUsers.find(u =>
       cleanId(u.id || u.employee_id || u.employeeId || u.userId) === requesterId
     );
-    const rRole = (requester?.role || '').toLowerCase();
+    const rRole = (requester?.designation || requester?.role || '').toLowerCase();
     const isLeadSoftware = rRole.includes('lead software') || rRole.includes('leadsoftware');
 
     // Check if it's a personal request by the logged-in user
@@ -615,8 +630,8 @@ const LeaveScreen = ({ onBack }) => {
     return requester?.name || 'Employee';
   };
 
-  const totalTaken = [apiStats.leaves_taken, apiStats.total_leaves_taken, apiStats.total_taken, apiStats.totalTaken].find(v => v !== undefined && v !== null) ?? 0;
-  const currentBalance = [apiStats.leaves_available, apiStats.leaveBalance, apiStats.available_balance, apiStats.balance].find(v => v !== undefined && v !== null) ?? leaveBalance;
+  const totalTaken = Math.max(0, [apiStats.leaves_taken, apiStats.total_leaves_taken, apiStats.total_taken, apiStats.totalTaken].find(v => v !== undefined && v !== null) ?? 0);
+  const currentBalance = Math.max(0, [apiStats.leaves_available, apiStats.leaveBalance, apiStats.available_balance, apiStats.balance].find(v => v !== undefined && v !== null) ?? leaveBalance);
   const totalLop = [apiStats.LOP, apiStats.total_lop, apiStats.lop_taken, apiStats.lopTaken, apiStats.lop].find(v => v !== undefined && v !== null) ?? 0;
   const totalHalfDays = [apiStats.halfDays, apiStats.half_days, apiStats.total_half_days].find(v => v !== undefined && v !== null) ?? 0;
 
@@ -870,6 +885,14 @@ const LeaveScreen = ({ onBack }) => {
                   </div>
                   <div>
                     <h4 style={{ margin: 0, fontSize: '18px', fontWeight: '1000', color: '#0B1E3F' }}>{getEmployeeName(req)}</h4>
+                    {(() => {
+                      const requesterId = cleanId(req.user_id || req.userId || req.employee_id || req.employeeId);
+                      const requester = allUsers.find(u => cleanId(u.id || u.employee_id) === requesterId);
+                      const degText = requester?.designation || requester?.role;
+                      return degText ? (
+                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '800', marginTop: '2px' }}>{degText}</div>
+                      ) : null;
+                    })()}
                     <p style={{ margin: '4px 0', fontSize: '14px', color: '#64748b', fontWeight: '700' }}>
                       {req.leave_type} • <span style={{ color: '#0B1E3F' }}>
                         {(req.isHalfDay || req.is_half_day || req.half_day_slot || req.halfDaySlot || Number(req.no_of_days) === 0.5)
@@ -923,6 +946,14 @@ const LeaveScreen = ({ onBack }) => {
                   </div>
                   <div>
                     <h4 style={{ margin: 0, fontSize: '18px', fontWeight: '1000', color: '#0B1E3F' }}>{getEmployeeName(req)}</h4>
+                    {(() => {
+                      const requesterId = cleanId(req.user_id || req.userId || req.employee_id || req.employeeId);
+                      const requester = allUsers.find(u => cleanId(u.id || u.employee_id) === requesterId);
+                      const degText = requester?.designation || requester?.role;
+                      return degText ? (
+                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '800', marginTop: '2px' }}>{degText}</div>
+                      ) : null;
+                    })()}
                     <p style={{ margin: '4px 0', fontSize: '14px', color: '#64748b', fontWeight: '700' }}>
                       {req.leave_type} • <span style={{ color: '#0B1E3F' }}>
                         {(req.isHalfDay || req.is_half_day || req.half_day_slot || req.halfDaySlot || Number(req.no_of_days) === 0.5)
@@ -1048,130 +1079,129 @@ const LeaveScreen = ({ onBack }) => {
         )}
       </div>
 
-      {/* Detailed Review View */}
-      <AnimatePresence>
-        {selectedRequest && (
-          <motion.div
-            initial={false} animate={false} exit={false}
-            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#f8fafc', zIndex: 1510, padding: isMobile ? '80px 15px 20px' : '100px 40px 40px', overflowY: 'auto' }}
-          >
-            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-              <div style={{ ...s.card, marginTop: isMobile ? '20px' : '40px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '40px', alignItems: isMobile ? 'center' : 'flex-start', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '25px' : '0' }}>
-                  <div style={{ display: 'flex', gap: isMobile ? '15px' : '25px', alignItems: 'center', alignSelf: isMobile ? 'flex-start' : 'auto' }}>
-                    <button onClick={() => setSelectedRequest(null)} style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#0B1E3F', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                      <ArrowLeft size={18} />
-                    </button>
-                    <div style={{ width: isMobile ? '50px' : '70px', height: isMobile ? '50px' : '70px', borderRadius: isMobile ? '15px' : '24px', background: 'linear-gradient(135deg, #0B1E3F 0%, #1e3a8a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: isMobile ? '20px' : '28px', fontWeight: '1000' }}>
-                      {(selectedRequest.employeeName || selectedRequest.user_name || selectedRequest.name || 'E').charAt(0)}
-                    </div>
-                    <div>
-                      <h2 style={{ margin: 0, fontSize: isMobile ? '18px' : '24px', fontWeight: '1000', color: '#0B1E3F' }}>{selectedRequest.employeeName || selectedRequest.user_name || selectedRequest.name || allUsers.find(u => u.id === selectedRequest.user_id)?.name || user?.name}</h2>
-                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                        <p style={{ margin: '4px 0', fontSize: '11px', color: '#64748b', fontWeight: '900', backgroundColor: '#f1f5f9', padding: '2px 8px', borderRadius: '6px' }}>ID: {cleanId(selectedRequest.employee_id || selectedRequest.user_id || '---')}</p>
-                        <p style={{ margin: '4px 0', fontSize: '12px', color: '#64748b', fontWeight: '800' }}>{isMobile ? 'Subordinate' : ((selectedRequest.user_id || selectedRequest.userId) === (user?.id || user?.employee_id) ? 'Personal Request' : 'Subordinate Member')}</p>
+      {selectedRequest && (() => {
+          const requesterId = cleanId(selectedRequest.user_id || selectedRequest.userId || selectedRequest.employee_id || selectedRequest.employeeId);
+          const requester = allUsers.find(u =>
+            cleanId(u.id || u.employee_id || u.employeeId || u.userId) === requesterId
+          );
+          return (
+            <motion.div
+              initial={false} animate={false} exit={false}
+              style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#f8fafc', zIndex: 1510, padding: isMobile ? '80px 15px 20px' : '100px 40px 40px', overflowY: 'auto' }}
+            >
+              <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+                <div style={{ ...s.card, marginTop: isMobile ? '20px' : '40px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '40px', alignItems: isMobile ? 'center' : 'flex-start', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '25px' : '0' }}>
+                    <div style={{ display: 'flex', gap: isMobile ? '15px' : '25px', alignItems: 'center', alignSelf: isMobile ? 'flex-start' : 'auto' }}>
+                      <button onClick={() => setSelectedRequest(null)} style={{ width: '40px', height: '40px', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#0B1E3F', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+                        <ArrowLeft size={18} />
+                      </button>
+                      <div style={{ width: isMobile ? '50px' : '70px', height: isMobile ? '50px' : '70px', borderRadius: isMobile ? '15px' : '24px', background: 'linear-gradient(135deg, #0B1E3F 0%, #1e3a8a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: isMobile ? '20px' : '28px', fontWeight: '1000' }}>
+                        {(selectedRequest.employeeName || selectedRequest.user_name || selectedRequest.name || 'E').charAt(0)}
                       </div>
-                    </div>
-                  </div>
-                  <div style={{ textAlign: isMobile ? 'left' : 'right', alignSelf: isMobile ? 'flex-start' : 'auto' }}>
-                    <div style={{ fontSize: '10px', fontWeight: '900', color: '#64748b', marginBottom: '8px', letterSpacing: '1px' }}>REQUEST STATUS</div>
-                    {(() => {
-                      const status = getEffectiveStatus(selectedRequest);
-                      const colors = getStatusColors(status);
-                      return (
-                        <div style={{ padding: '8px 20px', borderRadius: '12px', background: colors.bg, color: colors.text, fontSize: '12px', fontWeight: '900', border: `1px solid ${colors.text}20`, display: 'inline-block' }}>
-                          {status}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '30px', marginBottom: '40px' }}>
-                  <div style={{ padding: '25px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1px solid #f1f5f9' }}>
-                    <label style={{ fontSize: '12px', fontWeight: '900', color: '#64748b', display: 'block', marginBottom: '15px' }}>LEAVE DETAILS</label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                       <div>
-                        <div style={{ fontSize: '13px', color: '#0B1E3F', fontWeight: '1000' }}>{selectedRequest.leave_type}</div>
-                        <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '800' }}>Category</div>
+                        <h2 style={{ margin: 0, fontSize: isMobile ? '18px' : '24px', fontWeight: '1000', color: '#0B1E3F' }}>{selectedRequest.employeeName || selectedRequest.user_name || selectedRequest.name || allUsers.find(u => u.id === selectedRequest.user_id)?.name || user?.name}</h2>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                          <p style={{ margin: '4px 0', fontSize: '11px', color: '#64748b', fontWeight: '900', backgroundColor: '#f1f5f9', padding: '2px 8px', borderRadius: '6px' }}>ID: {cleanId(selectedRequest.employee_id || selectedRequest.user_id || '---')}</p>
+                          <p style={{ margin: '4px 0', fontSize: '12px', color: '#64748b', fontWeight: '800' }}>{requester?.designation || requester?.role || (isMobile ? 'Subordinate' : ((selectedRequest.user_id || selectedRequest.userId) === (user?.id || user?.employee_id) ? 'Personal Request' : 'Subordinate Member'))}</p>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '40px' }}>
-                        <div>
-                          <div style={{ fontSize: '15px', color: '#0B1E3F', fontWeight: '1000' }}>
-                            {(() => {
-                              const rawDate = selectedRequest.created_at || selectedRequest.createdAt || selectedRequest.applied_on;
-                              if (!rawDate) return '---';
-                              try {
-                                const dateStr = String(rawDate);
-                                const parts = dateStr.split(/[T ]/);
-                                if (parts.length >= 1) {
-                                  const dateParts = parts[0].split('-');
-                                  const timeParts = parts[1] ? parts[1].split('.')[0].split(':') : null;
-                                  let formattedTime = '';
-                                  if (timeParts) {
-                                    let hours = parseInt(timeParts[0]);
-                                    const mins = timeParts[1] || '00';
-                                    const amp = hours >= 12 ? 'PM' : 'AM';
-                                    hours = hours % 12 || 12;
-                                    formattedTime = `${String(hours).padStart(2, '0')}:${mins} ${amp}`;
-                                  }
-                                  if (dateParts.length === 3) {
-                                    return `${formatDate(rawDate)} ${formattedTime}`;
-                                  }
-                                }
-                                return dateStr;
-                              } catch (e) {
-                                return String(rawDate);
-                              }
-                            })()}
+                    </div>
+                    <div style={{ textAlign: isMobile ? 'left' : 'right', alignSelf: isMobile ? 'flex-start' : 'auto' }}>
+                      <div style={{ fontSize: '10px', fontWeight: '900', color: '#64748b', marginBottom: '8px', letterSpacing: '1px' }}>REQUEST STATUS</div>
+                      {(() => {
+                        const status = getEffectiveStatus(selectedRequest);
+                        const colors = getStatusColors(status);
+                        return (
+                          <div style={{ padding: '8px 20px', borderRadius: '12px', background: colors.bg, color: colors.text, fontSize: '12px', fontWeight: '900', border: `1px solid ${colors.text}20`, display: 'inline-block' }}>
+                            {status}
                           </div>
-                          <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '800' }}>Applied On</div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '30px', marginBottom: '40px' }}>
+                    <div style={{ padding: '25px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1px solid #f1f5f9' }}>
+                      <label style={{ fontSize: '12px', fontWeight: '900', color: '#64748b', display: 'block', marginBottom: '15px' }}>LEAVE DETAILS</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        <div>
+                          <div style={{ fontSize: '13px', color: '#0B1E3F', fontWeight: '1000' }}>{selectedRequest.leave_type}</div>
+                          <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '800' }}>Category</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '40px' }}>
+                          <div>
+                            <div style={{ fontSize: '15px', color: '#0B1E3F', fontWeight: '1000' }}>
+                              {formatDate(selectedRequest.start_date)}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '800' }}>Start Date</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '15px', color: '#0B1E3F', fontWeight: '1000' }}>
+                              {formatDate(selectedRequest.end_date)}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '800' }}>End Date</div>
+                          </div>
                         </div>
                         <div>
-                          <div style={{ fontSize: '15px', color: '#0B1E3F', fontWeight: '1000' }}>{selectedRequest.isHalfDay || selectedRequest.is_half_day ? 'Half Day' : (selectedRequest.no_of_days || calculateDays(selectedRequest.start_date, selectedRequest.end_date))}</div>
-                          <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '800' }}>Total Days</div>
-                        </div>
-                      </div>
-                      <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #f1f5f9' }}>
-                        <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '800', display: 'block', marginBottom: '5px' }}>LEAVE DURATION</span>
-                        <div style={{ fontSize: '14px', color: '#0B1E3F', fontWeight: '1000', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                          <span>📅 {(selectedRequest.start_date || selectedRequest.startDate || '').split('T')[0].split('-').reverse().join('-')} to {(selectedRequest.end_date || selectedRequest.endDate || '').split('T')[0].split('-').reverse().join('-')}</span>
-                          {(selectedRequest.isHalfDay || selectedRequest.is_half_day) && (
-                            <span style={{ fontSize: '11px', fontWeight: '900', color: '#0ea5e9', backgroundColor: '#f0f9ff', padding: '4px 12px', borderRadius: '25px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                              ⏰ Half Day Session
-                            </span>
+                          <div style={{ fontSize: '15px', color: '#0B1E3F', fontWeight: '1000', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {(selectedRequest.isHalfDay || selectedRequest.is_half_day || selectedRequest.half_day_slot || selectedRequest.halfDaySlot || Number(selectedRequest.no_of_days) === 0.5)
+                              ? '0.5 Day'
+                              : `${Math.max(0, selectedRequest.no_of_days || calculateDays(selectedRequest.start_date, selectedRequest.end_date))} Days`}
+                            {(selectedRequest.isHalfDay || selectedRequest.is_half_day) && (
+                              <span style={{ fontSize: '11px', fontWeight: '900', color: '#0ea5e9', backgroundColor: '#f0f9ff', padding: '4px 12px', borderRadius: '25px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                ⏰ Half Day Session
+                              </span>
+                            )}
+                          </div>
+                          {(selectedRequest.isHalfDay || selectedRequest.is_half_day) && (selectedRequest.half_day_slot || selectedRequest.halfDaySlot) && (
+                            <div style={{ marginTop: '10px', fontSize: '12px', color: '#64748b', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <Clock size={14} color="#0ea5e9" /> <span style={{ color: '#0ea5e9' }}>SESSION:</span> {selectedRequest.half_day_slot || selectedRequest.halfDaySlot}
+                            </div>
                           )}
                         </div>
-                        {(selectedRequest.isHalfDay || selectedRequest.is_half_day) && (selectedRequest.half_day_slot || selectedRequest.halfDaySlot) && (
-                          <div style={{ marginTop: '10px', fontSize: '12px', color: '#64748b', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Clock size={14} color="#0ea5e9" /> <span style={{ color: '#0ea5e9' }}>SESSION:</span> {selectedRequest.half_day_slot || selectedRequest.halfDaySlot}
-                          </div>
-                        )}
                       </div>
                     </div>
-                  </div>
 
-                  <div style={{ padding: '25px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1px solid #f1f5f9' }}>
-                    <label style={{ fontSize: '12px', fontWeight: '900', color: '#64748b', display: 'block', marginBottom: '15px' }}>OFFICIAL VERIFICATION</label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                      {(() => {
-                        const requesterId = cleanId(selectedRequest.user_id || selectedRequest.userId || selectedRequest.employee_id || selectedRequest.employeeId);
-                        const requester = allUsers.find(u =>
-                          cleanId(u.id || u.employee_id || u.employeeId || u.userId) === requesterId
-                        );
-                        const rRole = (requester?.role || '').toLowerCase();
-                        const isLeadSoftware = rRole.includes('lead software') || rRole.includes('leadsoftware');
+                    <div style={{ padding: '25px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1px solid #f1f5f9' }}>
+                      <label style={{ fontSize: '12px', fontWeight: '900', color: '#64748b', display: 'block', marginBottom: '15px' }}>OFFICIAL VERIFICATION</label>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        {(() => {
+                          const rRole = (requester?.designation || requester?.role || '').toLowerCase();
+                          const isLeadSoftware = rRole.includes('lead software') || rRole.includes('leadsoftware');
 
-                        if (isLeadSoftware) {
+                          if (isLeadSoftware) {
+                            return (
+                              <>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <div>
+                                    <span style={{ fontSize: '13px', color: '#0B1E3F', fontWeight: '1000', display: 'block' }}>RM & PM Approval</span>
+                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>By: {allUsers.find(u => Number(u.id || u.employee_id) === Number(selectedRequest.manager_id))?.name || 'Project Lead'}</span>
+                                  </div>
+                                  <span style={s.statusBadge(selectedRequest.pm_status || selectedRequest.pmStatus || 'Pending')}>{selectedRequest.pm_status || selectedRequest.pmStatus || 'Pending'}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <div>
+                                    <span style={{ fontSize: '13px', color: '#0B1E3F', fontWeight: '900', display: 'block' }}>HR Approval</span>
+                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>By: {selectedRequest.hr_approved_by || allUsers.find(u => (u.role || '').toLowerCase() === 'hr')?.name || 'HR Admin'}</span>
+                                  </div>
+                                  <span style={s.statusBadge(selectedRequest.hr_status || selectedRequest.hrStatus || 'Pending')}>{selectedRequest.hr_status || selectedRequest.hrStatus || 'Pending'}</span>
+                                </div>
+                              </>
+                            );
+                          }
+
                           return (
                             <>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div>
-                                  <span style={{ fontSize: '13px', color: '#0B1E3F', fontWeight: '1000', display: 'block' }}>RM & PM Approval</span>
-                                  <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>By: {allUsers.find(u => Number(u.id || u.employee_id) === Number(selectedRequest.manager_id))?.name || 'Project Lead'}</span>
+                              {Number(selectedRequest.user_id || selectedRequest.userId) !== Number(user?.id || user?.employee_id || user?.empId) && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <div>
+                                    <span style={{ fontSize: '13px', color: '#0B1E3F', fontWeight: '1000', display: 'block' }}>Team Leader Approval</span>
+                                    <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>By: {allUsers.find(u => Number(u.id || u.employee_id) === Number(selectedRequest.manager_id))?.name || 'RM NAME'}</span>
+                                  </div>
+                                  <span style={s.statusBadge(selectedRequest.rm_status || selectedRequest.rmStatus || 'Pending')}>{selectedRequest.rm_status || selectedRequest.rmStatus || 'Pending'}</span>
                                 </div>
-                                <span style={s.statusBadge(selectedRequest.pm_status || selectedRequest.pmStatus || 'Pending')}>{selectedRequest.pm_status || selectedRequest.pmStatus || 'Pending'}</span>
-                              </div>
+                              )}
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div>
                                   <span style={{ fontSize: '13px', color: '#0B1E3F', fontWeight: '900', display: 'block' }}>HR Approval</span>
@@ -1179,108 +1209,86 @@ const LeaveScreen = ({ onBack }) => {
                                 </div>
                                 <span style={s.statusBadge(selectedRequest.hr_status || selectedRequest.hrStatus || 'Pending')}>{selectedRequest.hr_status || selectedRequest.hrStatus || 'Pending'}</span>
                               </div>
-                            </>
-                          );
-                        }
-
-                        return (
-                          <>
-                            {Number(selectedRequest.user_id || selectedRequest.userId) !== Number(user?.id || user?.employee_id || user?.empId) && (
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div>
-                                  <span style={{ fontSize: '13px', color: '#0B1E3F', fontWeight: '1000', display: 'block' }}>Team Leader Approval</span>
-                                  <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>By: {allUsers.find(u => Number(u.id || u.employee_id) === Number(selectedRequest.manager_id))?.name || 'RM NAME'}</span>
+                                  <span style={{ fontSize: '13px', color: '#0B1E3F', fontWeight: '900', display: 'block' }}>PM Approval</span>
+                                  <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>By: {selectedRequest.pm_approved_by || allUsers.find(u => (u.role || '').toLowerCase().includes('project manager'))?.name || 'Project Manager'}</span>
                                 </div>
-                                <span style={s.statusBadge(selectedRequest.rm_status || selectedRequest.rmStatus || 'Pending')}>{selectedRequest.rm_status || selectedRequest.rmStatus || 'Pending'}</span>
+                                <span style={s.statusBadge(selectedRequest.pm_status || selectedRequest.pmStatus || 'Pending')}>{selectedRequest.pm_status || selectedRequest.pmStatus || 'Pending'}</span>
                               </div>
-                            )}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <div>
-                                <span style={{ fontSize: '13px', color: '#0B1E3F', fontWeight: '900', display: 'block' }}>HR Approval</span>
-                                <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>By: {selectedRequest.hr_approved_by || allUsers.find(u => (u.role || '').toLowerCase() === 'hr')?.name || 'HR Admin'}</span>
-                              </div>
-                              <span style={s.statusBadge(selectedRequest.hr_status || selectedRequest.hrStatus || 'Pending')}>{selectedRequest.hr_status || selectedRequest.hrStatus || 'Pending'}</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <div>
-                                <span style={{ fontSize: '13px', color: '#0B1E3F', fontWeight: '900', display: 'block' }}>PM Approval</span>
-                                <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '800' }}>By: {selectedRequest.pm_approved_by || allUsers.find(u => (u.role || '').toLowerCase().includes('project manager'))?.name || 'Project Manager'}</span>
-                              </div>
-                              <span style={s.statusBadge(selectedRequest.pm_status || selectedRequest.pmStatus || 'Pending')}>{selectedRequest.pm_status || selectedRequest.pmStatus || 'Pending'}</span>
-                            </div>
-                          </>
-                        );
-                      })()}
+                            </>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div style={{ marginBottom: '30px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: '900', color: '#64748b', display: 'block', marginBottom: '10px' }}>REASON FOR LEAVE</label>
-                  <div style={{ padding: '25px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1px solid #f1f5f9', color: '#0B1E3F', fontSize: '15px', fontWeight: '700', lineHeight: '1.6', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                    {selectedRequest.reason || selectedRequest.reason_for_leave || 'No reason provided.'}
-                  </div>
-                </div>
-
-                {/* Team Leader Remarks */}
-                {Number(selectedRequest.user_id || selectedRequest.userId) !== Number(user?.id || user?.employee_id || user?.empId) && (
-                  <div style={{ marginBottom: '30px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: '900', color: '#3B5998', display: 'block', marginBottom: '10px' }}>TEAM LEADER REMARKS</label>
-                    <div style={{ padding: '20px', backgroundColor: '#f1f5f9', borderRadius: '20px', border: '1px solid #e2e8f0', color: finalTlRemark ? '#0B1E3F' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalTlRemark ? 'normal' : 'italic', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                      {finalTlRemark || 'No remark yet.'}
+                  <div style={{ marginBottom: '35px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '900', color: '#64748b', display: 'block', marginBottom: '15px' }}>REASON FOR LEAVE</label>
+                    <div style={{ padding: '25px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1px solid #f1f5f9', color: '#0B1E3F', fontSize: '15px', fontWeight: '700', lineHeight: '1.6', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                      {selectedRequest.reason || selectedRequest.reason_for_leave || 'No reason provided.'}
                     </div>
                   </div>
-                )}
 
-                {/* PM Remarks */}
-                <div style={{ marginBottom: '30px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: '900', color: '#10b981', display: 'block', marginBottom: '10px' }}>PM REMARKS</label>
-                  <div style={{ padding: '20px', backgroundColor: '#ecfdf5', borderRadius: '20px', border: '1px solid #d1fae5', color: finalPmRemark ? '#047857' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalPmRemark ? 'normal' : 'italic', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                    {finalPmRemark || 'No remark yet.'}
-                  </div>
-                </div>
+                  {/* Team Leader Remarks */}
+                  {Number(selectedRequest.user_id || selectedRequest.userId) !== Number(user?.id || user?.employee_id || user?.empId) && (
+                    <div style={{ marginBottom: '30px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: '900', color: '#3B5998', display: 'block', marginBottom: '10px' }}>TEAM LEADER REMARKS</label>
+                      <div style={{ padding: '20px', backgroundColor: '#f1f5f9', borderRadius: '20px', border: '1px solid #e2e8f0', color: finalTlRemark ? '#0B1E3F' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalTlRemark ? 'normal' : 'italic', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                        {finalTlRemark || 'No remark yet.'}
+                      </div>
+                    </div>
+                  )}
 
-                {/* HR Remarks */}
-                <div style={{ marginBottom: '30px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: '900', color: '#8b5cf6', display: 'block', marginBottom: '10px' }}>HR REMARKS</label>
-                  <div style={{ padding: '20px', backgroundColor: '#f5f3ff', borderRadius: '20px', border: '1px solid #ede9fe', color: finalHrRemark ? '#6d28d9' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalHrRemark ? 'normal' : 'italic', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                    {finalHrRemark || 'No remark yet.'}
-                  </div>
-                </div>
-
-                {activeTab === 'TEAM_PENDING' && String(selectedRequest.rm_status || selectedRequest.rmStatus || 'Pending').trim().toUpperCase() === 'PENDING' && (
+                  {/* PM Remarks */}
                   <div style={{ marginBottom: '30px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: '900', color: '#64748b', display: 'block', marginBottom: '10px' }}>ADD FEEDBACK / COMMENT</label>
-                    <textarea
-                      placeholder="Enter your feedback here..."
-                      value={feedback}
-                      onChange={(e) => setFeedback(e.target.value)}
-                      style={{ width: '100%', minHeight: '100px', padding: '15px', borderRadius: '15px', border: '1px solid #e2e8f0', backgroundColor: '#fff', fontSize: '14px', fontWeight: '600', color: '#0B1E3F', outline: 'none', resize: 'none' }}
-                    />
+                    <label style={{ fontSize: '12px', fontWeight: '900', color: '#10b981', display: 'block', marginBottom: '10px' }}>PM REMARKS</label>
+                    <div style={{ padding: '20px', backgroundColor: '#ecfdf5', borderRadius: '20px', border: '1px solid #d1fae5', color: finalPmRemark ? '#047857' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalPmRemark ? 'normal' : 'italic', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                      {finalPmRemark || 'No remark yet.'}
+                    </div>
                   </div>
-                )}
 
-                {activeTab === 'TEAM_PENDING' && String(selectedRequest.rm_status || selectedRequest.rmStatus || 'Pending').trim().toUpperCase() === 'PENDING' && (
-                  <div style={{ display: 'flex', gap: '20px' }} className="request-action-btns">
-                    <button
-                      onClick={() => { handleAction(selectedRequest.id, 'Rejected'); setSelectedRequest(null); }}
-                      style={{ flex: 1, padding: '20px', borderRadius: '20px', border: 'none', background: '#fee2e2', color: '#ef4444', fontWeight: '1000', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
-                    >
-                      <XCircle size={18} /> Reject Request
-                    </button>
-                    <button
-                      onClick={() => { handleAction(selectedRequest.id, 'Approved'); setSelectedRequest(null); }}
-                      style={{ flex: 2, padding: '20px', borderRadius: '20px', border: 'none', background: '#0B1E3F', color: 'white', fontWeight: '1000', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: '0 10px 20px rgba(11, 30, 63, 0.2)' }}
-                    >
-                      <CheckCircle size={18} /> Approve Leave
-                    </button>
+                  {/* HR Remarks */}
+                  <div style={{ marginBottom: '30px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '900', color: '#8b5cf6', display: 'block', marginBottom: '10px' }}>HR REMARKS</label>
+                    <div style={{ padding: '20px', backgroundColor: '#f5f3ff', borderRadius: '20px', border: '1px solid #ede9fe', color: finalHrRemark ? '#6d28d9' : '#94a3b8', fontSize: '14px', fontWeight: '700', lineHeight: '1.6', fontStyle: finalHrRemark ? 'normal' : 'italic', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                      {finalHrRemark || 'No remark yet.'}
+                    </div>
                   </div>
-                )}
+
+                  {activeTab === 'TEAM_PENDING' && String(selectedRequest.rm_status || selectedRequest.rmStatus || 'Pending').trim().toUpperCase() === 'PENDING' && (
+                    <div style={{ marginBottom: '30px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: '900', color: '#64748b', display: 'block', marginBottom: '10px' }}>ADD FEEDBACK / COMMENT</label>
+                      <textarea
+                        placeholder="Enter your feedback here..."
+                        value={feedback}
+                        onChange={(e) => setFeedback(e.target.value)}
+                        style={{ width: '100%', minHeight: '100px', padding: '15px', borderRadius: '15px', border: '1px solid #e2e8f0', backgroundColor: '#fff', fontSize: '14px', fontWeight: '600', color: '#0B1E3F', outline: 'none', resize: 'none' }}
+                      />
+                    </div>
+                  )}
+
+                  {activeTab === 'TEAM_PENDING' && String(selectedRequest.rm_status || selectedRequest.rmStatus || 'Pending').trim().toUpperCase() === 'PENDING' && (
+                    <div style={{ display: 'flex', gap: '20px' }} className="request-action-btns">
+                      <button
+                        onClick={() => { handleAction(selectedRequest.id, 'Rejected'); setSelectedRequest(null); }}
+                        style={{ flex: 1, padding: '20px', borderRadius: '20px', border: 'none', background: '#fee2e2', color: '#ef4444', fontWeight: '1000', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+                      >
+                        <XCircle size={18} /> Reject Request
+                      </button>
+                      <button
+                        onClick={() => { handleAction(selectedRequest.id, 'Approved'); setSelectedRequest(null); }}
+                        style={{ flex: 2, padding: '20px', borderRadius: '20px', border: 'none', background: '#0B1E3F', color: 'white', fontWeight: '1000', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', boxShadow: '0 10px 20px rgba(11, 30, 63, 0.2)' }}
+                      >
+                        <CheckCircle size={18} /> Approve Leave
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          );
+        })()}
 
       {/* Request Form Modal */}
       <AnimatePresence>

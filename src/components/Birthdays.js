@@ -118,7 +118,7 @@ export default function BirthdaysScreen() {
     container: { backgroundColor: '#F5F6FC', minHeight: '100vh', padding: isMobile ? '20px 15px' : '40px', fontFamily: "'Inter', sans-serif" },
     main: { maxWidth: '100%', margin: '0', backgroundColor: 'white', borderRadius: '40px', padding: isMobile ? '40px 20px' : '60px 40px', boxShadow: '0 20px 60px rgba(0,0,0,0.05)', textAlign: 'center' },
     badge: { display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: isMobile ? '8px' : '10px', fontWeight: '900', color: '#0B1E3F', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '30px' },
-    title: { fontSize: isMobile ? '26px' : '42px', fontWeight: '900', color: '#0B1E3F', margin: '20px 0 10px', lineHeight: '1.2' },
+    title: { fontSize: isMobile ? '26px' : '42px', fontWeight: '900', color: '#0B1E3F', margin: '0 0 10px', lineHeight: '1.2' },
     subtitle: { fontSize: '12px', fontWeight: '800', color: '#3B5998', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '50px' },
     list: { display: 'flex', flexDirection: 'column', gap: '15px' },
     item: { display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', padding: isMobile ? '16px' : '24px 30px', backgroundColor: '#f8fafc', borderRadius: '25px', border: '1px solid #f1f5f9', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '15px' : '0' },
@@ -160,7 +160,6 @@ export default function BirthdaysScreen() {
           .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         `}
         </style>
-        <Cake size={72} color="#0B1E3F" style={{ display: 'block', margin: '0 auto' }} />
         <h1 style={s.title}>NBT Birthdays🎂</h1>
         <div style={s.subtitle}></div>
 

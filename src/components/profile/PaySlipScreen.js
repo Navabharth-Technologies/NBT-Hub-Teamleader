@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Calendar, ChevronRight, FileText, Loader2, AlertCircle } from 'lucide-react';
+import { Download, ChevronRight, FileText, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { API_ENDPOINTS, COMPANY_INFO } from '../../config';
 import logo from '../../assets/image.png';
@@ -264,13 +264,7 @@ export default function PaySlipScreen({ onBack }) {
             </div>
           )}
 
-          {/* Info note */}
-          {!loading && (
-            <div style={{ marginTop: '24px', padding: '14px 18px', backgroundColor: '#eff6ff', borderRadius: '14px', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Calendar size={18} color="#3b82f6" />
-              <span style={{ fontSize: '12px', color: '#1e40af', fontWeight: '600' }}>Click on any month to view and download your full payslip</span>
-            </div>
-          )}
+
         </div>
       </div>
     );

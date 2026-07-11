@@ -153,12 +153,29 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
           }
         }
 
+        let finalDesc = rawMsg;
+        if (finalDesc && typeof finalDesc === 'string') {
+          const cleanDesc = finalDesc.replace(/^COMPLETED:\s*[^\r\n]+[\r\n]+/i, '')
+                                     .replace(/^COMPLETED:\s*[^:\-\n]+[\-\:]\s*/i, '');
+          if (cleanDesc !== finalDesc) {
+            finalDesc = cleanDesc.trim();
+          } else if (finalDesc.toUpperCase().startsWith('COMPLETED:')) {
+            const lines = finalDesc.split(/\r?\n/);
+            if (lines.length > 1) {
+              lines.shift();
+              finalDesc = lines.join('\n').trim();
+            } else {
+              finalDesc = finalDesc.replace(/^COMPLETED:\s*/i, '').trim();
+            }
+          }
+        }
+
         return {
           id: gId,
           rawId: gn.id,
           type: gn.type || 'ALERT',
           title: dynamicTitle,
-          description: rawMsg,
+          description: finalDesc,
           formattedTime: formatDate(parseDate),
           isNew: !isRead,
           rawDate: parseDate,
@@ -467,7 +484,8 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
                           String(notif.title || '').toLowerCase().includes('approved') ||
                           String(notif.title || '').toLowerCase().includes('completed') ||
                           String(notif.title || '').toLowerCase().includes('rejected') ||
-                          String(notif.title || '').toLowerCase().includes('declined')) && (() => {
+                          String(notif.title || '').toLowerCase().includes('declined')) &&
+                         !(String(notif.title || '').toLowerCase().includes('completed') || String(notif.title || '').toLowerCase().includes('done')) && (() => {
                             const desc = notif.description || '';
                             const titleL = String(notif.title || '').toLowerCase();
                             const isRejected = titleL.includes('rejected') || titleL.includes('declined');

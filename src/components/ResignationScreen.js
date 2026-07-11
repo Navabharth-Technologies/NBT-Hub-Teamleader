@@ -346,6 +346,15 @@ export default function ResignationScreen({ onBack }) {
     reader.readAsDataURL(file);
   };
 
+  const handleRemoveFile = () => {
+    setAttachment(null);
+    setAttachmentName('');
+    const fileInput = document.getElementById('resig-upload');
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  };
+
   const handleSubmit = async () => {
     if (!lastWorkingDay || !reason || !detailedReason.trim()) return setAlertModal({ message: 'Please fill in all required fields.', type: 'error' });
     if (myHistory.some(r => r.status === 'PENDING')) return setAlertModal({ message: 'You already have a pending resignation request.', type: 'error' });
@@ -816,12 +825,34 @@ export default function ResignationScreen({ onBack }) {
                     <textarea style={s.textarea} placeholder="Write your formal letter..." value={detailedReason} onChange={e => setDetailedReason(e.target.value)} />
 
                     <label style={s.label}>Attach Formal Document (Optional - PDF or Image)</label>
-                    <div style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <div style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
                       <input type="file" accept="application/pdf,image/*" onChange={handleFileChange} style={{ display: 'none' }} id="resig-upload" />
                       <button onClick={() => document.getElementById('resig-upload').click()} style={{ padding: '12px 20px', borderRadius: '12px', background: '#f1f5f9', border: '1.5px solid #e2e8f0', color: '#0B1E3F', fontSize: '13px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Info size={16} /> {attachmentName ? 'Change File' : 'Choose File'}
                       </button>
-                      {attachmentName && <span style={{ fontSize: '13px', fontWeight: '700', color: '#16a34a' }}>✓ {attachmentName}</span>}
+                      {attachmentName && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: '700', color: '#16a34a' }}>✓ {attachmentName}</span>
+                          <button
+                            onClick={handleRemoveFile}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              background: '#fef2f2',
+                              border: '1px solid #fecaca',
+                              color: '#ef4444',
+                              fontSize: '11px',
+                              fontWeight: '800',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <X size={14} /> Remove
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <button

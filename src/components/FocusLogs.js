@@ -253,7 +253,19 @@ export default function FocusLogs({ onBack }) {
       marginBottom: '32px',
       flexWrap: 'wrap'
     },
-    label: { fontSize: '12px', fontWeight: '900', color: '#0B1E3F', display: 'flex', alignItems: 'center', gap: '10px' },
+    label: {
+      fontSize: '12px',
+      fontWeight: '900',
+      color: '#3B5998',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '8px 16px',
+      backgroundColor: '#f0f7ff',
+      borderRadius: '12px',
+      border: '1px solid #dbeafe',
+      height: 'fit-content'
+    },
     dateInputBox: {
       padding: '10px 18px',
       backgroundColor: '#f8fafc',
