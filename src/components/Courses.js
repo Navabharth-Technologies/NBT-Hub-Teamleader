@@ -69,6 +69,13 @@ export default function CourseScreen() {
     }, [courses]);
 
     const videoRef = useRef(null);
+    const hasResumedRef = useRef(false);
+    const lastSyncTimeRef = useRef(0);
+
+    // Reset the resume guard whenever the user opens a different video
+    useEffect(() => {
+        hasResumedRef.current = false;
+    }, [selectedCourse?.id, currentView]);
 
     const markCourseAsComplete = async (courseId) => {
         setLoading(true);
@@ -121,22 +128,29 @@ export default function CourseScreen() {
                 }
             }));
 
-            await fetch(API_ENDPOINTS.COURSE_PROGRESS, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token?.trim()}`
-                },
-                body: JSON.stringify({
-                    courseId,
-                    userId: uid,
-                    progress,
-                    ...extraFlags
-                })
-            });
+            const now = Date.now();
+            const isCritical = extraFlags.isPdfDone || extraFlags.isTestDone || progress >= 100;
+            const timeSinceLastSync = now - lastSyncTimeRef.current;
 
-            if (extraFlags.isTestDone) {
-                await markCourseAsComplete(courseId);
+            if (isCritical || timeSinceLastSync > 5000) {
+                lastSyncTimeRef.current = now;
+                await fetch(API_ENDPOINTS.COURSE_PROGRESS, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token?.trim()}`
+                    },
+                    body: JSON.stringify({
+                        courseId,
+                        userId: uid,
+                        progress,
+                        ...extraFlags
+                    })
+                });
+
+                if (extraFlags.isTestDone) {
+                    await markCourseAsComplete(courseId);
+                }
             }
         } catch (err) {
             console.error('Progress Sync Failed:', err);
@@ -259,6 +273,7 @@ export default function CourseScreen() {
                 if (location.state?.resumeCourseId) {
                     const target = data.find(c => c.id === location.state.resumeCourseId);
                     if (target) {
+                        hasResumedRef.current = false;
                         setSelectedCourse(target);
                         // Also clear state to prevent re-opening on reload
                         window.history.replaceState({}, document.title);
@@ -395,13 +410,40 @@ export default function CourseScreen() {
         }
     };
 
+    const getProgressKey = () =>
+        `video_progress_user_${user?.id || user?.empId || user?.userId || user?.employee_id || 'guest'}_course_${selectedCourse?.id}`;
+
     const handleVideoTimeUpdate = () => {
-        if (videoRef.current) {
+        if (videoRef.current && selectedCourse) {
+            // Seek on first timeupdate if not done yet
+            if (!hasResumedRef.current) {
+                seekToLastTime();
+                return;
+            }
+
             const current = videoRef.current.currentTime;
             const duration = videoRef.current.duration;
+            if (!duration || isNaN(duration)) return;
             const percentage = (current / duration) * 100;
             updateProgress(selectedCourse.id, percentage);
             if (percentage >= 98 && !canShowMarkButton) setCanShowMarkButton(true);
+            // Save watched position in localStorage on every update
+            localStorage.setItem(getProgressKey(), String(current));
+        }
+    };
+
+    // Attempt to seek to last watched position
+    const seekToLastTime = () => {
+        if (videoRef.current && selectedCourse && !hasResumedRef.current) {
+            hasResumedRef.current = true; // Set first to prevent nested calls
+            const lastTime = parseFloat(localStorage.getItem(getProgressKey()));
+            if (lastTime > 0) {
+                const duration = videoRef.current.duration;
+                if (!isNaN(duration) && duration > 0 && lastTime >= duration - 2) {
+                    return;
+                }
+                videoRef.current.currentTime = lastTime;
+            }
         }
     };
 
@@ -432,7 +474,14 @@ export default function CourseScreen() {
                                 ref={videoRef} key={videoSrc} controls style={{ width: '100%', height: '100%' }}
                                 poster={formatUrl(selectedCourse.image || selectedCourse.thumbnail || selectedCourse.course_image)}
                                 preload="auto" onTimeUpdate={handleVideoTimeUpdate}
-                                onEnded={() => { setCanShowMarkButton(true); updateProgress(selectedCourse.id, 100); }}
+                                onLoadedMetadata={seekToLastTime}
+                                onCanPlay={seekToLastTime}
+                                onPlay={seekToLastTime}
+                                onEnded={() => {
+                                    setCanShowMarkButton(true);
+                                    updateProgress(selectedCourse.id, 100);
+                                    localStorage.setItem(getProgressKey(), "0");
+                                }}
                             >
                                 <source src={videoSrc} type="video/mp4" />
                                 Your browser does not support the video tag.
@@ -445,6 +494,7 @@ export default function CourseScreen() {
                     {canShowMarkButton ? (
                         <button style={s.finishBtn} onClick={() => {
                             updateProgress(selectedCourse.id, 100);
+                            localStorage.setItem(getProgressKey(), "0");
                             setCurrentView(null);
                         }}>
                             <CheckCircle size={20} /> MARK AS PROFICIENCY COMPLETE
@@ -676,7 +726,7 @@ export default function CourseScreen() {
                             );
                         })()}
                     </div>
-                    <div style={{ ...s.taskRow, cursor: 'pointer' }} onClick={() => setCurrentView('video')}>
+                    <div style={{ ...s.taskRow, cursor: 'pointer' }} onClick={() => { hasResumedRef.current = false; setCurrentView('video'); }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                             <div style={{ padding: '15px', borderRadius: '15px', backgroundColor: '#eff6ff', color: '#3b82f6' }}><PlayCircle size={24} /></div>
                             <div>
@@ -885,7 +935,7 @@ export default function CourseScreen() {
                         const videoLink = formatUrl(course.video || course.video_url || course.video_link || course.link);
 
                         return (
-                            <motion.div key={course.id} style={s.courseCard} onClick={() => setSelectedCourse(course)} whileHover={{ y: -8, boxShadow: '0 20px 50px rgba(0,0,0,0.08)' }}>
+                            <motion.div key={course.id} style={s.courseCard} onClick={() => { hasResumedRef.current = false; setSelectedCourse(course); }} whileHover={{ y: -8, boxShadow: '0 20px 50px rgba(0,0,0,0.08)' }}>
                                 <div style={{ ...s.courseImage, backgroundColor: '#f1f5f9', position: 'relative' }}>
                                     {imageUrl ? (
                                         <img src={imageUrl} alt={course.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.src = ''; e.target.style.display = 'none'; }} />
