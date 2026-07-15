@@ -23,23 +23,42 @@ export default function BirthdaysScreen() {
   const parseSafeDate = (dateStr) => {
     if (!dateStr) return null;
     if (dateStr instanceof Date) return dateStr;
-    if (typeof dateStr === 'string') {
-      const trimmed = dateStr.trim();
-      if (/^\d{2}[-/.]\d{2}[-/.]\d{4}$/.test(trimmed)) {
-        const parts = trimmed.split(/[-/.]/);
-        const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1; // 0-indexed month
-        const year = parseInt(parts[2], 10);
-        const manualDate = new Date(year, month, day);
-        if (!isNaN(manualDate.getTime())) return manualDate;
-      }
-      let s = dateStr.replace(/[Zz]$/, '').replace(/[\+\-]\d{2}:\d{2}$/, '');
-      if (!s.includes('T') && s.includes('-')) s = s.replace(' ', 'T');
-      const d = new Date(s);
-      if (!isNaN(d.getTime())) return d;
+    const s = String(dateStr).trim();
+    
+    let day, month, year;
+    
+    // Check DD/MM/YYYY or DD-MM-YYYY
+    const dmyMatch = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+    if (dmyMatch) {
+      day = parseInt(dmyMatch[1], 10);
+      month = parseInt(dmyMatch[2], 10) - 1;
+      year = parseInt(dmyMatch[3], 10);
+      return new Date(year, month, day);
     }
+    
+    // Check YYYY-MM-DD or YYYY/MM/DD
+    const ymdMatch = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if (ymdMatch) {
+      year = parseInt(ymdMatch[1], 10);
+      month = parseInt(ymdMatch[2], 10) - 1;
+      day = parseInt(ymdMatch[3], 10);
+      return new Date(year, month, day);
+    }
+    
+    // Check DD-MM or DD/MM
+    const dmMatch = s.match(/^(\d{1,2})[-/](\d{1,2})$/);
+    if (dmMatch) {
+      day = parseInt(dmMatch[1], 10);
+      month = parseInt(dmMatch[2], 10) - 1;
+      return new Date(new Date().getFullYear(), month, day);
+    }
+
     const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? null : d;
+    if (isNaN(d.getTime())) return null;
+    if (s.includes('T') || s.includes('-')) {
+      return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    }
+    return d;
   };
 
   const fetchBirthdays = async () => {
@@ -55,11 +74,11 @@ export default function BirthdaysScreen() {
         const data = await res.json();
         const list = Array.isArray(data) ? data : (data.data || data.value || []);
 
-        // Normalise all entries so we always have a `date` field
+        // Normalise all entries prioritizing actual DOB fields over next occurrence dates
         let combined = list.map(item => ({
           ...item,
           name: item.name || item.emp_name || item.employee_name || item.userName,
-          date: item.date_of_birth || item.dob || item.dateOfBirth || item.date || item.birthday || null
+          date: item.birthday || item.date_of_birth || item.dob || item.dateOfBirth || item.date || null
         })).filter(item => item.name);
 
         // ── Always ensure the logged-in user appears with their freshest DOB ──
@@ -86,7 +105,18 @@ export default function BirthdaysScreen() {
           }
         }
 
-        setBirthdays(combined);
+        // Ensure uniqueness of employee IDs/names to prevent duplicate cards
+        const uniqueCombined = [];
+        const seen = new Set();
+        for (const item of combined) {
+          const uid = item.id || item.employee_id || item.EmpID || item.name;
+          if (!seen.has(uid)) {
+            seen.add(uid);
+            uniqueCombined.push(item);
+          }
+        }
+
+        setBirthdays(uniqueCombined);
       }
     } catch { }
     setLoading(false);

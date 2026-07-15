@@ -590,7 +590,7 @@ const LeaveScreen = ({ onBack }) => {
     const requester = allUsers.find(u =>
       cleanId(u.id || u.employee_id || u.employeeId || u.userId) === requesterId
     );
-    const rRole = (requester?.designation || requester?.role || '').toLowerCase();
+    const rRole = (requester?.role || requester?.designation || '').toLowerCase();
     const isLeadSoftware = rRole.includes('lead software') || rRole.includes('leadsoftware');
 
     // Check if it's a personal request by the logged-in user
@@ -888,7 +888,7 @@ const LeaveScreen = ({ onBack }) => {
                     {(() => {
                       const requesterId = cleanId(req.user_id || req.userId || req.employee_id || req.employeeId);
                       const requester = allUsers.find(u => cleanId(u.id || u.employee_id) === requesterId);
-                      const degText = requester?.designation || requester?.role;
+                      const degText = requester?.role || requester?.designation;
                       return degText ? (
                         <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '800', marginTop: '2px' }}>{degText}</div>
                       ) : null;
@@ -949,7 +949,7 @@ const LeaveScreen = ({ onBack }) => {
                     {(() => {
                       const requesterId = cleanId(req.user_id || req.userId || req.employee_id || req.employeeId);
                       const requester = allUsers.find(u => cleanId(u.id || u.employee_id) === requesterId);
-                      const degText = requester?.designation || requester?.role;
+                      const degText = requester?.role || requester?.designation;
                       return degText ? (
                         <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '800', marginTop: '2px' }}>{degText}</div>
                       ) : null;
@@ -1103,7 +1103,7 @@ const LeaveScreen = ({ onBack }) => {
                         <h2 style={{ margin: 0, fontSize: isMobile ? '18px' : '24px', fontWeight: '1000', color: '#0B1E3F' }}>{selectedRequest.employeeName || selectedRequest.user_name || selectedRequest.name || allUsers.find(u => u.id === selectedRequest.user_id)?.name || user?.name}</h2>
                         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                           <p style={{ margin: '4px 0', fontSize: '11px', color: '#64748b', fontWeight: '900', backgroundColor: '#f1f5f9', padding: '2px 8px', borderRadius: '6px' }}>ID: {cleanId(selectedRequest.employee_id || selectedRequest.user_id || '---')}</p>
-                          <p style={{ margin: '4px 0', fontSize: '12px', color: '#64748b', fontWeight: '800' }}>{requester?.designation || requester?.role || (isMobile ? 'Subordinate' : ((selectedRequest.user_id || selectedRequest.userId) === (user?.id || user?.employee_id) ? 'Personal Request' : 'Subordinate Member'))}</p>
+                          <p style={{ margin: '4px 0', fontSize: '12px', color: '#64748b', fontWeight: '800' }}>{requester?.role || requester?.designation || (isMobile ? 'Subordinate' : ((selectedRequest.user_id || selectedRequest.userId) === (user?.id || user?.employee_id) ? 'Personal Request' : 'Subordinate Member'))}</p>
                         </div>
                       </div>
                     </div>
@@ -1167,7 +1167,7 @@ const LeaveScreen = ({ onBack }) => {
                       <label style={{ fontSize: '12px', fontWeight: '900', color: '#64748b', display: 'block', marginBottom: '15px' }}>OFFICIAL VERIFICATION</label>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                         {(() => {
-                          const rRole = (requester?.designation || requester?.role || '').toLowerCase();
+                          const rRole = (requester?.role || requester?.designation || '').toLowerCase();
                           const isLeadSoftware = rRole.includes('lead software') || rRole.includes('leadsoftware');
 
                           if (isLeadSoftware) {

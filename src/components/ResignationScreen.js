@@ -355,8 +355,40 @@ export default function ResignationScreen({ onBack }) {
     }
   };
 
+  // Returns the minimum allowed date (day after resignationDate) as YYYY-MM-DD
+  const getMinLastWorkingDay = () => {
+    try {
+      const intentDate = new Date(resignationDate);
+      if (isNaN(intentDate.getTime())) return '';
+      intentDate.setDate(intentDate.getDate() + 1);
+      return intentDate.toISOString().split('T')[0];
+    } catch (e) {
+      return '';
+    }
+  };
+
+  const handleLastWorkingDayChange = (e) => {
+    const selectedDate = e.target.value;
+    if (selectedDate && resignationDate && selectedDate <= resignationDate) {
+      setAlertModal({
+        message: 'Proposed Last Working Day must be later than the Intent Date (' + fmtDate(resignationDate) + '). Please select a future date.',
+        type: 'error'
+      });
+      setLastWorkingDay('');
+      return;
+    }
+    setLastWorkingDay(selectedDate);
+  };
+
   const handleSubmit = async () => {
     if (!lastWorkingDay || !reason || !detailedReason.trim()) return setAlertModal({ message: 'Please fill in all required fields.', type: 'error' });
+    // Validate: Proposed Last Working Day must be strictly after Intent Date
+    if (lastWorkingDay <= resignationDate) {
+      return setAlertModal({
+        message: 'Proposed Last Working Day must be later than the Intent Date (' + fmtDate(resignationDate) + '). Please select a valid date.',
+        type: 'error'
+      });
+    }
     if (myHistory.some(r => r.status === 'PENDING')) return setAlertModal({ message: 'You already have a pending resignation request.', type: 'error' });
     setLoading(true);
     try {
@@ -805,8 +837,22 @@ export default function ResignationScreen({ onBack }) {
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '20px' }}>
-                      <div><label style={s.label}>Resignation Date</label><input type="date" style={s.input} value={resignationDate} disabled /></div>
-                      <div><label style={s.label}>Proposed Last Working Day <span style={{ color: '#ef4444' }}>*</span></label><input type="date" style={s.input} value={lastWorkingDay} onChange={e => setLastWorkingDay(e.target.value)} /></div>
+                      <div><label style={s.label}>Intent Date (Resignation Date)</label><input type="date" style={s.input} value={resignationDate} disabled /></div>
+                      <div>
+                        <label style={s.label}>Proposed Last Working Day <span style={{ color: '#ef4444' }}>*</span></label>
+                        <input
+                          type="date"
+                          style={s.input}
+                          value={lastWorkingDay}
+                          min={getMinLastWorkingDay()}
+                          onChange={handleLastWorkingDayChange}
+                        />
+                        {lastWorkingDay && lastWorkingDay <= resignationDate && (
+                          <div style={{ marginTop: '-18px', marginBottom: '10px', fontSize: '12px', color: '#ef4444', fontWeight: '700' }}>
+                            ⚠ Must be later than the Intent Date.
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <label style={s.label}>Primary Reason <span style={{ color: '#ef4444' }}>*</span></label>

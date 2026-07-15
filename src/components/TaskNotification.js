@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, X, Play, Clock, Zap, Award, CheckCircle, XCircle, RefreshCw, ClipboardList } from 'lucide-react';
+import { Bell, X, Play, Clock, Zap, Award, CheckCircle, XCircle, RefreshCw, ClipboardList, Trash2 } from 'lucide-react';
 import { useAuth, checkAuthOnce } from '../context/AuthContext';
 import { API_ENDPOINTS } from '../config';
 
@@ -12,6 +12,7 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
   const [lastIds, setLastIds] = useState(new Set());
   const sanitizeId = (id) => String(id || '').split(':')[0];
   const authValidRef = useRef(true);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
   const [winWidth, setWinWidth] = useState(window.innerWidth);
   const [usersMap, setUsersMap] = useState({});
@@ -544,21 +545,52 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
                           })()}
                       </div>
 
-                      {/* Unread Blue dot */}
-                      {!isRead && (
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          style={{
-                            width: '10px',
-                            height: '10px',
-                            backgroundColor: '#3B5998',
-                            borderRadius: '50%',
-                            flexShrink: 0,
-                            boxShadow: '0 0 10px rgba(59, 89, 152, 0.4)'
+                      {/* Unread Blue dot and Delete Button */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                        {!isRead && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            style={{
+                              width: '10px',
+                              height: '10px',
+                              backgroundColor: '#3B5998',
+                              borderRadius: '50%',
+                              flexShrink: 0,
+                              boxShadow: '0 0 10px rgba(59, 89, 152, 0.4)'
+                            }}
+                          />
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirmId(notif.id);
                           }}
-                        />
-                      )}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            padding: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '50%',
+                            transition: 'all 0.2s',
+                            opacity: 0.6
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                            e.currentTarget.style.opacity = '1';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                            e.currentTarget.style.opacity = '0.6';
+                          }}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -619,6 +651,101 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
           />
         )}
       </motion.div>
+      {deleteConfirmId && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          backdropFilter: 'blur(4px)',
+        }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            padding: '30px',
+            borderRadius: '24px',
+            width: '90%',
+            maxWidth: '380px',
+            textAlign: 'center',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          }}>
+            <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>Confirm Delete</h3>
+            <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#475569', lineHeight: '1.5' }}>
+              Are you sure you want to delete this notification?
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeleteConfirmId(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px 20px',
+                  borderRadius: '12px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#334155',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'background-color 0.2s',
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const idToDelete = deleteConfirmId;
+                  setDeleteConfirmId(null);
+                  
+                  const targetNotif = notifications.find(n => n.id === idToDelete);
+                  if (targetNotif) {
+                    // Optimistically update UI
+                    setNotifications(prev => prev.filter(n => n.id !== idToDelete));
+                    
+                    const rawUid = user?.id || user?.empId || user?.userId || user?.employee_id;
+                    const uid = sanitizeId(rawUid);
+                    if (uid && String(idToDelete).startsWith('global_')) {
+                      const dbId = String(idToDelete).replace('global_', '');
+                      try {
+                        const token = localStorage.getItem('token');
+                        const cleanToken = (token && token !== 'undefined' && token !== 'null') ? token.replace(/['"]+/g, '').trim() : '';
+                        await fetch(`${API_ENDPOINTS.NOTIFICATIONS}/${dbId}`, {
+                          method: 'DELETE',
+                          headers: { 'Authorization': `Bearer ${cleanToken}` }
+                        });
+                      } catch (err) {
+                        console.error("Failed to delete notification from backend:", err);
+                      }
+                    }
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px 20px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: '#ef4444',
+                  color: '#ffffff',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'background-color 0.2s',
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

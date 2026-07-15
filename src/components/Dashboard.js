@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   CheckCircle2, TrendingUp, Clock, Calendar,
-  FileText, Users, BarChart3, Gift, ChevronRight, ChevronLeft, AlertCircle, Trophy, Star, Pencil
+  FileText, Users, BarChart3, Gift, ChevronRight, ChevronLeft, AlertCircle, Trophy, Star, Pencil, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_ENDPOINTS, BASE_URL, cleanId } from '../config';
@@ -23,6 +23,8 @@ const Dashboard = ({ setActiveTab }) => {
   const [todayTasks, setTodayTasks] = useState([]);
   const [overallStatus, setOverallStatus] = useState('Pending');
   const [isEditingToday, setIsEditingToday] = useState(false);
+  // Ref to track editing state inside async callbacks (avoids stale closure)
+  const isEditingTodayRef = useRef(false);
 
   const [assignedLeaderTasks, setAssignedLeaderTasks] = useState([]);
   const [taskDetailMap, setTaskDetailMap] = useState({});
@@ -214,12 +216,17 @@ const Dashboard = ({ setActiveTab }) => {
           return new Date(r.timestamp).toLocaleDateString('en-CA') === yesterdayStr;
         });
 
-        if (todayRec) {
-          setTodayTasks(sanitizeTasks(todayRec.tasks));
-          setOverallStatus(todayRec.overallStatus || todayRec.overall_status || 'Pending');
-        } else {
-          setTodayTasks([{ id: Date.now(), text: '' }]);
-          setOverallStatus('Pending');
+        // Fix 3: Only update today's tasks when the user is NOT in edit mode.
+        // isEditingTodayRef is used instead of isEditingToday to avoid stale closure
+        // in the polling callback, which would otherwise clear the user's in-progress input.
+        if (!isEditingTodayRef.current) {
+          if (todayRec) {
+            setTodayTasks(sanitizeTasks(todayRec.tasks));
+            setOverallStatus(todayRec.overallStatus || todayRec.overall_status || 'Pending');
+          } else {
+            setTodayTasks([{ id: Date.now(), text: '' }]);
+            setOverallStatus('Pending');
+          }
         }
 
         if (yesterdayRec) {
@@ -561,6 +568,7 @@ const Dashboard = ({ setActiveTab }) => {
         body: JSON.stringify(payload)
       });
       if (resp.ok) {
+        isEditingTodayRef.current = false;
         setIsEditingToday(false);
         // fetch it by backend and show only backend fetch dont add any other additional things
         await fetchDashboardData();
@@ -1050,7 +1058,16 @@ const Dashboard = ({ setActiveTab }) => {
                     return (
                       <button
                         style={{ ...s.editBtn, display: 'flex', alignItems: 'center', gap: '6px', opacity: isEditingToday && !hasAnyTask ? 0.4 : 1, cursor: isEditingToday && !hasAnyTask ? 'not-allowed' : 'pointer' }}
-                        onClick={(e) => { e.stopPropagation(); if (isEditingToday && !hasAnyTask) return; isEditingToday ? handleSave() : setIsEditingToday(true); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isEditingToday && !hasAnyTask) return;
+                          if (isEditingToday) {
+                            handleSave();
+                          } else {
+                            isEditingTodayRef.current = true;
+                            setIsEditingToday(true);
+                          }
+                        }}
                       >
                         {isEditingToday ? 'Save' : <><Pencil size={12} /> Edit</>}
                       </button>
@@ -1072,15 +1089,46 @@ const Dashboard = ({ setActiveTab }) => {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {(Array.isArray(todayTasks) ? todayTasks : []).map((t, idx) => (
-                      <input key={idx} style={s.input} value={t?.text || ''} onChange={e => {
-                        const nt = [...todayTasks];
-                        if (nt[idx] && typeof nt[idx] === 'object') {
-                          nt[idx] = { ...nt[idx], text: e.target.value };
-                        } else {
-                          nt[idx] = { id: Date.now(), text: e.target.value };
-                        }
-                        setTodayTasks(nt);
-                      }} placeholder="Daily goal..." />
+                      <div key={t?.id || idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          style={{ ...s.input, flex: 1, marginBottom: 0 }}
+                          value={t?.text || ''}
+                          onChange={e => {
+                            const nt = [...todayTasks];
+                            if (nt[idx] && typeof nt[idx] === 'object') {
+                              nt[idx] = { ...nt[idx], text: e.target.value };
+                            } else {
+                              nt[idx] = { id: Date.now(), text: e.target.value };
+                            }
+                            setTodayTasks(nt);
+                          }}
+                          placeholder="Daily goal..."
+                        />
+                        <button
+                          title="Delete task"
+                          onClick={() => {
+                            const nt = todayTasks.filter((_, i) => i !== idx);
+                            // Always keep at least one input row so the user can still type
+                            setTodayTasks(nt.length > 0 ? nt : [{ id: Date.now(), text: '' }]);
+                          }}
+                          style={{
+                            background: '#fef2f2',
+                            border: '1.2px solid #fecaca',
+                            borderRadius: '10px',
+                            padding: '8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            transition: 'background 0.15s'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#fee2e2'}
+                          onMouseLeave={e => e.currentTarget.style.background = '#fef2f2'}
+                        >
+                          <Trash2 size={14} color="#ef4444" />
+                        </button>
+                      </div>
                     ))}
                     <button onClick={() => setTodayTasks([...todayTasks, { id: Date.now(), text: '' }])} style={{ background: 'none', border: 'none', color: '#3B5998', fontWeight: '900', fontSize: '11px', cursor: 'pointer' }}>+ ADD TASK</button>
                   </div>
