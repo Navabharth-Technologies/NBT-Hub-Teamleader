@@ -283,15 +283,20 @@ const FunQuizScreen = ({ onBack }) => {
       });
 
       // Build leaderboard — quiz points only, no reward points
-      const list = Array.from(mergedMap.values()).map((u, i) => ({
-        id: u.id,
-        name: u.name,
-        score: u.quizPoints,
-        quiz_points: u.quizPoints,
-        reward_points: 0,
-        color: ['#FBBC05', '#EA4335', '#34A853', '#4285F4', '#FBBC05'][i % 5],
-        initial: (u.name || 'U').charAt(0).toUpperCase()
-      })).sort((a, b) => b.score - a.score).map((u, i) => ({ ...u, rank: i + 1 }));
+      const list = Array.from(mergedMap.values())
+        .filter(u => {
+          const lowerName = (u.name || '').toLowerCase();
+          return !lowerName.includes('anuprasad') && !lowerName.includes('faraz');
+        })
+        .map((u, i) => ({
+          id: u.id,
+          name: u.name,
+          score: u.quizPoints,
+          quiz_points: u.quizPoints,
+          reward_points: 0,
+          color: ['#FBBC05', '#EA4335', '#34A853', '#4285F4', '#FBBC05'][i % 5],
+          initial: (u.name || 'U').charAt(0).toUpperCase()
+        })).sort((a, b) => b.score - a.score).map((u, i) => ({ ...u, rank: i + 1 }));
 
       setLeaderboard(list);
 
