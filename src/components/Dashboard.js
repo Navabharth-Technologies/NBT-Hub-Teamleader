@@ -8,6 +8,15 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_ENDPOINTS, BASE_URL, cleanId } from '../config';
 
+const idMatches = (idA, idB) => {
+  if (!idA || !idB) return false;
+  const strA = String(idA).trim();
+  const strB = String(idB).trim();
+  const partsA = strA.split(',').map(x => x.trim()).filter(Boolean);
+  const partsB = strB.split(',').map(x => x.trim()).filter(Boolean);
+  return partsA.some(a => partsB.includes(a));
+};
+
 const Dashboard = ({ setActiveTab }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -204,16 +213,22 @@ const Dashboard = ({ setActiveTab }) => {
             }
             return r;
           })
-          .filter(r => r && String(r.userId || r.employee_id || r.uid) === String(uid))
-          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+          .filter(r => r && idMatches(r.userId || r.employee_id || r.uid, uid))
+          .sort((a, b) => {
+            const dA = parseSafeDate(a.timestamp || a.created_at);
+            const dB = parseSafeDate(b.timestamp || b.created_at);
+            return (dB?.getTime() || 0) - (dA?.getTime() || 0);
+          });
 
         const todayRec = list.find(r => {
-          if (!r || !r.timestamp) return false;
-          return new Date(r.timestamp).toLocaleDateString('en-CA') === todayStr;
+          if (!r) return false;
+          const d = parseSafeDate(r.timestamp || r.created_at);
+          return d && d.toLocaleDateString('en-CA') === todayStr;
         });
         const yesterdayRec = list.find(r => {
-          if (!r || !r.timestamp) return false;
-          return new Date(r.timestamp).toLocaleDateString('en-CA') === yesterdayStr;
+          if (!r) return false;
+          const d = parseSafeDate(r.timestamp || r.created_at);
+          return d && d.toLocaleDateString('en-CA') === yesterdayStr;
         });
 
         // Fix 3: Only update today's tasks when the user is NOT in edit mode.
@@ -343,7 +358,8 @@ const Dashboard = ({ setActiveTab }) => {
 
         // Filter to only show team members and sort by newest first
         const memberIds = new Set(membersList.filter(m => m).map(m => String(m.id || m.employee_id)));
-        memberIds.add(String(uid)); // Include self in activity feed
+        // Add all parts of uid to the set to allow matching in activity feed
+        String(uid).split(',').forEach(part => memberIds.add(part.trim()));
         const filteredReports = rList
           .map(r => {
             // Map database fields to frontend expectations
@@ -362,7 +378,11 @@ const Dashboard = ({ setActiveTab }) => {
 
             return r;
           })
-          .filter(r => memberIds.has(String(r.userId || r.user_id || r.employee_id || r.uid)))
+          .filter(r => {
+            if (!r) return false;
+            const reportId = String(r.userId || r.user_id || r.employee_id || r.uid);
+            return reportId.split(',').some(part => memberIds.has(part.trim()));
+          })
           .sort((a, b) => {
             const dA = parseSafeDate(a.created_at || a.updated_at || a.timestamp);
             const dB = parseSafeDate(b.created_at || b.updated_at || b.timestamp);
@@ -382,8 +402,8 @@ const Dashboard = ({ setActiveTab }) => {
           const qList = Array.isArray(qData) ? qData : ((qData && qData.data) || []);
           const lbList = Array.isArray(lbData) ? lbData : ((lbData && lbData.data) || []);
 
-          const myQ = qList.find(s => s && String(s.employee_id || s.user_id || s.id) === String(uid));
-          const myRankIdx = lbList.findIndex(s => s && String(s.employee_id || s.user_id || s.id) === String(uid));
+          const myQ = qList.find(s => s && idMatches(s.employee_id || s.user_id || s.id, uid));
+          const myRankIdx = lbList.findIndex(s => s && idMatches(s.employee_id || s.user_id || s.id, uid));
 
           setQuizStats({
             score: Number(myQ?.total_quiz_points || 0),
@@ -580,6 +600,46 @@ const Dashboard = ({ setActiveTab }) => {
     } catch (err) {
       console.error("[TASK SAVE EXCEPTION] Network or runtime error:", err);
       alert("Failed to save tasks due to network or application error: " + err.message);
+    }
+  };
+
+  const handleDeleteTodayTask = async (taskToDeleteId) => {
+    if (!user) return;
+    const remainingTasks = (Array.isArray(todayTasks) ? todayTasks : []).filter(t => t && t.id !== taskToDeleteId);
+    
+    // Update local state first for immediate UI feedback
+    const newTasks = remainingTasks.length > 0 ? remainingTasks : [{ id: Date.now(), text: '' }];
+    setTodayTasks(newTasks);
+
+    try {
+      const payload = {
+        userId: user.id || user.employee_id,
+        user_id: user.id || user.employee_id,
+        employee_id: user.employee_id || user.id,
+        userName: user.name,
+        employee_name: user.name,
+        tasks: remainingTasks.filter(t => t && typeof t.text === 'string' && t.text.trim()),
+        overallStatus: remainingTasks.length > 0 ? overallStatus : 'Pending',
+        overall_status: remainingTasks.length > 0 ? overallStatus : 'Pending',
+        timestamp: new Date().toISOString()
+      };
+      const token = localStorage.getItem('token');
+      const resp = await fetch(API_ENDPOINTS.TASK_UPDATES, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token?.trim()}`
+        },
+        body: JSON.stringify(payload)
+      });
+      if (resp.ok) {
+        await fetchDashboardData();
+      } else {
+        const errText = await resp.text();
+        console.error("[TASK DELETE ERROR] Server responded with:", errText);
+      }
+    } catch (err) {
+      console.error("[TASK DELETE EXCEPTION] Network or runtime error:", err);
     }
   };
 
@@ -1078,7 +1138,48 @@ const Dashboard = ({ setActiveTab }) => {
                 {!isEditingToday ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {(Array.isArray(todayTasks) ? todayTasks : []).filter(t => t && t.text && t.text.trim()).map((t, i) => (
-                      <div key={i} style={{ padding: '12px 16px', backgroundColor: '#f8fafc', borderRadius: '12px', fontWeight: '600', color: '#1e293b', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '10px' }}><CheckCircle2 size={14} color="#3B5998" /> {t?.text}</div>
+                      <div
+                        key={i}
+                        style={{
+                          padding: '12px 16px',
+                          backgroundColor: '#f8fafc',
+                          borderRadius: '12px',
+                          fontWeight: '600',
+                          color: '#1e293b',
+                          fontSize: '13px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '10px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                          <CheckCircle2 size={14} color="#3B5998" />
+                          <span>{t?.text}</span>
+                        </div>
+                        <button
+                          title="Delete task"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTodayTask(t.id);
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '4px',
+                            borderRadius: '6px',
+                            transition: 'background-color 0.15s'
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                          <Trash2 size={14} color="#ef4444" />
+                        </button>
+                      </div>
                     ))}
                     {(Array.isArray(todayTasks) ? todayTasks : []).filter(t => t && t.text && t.text.trim()).length === 0 && (
                       <div style={{ padding: '12px 16px', backgroundColor: '#fff7ed', borderRadius: '12px', border: '1px solid #ffedd5', fontWeight: '700', color: '#c2410c', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
