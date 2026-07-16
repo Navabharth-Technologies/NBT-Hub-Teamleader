@@ -20,11 +20,14 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
   const [winWidth, setWinWidth] = useState(window.innerWidth);
   const isMobile = winWidth < 768;
   const isTablet = winWidth < 1024;
-  const [phone, setPhone] = useState(user?.contact_no || user?.phone_number || 'Add Phone Number');
-  const [aboutMe, setAboutMe] = useState(user?.about_me || 'Write a short introduction about yourself');
-  const [dob, setDob] = useState(user?.date_of_birth || user?.dob || 'Add Date of Birth');
-  const [teamName, setTeamName] = useState(user?.team || 'Team Name');
-  const [joiningDate, setJoiningDate] = useState(user?.joining_date || user?.joiningDate || user?.['joining date'] || user?.doj || user?.date_of_joining || 'N/A');
+  const profileCacheKey = `profile_cache_${user?.id || user?.employee_id || 'guest'}`;
+  const profileCache = (() => { try { return JSON.parse(localStorage.getItem(profileCacheKey) || '{}'); } catch { return {}; } })();
+
+  const [phone, setPhone] = useState(user?.contact_no || user?.phone_number || profileCache.phone || 'Add Phone Number');
+  const [aboutMe, setAboutMe] = useState(user?.about_me || profileCache.aboutMe || 'Write a short introduction about yourself');
+  const [dob, setDob] = useState(user?.date_of_birth || user?.dob || profileCache.dob || 'Add Date of Birth');
+  const [teamName, setTeamName] = useState(user?.team || profileCache.teamName || 'Team Name');
+  const [joiningDate, setJoiningDate] = useState(user?.joining_date || user?.joiningDate || user?.['joining date'] || user?.doj || user?.date_of_joining || profileCache.joiningDate || 'N/A');
   const [cleanEmployeeId, setCleanEmployeeId] = useState(cleanId(user?.employee_id || user?.id || 'N/A'));
 
   const parseSafeDate = (dateStr) => {
@@ -133,7 +136,14 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
   const [designation, setDesignation] = useState(user?.designation || '');
   const [showFullScreen, setShowFullScreen] = useState(false);
   const [toast, setToast] = useState({ show: false, msg: '', type: 'success' });
-  const [reportingManager, setReportingManager] = useState({ name: 'Loading...', id: '' });
+  const [reportingManager, setReportingManager] = useState(() => {
+    const cached = profileCache.reportingManager;
+    if (cached && cached.name && cached.name !== 'Loading...') return cached;
+    const name = user?.reporting_manager_name || user?.reportingManagerName || user?.reporting_manager || user?.reportingManager;
+    const id = user?.reporting_manager_id || user?.reportingManagerId || '';
+    if (name) return { name, id };
+    return { name: 'Loading...', id: '' };
+  });
   const fileInputRef = useRef(null);
   const aboutTextAreaRef = useRef(null);
   const [teamReports, setTeamReports] = useState([]);
@@ -197,6 +207,11 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
       if (user.joining_date || user.joiningDate || user['joining date'] || user.doj || user.date_of_joining) {
         setJoiningDate(user.joining_date || user.joiningDate || user['joining date'] || user.doj || user.date_of_joining);
       }
+      const mName = user.reporting_manager_name || user.reportingManagerName || user.reporting_manager || user.reportingManager;
+      const mId = user.reporting_manager_id || user.reportingManagerId || '';
+      if (mName) {
+        setReportingManager({ name: mName, id: mId });
+      }
     }
   }, [user, profileImage, resolveImagePath]);
 
@@ -246,6 +261,21 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
           name: mName,
           id: mId
         });
+
+        // Save resolved data to cache for instant display on next load
+        try {
+          const cacheKey = `profile_cache_${user?.id || user?.employee_id || 'guest'}`;
+          const existing = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+          localStorage.setItem(cacheKey, JSON.stringify({
+            ...existing,
+            teamName: profile.team || existing.teamName,
+            joiningDate: jd ? standardizeDate(finalJd) : existing.joiningDate,
+            phone: (profile.phone_number || profile.contact_no) || existing.phone,
+            dob: (profile.date_of_birth || profile.dob) ? standardizeDate(profile.date_of_birth || profile.dob) : existing.dob,
+            aboutMe: profile.about_me || existing.aboutMe,
+            reportingManager: { name: mName, id: mId }
+          }));
+        } catch (e) { /* cache write failed, non-fatal */ }
       }
     } catch (err) {
       console.error('Fetch Profile Error:', err);
