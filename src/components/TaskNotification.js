@@ -48,6 +48,13 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
     if (dateStr instanceof Date) return dateStr;
     try {
       const s = String(dateStr);
+      // If the string has timezone info (Z suffix = UTC, or +/-offset), let JS parse it correctly.
+      // This prevents UTC time from being mis-interpreted as local (IST) time.
+      if (s.endsWith('Z') || s.match(/[Tt][\d:]+[+-]\d{2}:?\d{2}$/) || s.includes('GMT')) {
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) return d;
+      }
+      // For strings without timezone info (stored local time), parse as-is
       const match = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/);
       if (match) {
         const [_, y, m, d, hh, mm, ss] = match;
