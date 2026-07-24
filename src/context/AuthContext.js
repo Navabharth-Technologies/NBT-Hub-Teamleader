@@ -79,6 +79,7 @@ export const checkAuthOnce = () => {
             const clean = token.replace(/['"]+/g, '').trim();
             if (!clean) { _authResult = false; return false; }
 
+
             // Client-side JWT expiry check first (zero network cost)
             try {
                 const parts = clean.split('.');

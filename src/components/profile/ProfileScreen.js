@@ -785,14 +785,14 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
             </div>
           </motion.div>
 
-          {/* Role Info Card */}
+          {/* Designation Info Card */}
           <motion.div whileHover={{ scale: 1.05, y: -2 }} transition={{ type: 'spring', stiffness: 300 }} style={styles.infoCard}>
             <div style={styles.iconCircle}>
-              <UserIcon size={18} color="#3863a8" />
+              <Briefcase size={18} color="#3863a8" />
             </div>
             <div>
-              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Role</div>
-              <div style={styles.infoValue}>{user?.role?.toUpperCase() || 'N/A'}</div>
+              <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase' }}>Designation</div>
+              <div style={styles.infoValue}>{(designation || user?.role || 'N/A').toUpperCase()}</div>
             </div>
           </motion.div>
 
@@ -850,7 +850,7 @@ export default function ProfileScreen({ isNewJoinee, onNavigate }) {
 
         {showPasswordModal && (
           <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(11, 30, 63, 0.7)', backdropFilter: 'blur(15px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-            <motion.div initial={{ scale: 0.9, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }} style={{ backgroundColor: 'white', borderRadius: '40px', padding: 0, maxWidth: '500px', width: '100%', boxShadow: '0 40px 100px rgba(0,0,0,0.4)', overflow: 'hidden', maxHeight: '90vh', overflowY: 'auto' }}>
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }} style={{ backgroundColor: 'white', borderRadius: '40px', padding: 0, maxWidth: '500px', width: '100%', boxShadow: '0 40px 100px rgba(0,0,0,0.4)', overflow: 'hidden', maxHeight: '90vh', overflowY: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
 
               <div style={{ backgroundColor: '#0B1E3F', padding: '30px 40px', position: 'relative' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>

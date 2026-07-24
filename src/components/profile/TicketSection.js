@@ -14,7 +14,7 @@ export default function TicketSection({ onClose }) {
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('Medium');
-  const [department, setDepartment] = useState('Service letter');
+  const [department, setDepartment] = useState('');
   const [departments] = useState(['Service letter', 'Payroll issues', 'payslips', 'ID card issues', 'Technical', 'HR']);
   
   const [tickets, setTickets] = useState([]);
@@ -47,6 +47,10 @@ export default function TicketSection({ onClose }) {
   };
 
   const handleSubmit = async () => {
+    if (!department) {
+      triggerToast("Please select Category", "error");
+      return;
+    }
     if (!subject.trim() || !description.trim()) {
       triggerToast("Please fill all fields", "error");
       return;
@@ -68,6 +72,7 @@ export default function TicketSection({ onClose }) {
       if (resp.ok) {
         setSubject('');
         setDescription('');
+        setDepartment('');
         fetchTickets();
         triggerToast("Ticket submitted successfully!", "success");
         setActiveTab('history');
@@ -252,6 +257,7 @@ export default function TicketSection({ onClose }) {
                   value={department}
                   onChange={e => setDepartment(e.target.value)}
                 >
+                  <option value="">Please select Category</option>
                   {departments.map(d => (
                     <option key={d} value={d}>{d}</option>
                   ))}

@@ -452,6 +452,9 @@ export default function ResignationScreen({ onBack }) {
   };
 
   const handleReviewSubmit = async () => {
+    if (submittingReview) return;
+    const isAlreadyReviewed = !!(selectedResignation?.reviewed_by_tl || selectedResignation?.reporting_manager_remark);
+    if (isAlreadyReviewed) return;
     if (!reportingManagerRemark.trim()) return setAlertModal({ message: 'Please enter review remarks.', type: 'error' });
     setSubmittingReview(true);
     try {
@@ -470,8 +473,8 @@ export default function ResignationScreen({ onBack }) {
       });
       if (res.ok) {
         setSuccessModal({ show: true, message: 'Review submitted successfully.' });
-        setShowReviewModal(false);
         setSelectedResignation(null);
+        setReportingManagerRemark('');
         fetchTeamHistory();
       } else {
         setAlertModal({ message: `Failed to submit review: ${await res.text()}`, type: 'error' });
@@ -958,9 +961,6 @@ export default function ResignationScreen({ onBack }) {
                   <div style={s.card}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
                       <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#0B1E3F', margin: 0 }}>Team notice</h2>
-                      <div style={{ padding: '6px 14px', backgroundColor: '#dc2626', color: 'white', borderRadius: '10px', fontSize: '11px', fontWeight: '900' }}>
-                        {teamResignations.filter(r => r.status === 'PENDING').length} PENDING
-                      </div>
                     </div>
                     {teamResignations.length === 0 ? (
                       <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontWeight: '700' }}>No team resignations logged.</div>
@@ -968,7 +968,11 @@ export default function ResignationScreen({ onBack }) {
                       <motion.div
                         key={r.id}
                         whileHover={{ scale: 1.01, boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}
-                        onClick={() => setSelectedResignation(r)}
+                        onClick={() => {
+                          setSelectedResignation(r);
+                          setSubmittingReview(false);
+                          setReportingManagerRemark(r.reviewed_by_tl || r.reporting_manager_remark || '');
+                        }}
                         style={{ ...s.historyItem, borderLeft: '4px solid #dc2626', cursor: 'pointer', transition: 'all 0.2s ease' }}
                       >
                         <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', gap: '12px' }}>
@@ -981,7 +985,6 @@ export default function ResignationScreen({ onBack }) {
                               <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: '800', marginTop: '6px' }}>✓ Reviewed: "{r.reviewed_by_tl || r.reporting_manager_remark}"</div>
                             )}
                           </div>
-                          <div style={s.statusBadge(r.status)}>{r.status}</div>
                         </div>
                       </motion.div>
                     ))}
@@ -1061,25 +1064,51 @@ export default function ResignationScreen({ onBack }) {
                       )}
 
                       {/* ── Inline Review Section ── */}
-                      <div style={{ marginBottom: '10px' }}>
-                        <div style={s.label}>Review Feedback / Remarks</div>
-                        <textarea
-                          style={{ ...s.textarea, minHeight: '120px', marginBottom: '0' }}
-                          placeholder="Enter your review remarks..."
-                          value={reportingManagerRemark}
-                          onChange={e => setReportingManagerRemark(e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div style={s.detailFooter}>
-                      <button
-                        onClick={handleReviewSubmit}
-                        disabled={submittingReview}
-                        style={{ flex: 1, padding: '18px', borderRadius: '18px', backgroundColor: '#0B1E3F', border: 'none', color: 'white', fontSize: '14px', fontWeight: '800', cursor: submittingReview ? 'not-allowed' : 'pointer', boxShadow: '0 4px 12px rgba(11,30,63,0.2)', opacity: submittingReview ? 0.7 : 1 }}
-                      >
-                        {submittingReview ? 'Submitting...' : 'Review and submit'}
-                      </button>
+                      {(() => {
+                        const isAlreadyReviewed = !!(selectedResignation?.reviewed_by_tl || selectedResignation?.reporting_manager_remark);
+                        const isSubmitDisabled = submittingReview || isAlreadyReviewed;
+                        return (
+                          <>
+                            <div style={{ marginBottom: '10px' }}>
+                              <div style={s.label}>Review Feedback / Remarks</div>
+                              <textarea
+                                style={{
+                                  ...s.textarea,
+                                  minHeight: '120px',
+                                  marginBottom: '0',
+                                  backgroundColor: isAlreadyReviewed ? '#f1f5f9' : 'white',
+                                  cursor: isAlreadyReviewed ? 'not-allowed' : 'text'
+                                }}
+                                placeholder={isAlreadyReviewed ? "Review already submitted." : "Enter your review remarks..."}
+                                value={reportingManagerRemark}
+                                disabled={isAlreadyReviewed}
+                                onChange={e => setReportingManagerRemark(e.target.value)}
+                              />
+                            </div>
+                            <div style={{ ...s.detailFooter, marginTop: '20px' }}>
+                              <button
+                                onClick={handleReviewSubmit}
+                                disabled={isSubmitDisabled}
+                                style={{
+                                  flex: 1,
+                                  padding: '18px',
+                                  borderRadius: '18px',
+                                  backgroundColor: isSubmitDisabled ? '#64748b' : '#0B1E3F',
+                                  border: 'none',
+                                  color: 'white',
+                                  fontSize: '14px',
+                                  fontWeight: '800',
+                                  cursor: isSubmitDisabled ? 'not-allowed' : 'pointer',
+                                  boxShadow: isSubmitDisabled ? 'none' : '0 4px 12px rgba(11,30,63,0.2)',
+                                  opacity: isSubmitDisabled ? 0.6 : 1
+                                }}
+                              >
+                                {isAlreadyReviewed ? 'Reviewed' : (submittingReview ? 'Submitting...' : 'Review and submit')}
+                              </button>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </motion.div>
                 </div>

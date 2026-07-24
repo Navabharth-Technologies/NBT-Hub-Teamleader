@@ -13,6 +13,7 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
   const sanitizeId = (id) => String(id || '').split(':')[0];
   const authValidRef = useRef(true);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [expandedNotifs, setExpandedNotifs] = useState(new Set());
 
   const [winWidth, setWinWidth] = useState(window.innerWidth);
   const [usersMap, setUsersMap] = useState({});
@@ -108,8 +109,20 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
       let addedNew = false;
       const readIds = JSON.parse(localStorage.getItem(`read_employee_notifs_${uid}`) || '[]');
 
+      // Filter out self-notifications for task updates performed by the user
+      const userNameLower = (user?.name || user?.userName || user?.emp_name || '').toLowerCase();
+      const filteredGlobalNotifs = globalNotifs.filter(gn => {
+        const rawMsg = (gn.message || gn.content || gn.description || '').toLowerCase();
+        if (rawMsg.includes('updated') || rawMsg.includes('completed')) {
+          if (rawMsg.startsWith('you updated') || (userNameLower && (rawMsg.startsWith(`${userNameLower} updated`) || rawMsg.includes(`updated by ${userNameLower}`)))) {
+            return false;
+          }
+        }
+        return true;
+      });
+
       // Map Global Notifications
-      const mappedGlobal = globalNotifs.map(gn => {
+      const mappedGlobal = filteredGlobalNotifs.map(gn => {
         const gId = `global_${gn.id}`;
         newIds.add(gId);
         const parseDate = parseDbDate(gn.created_at || gn.createdAt || new Date());
@@ -172,6 +185,14 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
               finalDesc = finalDesc.replace(/^COMPLETED:\s*/i, '').trim();
             }
           }
+          // Strip technical timezone and raw Date string artifacts
+          finalDesc = finalDesc.replace(/\s*GMT[+-]\d{4}\s*\([^)]+\)/gi, '')
+                               .replace(/\b(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d{4}\s+\d{2}:\d{2}:\d{2}\b/gi, (match) => {
+                                 try {
+                                   const d = new Date(match);
+                                   return !isNaN(d.getTime()) ? d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : match;
+                                 } catch { return match; }
+                               });
         }
 
         return {
@@ -326,6 +347,7 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
             <div style={{ flex: 1, overflowY: 'auto', padding: '15px', display: 'flex', flexDirection: 'column', gap: '15px', backgroundColor: '#f8fafc' }}>
               {notifications.length > 0 ? notifications.map((notif, idx) => {
                 const isRead = !notif.isNew;
+                const isExpanded = expandedNotifs.has(notif.id);
                 return (
                   <div key={notif.id} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                     <div style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', marginLeft: '5px', marginBottom: '2px' }}>
@@ -468,19 +490,50 @@ const TaskNotification = ({ onOpenTask, onNavigate }) => {
                           textTransform: 'capitalize'
                         }}>{notif.title}</h4>
                         {!(notif.type === 'QUIZ' || String(notif.title || '').toLowerCase().includes('quiz')) && (
-                          <p style={{
-                            margin: 0,
-                            fontSize: '12px',
-                            color: !isRead ? '#3B5998' : '#94a3b8',
-                            fontWeight: !isRead ? '800' : '400',
-                            lineHeight: '1.4',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            transition: 'all 0.3s ease',
-                            textTransform: 'capitalize'
-                          }}>{notif.description}</p>
+                          <>
+                            <p style={{
+                              margin: 0,
+                              fontSize: '12px',
+                              color: !isRead ? '#3B5998' : '#94a3b8',
+                              fontWeight: !isRead ? '800' : '400',
+                              lineHeight: '1.4',
+                              display: isExpanded ? 'block' : '-webkit-box',
+                              WebkitLineClamp: isExpanded ? 'none' : 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: isExpanded ? 'visible' : 'hidden',
+                              transition: 'all 0.3s ease',
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word'
+                            }}>{notif.description}</p>
+                            {notif.description && notif.description.length > 30 && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedNotifs(prev => {
+                                    const next = new Set(prev);
+                                    if (next.has(notif.id)) next.delete(notif.id);
+                                    else next.add(notif.id);
+                                    return next;
+                                  });
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#3B5998',
+                                  cursor: 'pointer',
+                                  fontSize: '11px',
+                                  fontWeight: '800',
+                                  padding: '4px 0 0 0',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  textTransform: 'none',
+                                  textDecoration: 'underline'
+                                }}
+                              >
+                                {isExpanded ? 'View Less' : 'View More'}
+                              </button>
+                            )}
+                          </>
                         )}
                         {/* Assignee / Completed / Approved-for / Rejected-for chip */}
                         {(String(notif.title || '').toLowerCase().includes('task') ||
