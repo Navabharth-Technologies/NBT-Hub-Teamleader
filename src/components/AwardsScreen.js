@@ -722,30 +722,65 @@ const AwardsScreen = ({ onBack }) => {
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} style={{ padding: isMobile ? '16px 20px' : (isTablet ? '30px 30px' : '40px 100px'), width: '100%', boxSizing: 'border-box', position: 'relative' }}>
             <AnimatePresence>
                 {feedback.show && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        style={{
-                            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                            zIndex: 10000, backgroundColor: 'white', padding: '30px 40px', borderRadius: '30px',
-                            boxShadow: '0 20px 60px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column',
-                            alignItems: 'center', gap: '15px', border: `2px solid ${feedback.type === 'success' ? '#4ade80' : '#ef4444'}`
+                    <div 
+                        style={{ 
+                            position: 'fixed', 
+                            top: 0, 
+                            left: 0, 
+                            right: 0, 
+                            bottom: 0, 
+                            backgroundColor: 'rgba(0,0,0,0.2)', 
+                            backdropFilter: 'blur(6px)', 
+                            zIndex: 9999,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '20px'
                         }}
                     >
-                        {feedback.type === 'success' ? <CheckCircle size={40} color="#4ade80" /> : <AlertCircle size={40} color="#ef4444" />}
-                        <div style={{ fontSize: '16px', fontWeight: '900', color: '#0B1E3F', textAlign: 'center' }}>{feedback.message}</div>
-                        <button
-                            onClick={() => setFeedback(prev => ({ ...prev, show: false }))}
-                            style={{ padding: '10px 25px', borderRadius: '12px', border: 'none', backgroundColor: '#0B1E3F', color: 'white', fontWeight: '800', cursor: 'pointer', marginTop: '10px' }}
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+                            style={{
+                                backgroundColor: 'white', 
+                                padding: '24px 32px', 
+                                borderRadius: '24px',
+                                boxShadow: '0 20px 50px rgba(11, 30, 63, 0.15)', 
+                                display: 'flex', 
+                                flexDirection: 'column',
+                                alignItems: 'center', 
+                                gap: '12px', 
+                                border: `1.5px solid ${feedback.type === 'success' ? '#4ade80' : '#ef4444'}`,
+                                maxWidth: '360px',
+                                width: '100%',
+                                boxSizing: 'border-box'
+                            }}
                         >
-                            Got it
-                        </button>
-                    </motion.div>
+                            {feedback.type === 'success' ? <CheckCircle size={36} color="#4ade80" /> : <AlertCircle size={36} color="#ef4444" />}
+                            <div style={{ fontSize: '14px', fontWeight: '800', color: '#0B1E3F', textAlign: 'center', lineHeight: '1.4' }}>{feedback.message}</div>
+                            <button
+                                onClick={() => setFeedback(prev => ({ ...prev, show: false }))}
+                                style={{ 
+                                    padding: '8px 20px', 
+                                    borderRadius: '10px', 
+                                    border: 'none', 
+                                    backgroundColor: '#0B1E3F', 
+                                    color: 'white', 
+                                    fontWeight: '800', 
+                                    cursor: 'pointer', 
+                                    marginTop: '6px',
+                                    fontSize: '13px',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                Got it
+                            </button>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
-
-            {feedback.show && <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.1)', backdropFilter: 'blur(4px)', zIndex: 9999 }} />}
 
             <AnimatePresence mode="wait">
                 {activeView === 'MAIN' ? (
