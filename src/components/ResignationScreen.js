@@ -360,7 +360,6 @@ export default function ResignationScreen({ onBack }) {
     try {
       const intentDate = new Date(resignationDate);
       if (isNaN(intentDate.getTime())) return '';
-      intentDate.setDate(intentDate.getDate() + 1);
       return intentDate.toISOString().split('T')[0];
     } catch (e) {
       return '';
@@ -369,9 +368,9 @@ export default function ResignationScreen({ onBack }) {
 
   const handleLastWorkingDayChange = (e) => {
     const selectedDate = e.target.value;
-    if (selectedDate && resignationDate && selectedDate <= resignationDate) {
+    if (selectedDate && resignationDate && selectedDate < resignationDate) {
       setAlertModal({
-        message: 'Proposed Last Working Day must be later than the Intent Date (' + fmtDate(resignationDate) + '). Please select a future date.',
+        message: 'Proposed Last Working Day must be later than or equal to the Intent Date (' + fmtDate(resignationDate) + '). Please select a valid date.',
         type: 'error'
       });
       setLastWorkingDay('');
@@ -383,9 +382,9 @@ export default function ResignationScreen({ onBack }) {
   const handleSubmit = async () => {
     if (!lastWorkingDay || !reason || !detailedReason.trim()) return setAlertModal({ message: 'Please fill in all required fields.', type: 'error' });
     // Validate: Proposed Last Working Day must be strictly after Intent Date
-    if (lastWorkingDay <= resignationDate) {
+    if (lastWorkingDay < resignationDate) {
       return setAlertModal({
-        message: 'Proposed Last Working Day must be later than the Intent Date (' + fmtDate(resignationDate) + '). Please select a valid date.',
+        message: 'Proposed Last Working Day must be later than or equal to the Intent Date (' + fmtDate(resignationDate) + '). Please select a valid date.',
         type: 'error'
       });
     }
@@ -851,9 +850,9 @@ export default function ResignationScreen({ onBack }) {
                           min={getMinLastWorkingDay()}
                           onChange={handleLastWorkingDayChange}
                         />
-                        {lastWorkingDay && lastWorkingDay <= resignationDate && (
+                        {lastWorkingDay && lastWorkingDay < resignationDate && (
                           <div style={{ marginTop: '-18px', marginBottom: '10px', fontSize: '12px', color: '#ef4444', fontWeight: '700' }}>
-                            ⚠ Must be later than the Intent Date.
+                            ⚠ Must be later than or equal to the Intent Date.
                           </div>
                         )}
                       </div>
