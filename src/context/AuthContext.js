@@ -254,7 +254,7 @@ export const AuthProvider = ({ children }) => {
         safeSaveUser(data.user);
         return { success: true };
       }
-      return { success: false, error: data.error || 'Login failed' };
+      return { success: false, error: data.message || data.error || 'Login failed' };
     } catch (e) {
       return { success: false, error: 'Network error' };
     }
