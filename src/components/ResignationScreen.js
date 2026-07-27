@@ -441,7 +441,8 @@ export default function ResignationScreen({ onBack }) {
         fetchMyHistory();
         setAlertModal({ message: 'Resignation revoked successfully.', type: 'success' });
       } else {
-        setAlertModal({ message: `Revocation failed: ${await res.text()}`, type: 'error' });
+        console.error('Revocation backend error:', await res.text().catch(() => ''));
+        setAlertModal({ message: 'Unable to revoke the request. Please try again.', type: 'error' });
       }
     } catch (e) {
       console.error('Revoke Resignation Error:', e);
@@ -944,11 +945,7 @@ export default function ResignationScreen({ onBack }) {
                             <div style={s.statusBadge(r.status)}>{r.status}</div>
                           </div>
                         </div>
-                        {((r.status || '').toUpperCase() === 'PENDING' || (r.status || '').toUpperCase() === 'NEW') && (
-                          <button style={s.revokeBtn} onClick={() => { setRevokeData({ id: r.id, reason: '' }); setShowRevokeModal(true); }}>
-                            <RefreshCw size={14} /> Revoke Notice
-                          </button>
-                        )}
+
                       </div>
                     ))}
                   </div>
@@ -1130,20 +1127,7 @@ export default function ResignationScreen({ onBack }) {
               </div>
             )}
 
-            {/* ── Revoke Modal ── */}
-            {showRevokeModal && (
-              <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(10px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ backgroundColor: 'white', borderRadius: '30px', padding: '40px', maxWidth: '450px', width: '100%', boxShadow: '0 30px 60px rgba(0,0,0,0.2)' }}>
-                  <h2 style={{ fontSize: '20px', fontWeight: '900', color: '#0B1E3F', marginBottom: '25px' }}>Revoke Resignation</h2>
-                  <label style={s.label}>Reason for Revoking</label>
-                  <textarea style={{ ...s.textarea, minHeight: '100px' }} placeholder="Why are you revoking?" value={revokeData.reason} onChange={e => setRevokeData({ ...revokeData, reason: e.target.value })} />
-                  <div style={{ display: 'flex', gap: '15px' }}>
-                    <button onClick={() => setShowRevokeModal(false)} style={{ flex: 1, padding: '15px', borderRadius: '15px', background: '#f1f5f9', border: 'none', fontWeight: '800', cursor: 'pointer', color: '#64748b' }}>Cancel</button>
-                    <button onClick={handleRevoke} style={{ flex: 2, ...s.submitBtn, backgroundColor: '#0B1E3F', padding: '15px', margin: 0 }}>{loading ? 'Revoking...' : 'Confirm Revoke'}</button>
-                  </div>
-                </motion.div>
-              </div>
-            )}
+
 
             {/* ── Alert Modal ── */}
             {alertModal && (
