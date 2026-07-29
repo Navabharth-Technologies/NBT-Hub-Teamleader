@@ -600,11 +600,7 @@ const AwardsScreen = ({ onBack }) => {
                 const allLogs = data.awards || (Array.isArray(data) ? data : (data.records || data.data || []));
                 const myUid = cleanIdLocal(uid);
 
-                const givenByMe = allLogs.filter(log => {
-                    const gby = cleanIdLocal(log.granted_by || log.grantedBy || log.granted_id || log.grantor_id || log.userId);
-                    return gby === myUid;
-                });
-                const sortedLogs = givenByMe.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
+                const sortedLogs = allLogs.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
                 setGrantedHistory(sortedLogs);
             }
         } catch (err) {

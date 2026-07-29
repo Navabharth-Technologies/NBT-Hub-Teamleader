@@ -76,9 +76,13 @@ export default function TicketSection({ onClose }) {
         fetchTickets();
         triggerToast("Ticket submitted successfully!", "success");
         setActiveTab('history');
+      } else {
+        const errData = await resp.json().catch(() => ({}));
+        triggerToast(errData.error || errData.message || "Failed to submit ticket", "error");
       }
     } catch (err) {
       console.error("Submit ticket error:", err);
+      triggerToast("Network error occurred while submitting ticket", "error");
     } finally {
       setLoading(false);
     }
