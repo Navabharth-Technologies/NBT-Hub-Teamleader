@@ -589,22 +589,62 @@ const AwardsScreen = ({ onBack }) => {
         try {
             const token = localStorage.getItem('token');
             const uid = user?.employee_id || user?.userId || user?.id;
+            if (!uid) return;
+            const fetchOptions = { headers: { 'Authorization': `Bearer ${token?.trim()}` } };
 
-            const query = `?start_date=${startFilter}&end_date=${endFilter}`;
-            const res = await fetch(`${API_ENDPOINTS.REWARDS_GIVEN(uid)}${query}`, {
-                headers: { 'Authorization': `Bearer ${token?.trim()}` }
-            });
+            // 1. Fetch subordinates list first to know who they are
+            const [res, iRes] = await Promise.all([
+                fetch(API_ENDPOINTS.SUBORDINATES(uid), fetchOptions),
+                fetch(API_ENDPOINTS.INTERNS, fetchOptions).catch(() => ({ ok: false }))
+            ]);
 
+            let subordinates = [];
             if (res.ok) {
                 const data = await res.json();
-                const allLogs = data.awards || (Array.isArray(data) ? data : (data.records || data.data || []));
-                const myUid = cleanIdLocal(uid);
-
-                const sortedLogs = allLogs.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
-                setGrantedHistory(sortedLogs);
+                subordinates = Array.isArray(data) ? data : [];
             }
+
+            if (iRes.ok) {
+                const interns = await iRes.json();
+                const internsList = (Array.isArray(interns) ? interns : (interns.data || []))
+                    .filter(i => String(i.reporting_manager_id) === String(uid))
+                    .map(i => ({
+                        ...i,
+                        id: i.id || i.intern_id,
+                        employee_id: i.intern_id || i.id,
+                        role: i.role || 'Intern',
+                        isIntern: true
+                    }));
+                subordinates = [...subordinates, ...internsList];
+            }
+
+            // 2. Fetch all subordinate reward histories in parallel
+            const historyMap = {};
+            const combinedHistory = [];
+
+            await Promise.all(subordinates.map(async (m) => {
+                try {
+                    const eid = m.id || m.userId || m.employee_id;
+                    const hRes = await fetch(API_ENDPOINTS.REWARDS_USER(eid), fetchOptions);
+                    if (hRes.ok) {
+                        const hData = await hRes.json();
+                        const logs = hData.history || [];
+                        historyMap[cleanIdLocal(eid)] = logs;
+                        logs.forEach(log => {
+                            combinedHistory.push(log);
+                        });
+                    }
+                } catch (e) {
+                    console.error("Subordinate history fetch failed in audit trail:", e);
+                }
+            }));
+
+            setTeamHistories(historyMap);
+            combinedHistory.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
+            setGrantedHistory(combinedHistory);
+
         } catch (err) {
-            console.error("Failed to fetch employee_rewards table:", err);
+            console.error("Failed to fetch team audit trail:", err);
         } finally {
             setGrantedLoading(false);
         }

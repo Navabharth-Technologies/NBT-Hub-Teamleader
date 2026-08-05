@@ -435,14 +435,19 @@ export default function CourseScreen() {
     // Attempt to seek to last watched position
     const seekToLastTime = () => {
         if (videoRef.current && selectedCourse && !hasResumedRef.current) {
-            hasResumedRef.current = true; // Set first to prevent nested calls
             const lastTime = parseFloat(localStorage.getItem(getProgressKey()));
-            if (lastTime > 0) {
+            if (!isNaN(lastTime) && lastTime > 0) {
                 const duration = videoRef.current.duration;
                 if (!isNaN(duration) && duration > 0 && lastTime >= duration - 2) {
+                    hasResumedRef.current = true;
                     return;
                 }
-                videoRef.current.currentTime = lastTime;
+                if (videoRef.current.readyState >= 1) {
+                    videoRef.current.currentTime = lastTime;
+                    hasResumedRef.current = true;
+                }
+            } else {
+                hasResumedRef.current = true;
             }
         }
     };
@@ -519,7 +524,6 @@ export default function CourseScreen() {
                     <div style={s.pdfContainer}>
                         {pdfSrc ? <iframe src={`${pdfSrc}#toolbar=0`} style={{ flex: 1, border: 'none', borderRadius: '35px' }} /> : <div style={{ padding: '60px', textAlign: 'center', color: '#64748b', fontWeight: '800' }}>PDF Documentation Not Available</div>}
                     </div>
-                    <button style={s.finishBtn} onClick={() => setCurrentView(null)}><ChevronLeft size={20} /> RETURN TO CURRICULUM</button>
                 </div>
             </div>
         );
