@@ -451,36 +451,10 @@ const AwardsScreen = ({ onBack }) => {
 
                 const pmTitles = ['VISIONARY LEAD', 'TEAM GROWTH', 'STAR PERFORMER', 'PROBLEM SOLVER', 'COLLABORATIVE HERO', 'CUSTOM HONOR'];
                 const pm = allRewards.filter(r => {
-                    const cat = String(r.category || '').trim().toUpperCase();
-                    const name = String(r.title || r.award_name || r.reward_name || r.awardName || '').trim().toUpperCase();
-                    const grantorId = cleanIdLocal(r.granted_by || r.giver_id || r.grantor_id);
-                    const deg = degMap[grantorId] || '';
-                    const role = String(r.granted_by_role || r.giver_role || r.role || '').toUpperCase();
-
-                    if (cat === 'QUIZ' || cat === 'FUN QUIZ GAME' || name.includes('QUIZ')) return false;
-                    if (cat === 'HR' || cat === 'ADMIN' || cat === 'RECRUITMENT' || cat === 'GAME') return false;
-
-                    const isHrDept = deg.includes('HR') || deg.includes('HUMAN RESOURCES') || deg.includes('RECRUIT') ||
-                        deg.includes('PEOPLE OPS') || deg.includes('ADMIN') || deg.includes('TALENT') ||
-                        deg.includes('OFFICE') || deg.includes('ACCOUNT') || deg.includes('OPERATIONS') ||
-                        role === 'HR' || role === 'ADMIN';
-
-                    if (isHrDept) return false;
-
-                    const isVerifiedLeadership = (grantorId && (grantorId === managerId || grantorId === uid));
-                    if (isVerifiedLeadership) return true;
-
-                    if (cat === 'PERFORMANCE' || cat === 'PM') return true;
-
-                    const isLeadershipDesignation = deg.includes('PROJECT MANAGER') || deg.includes('PM') || deg.includes('MANAGER') ||
-                        deg.includes('LEAD') || deg.includes('DIRECTOR') || deg.includes('TL') ||
-                        deg.includes('TEAM LEADER');
-                    if (isLeadershipDesignation) return true;
-
-                    const isKnownPmTitle = pmTitles.some(t => name.includes(t));
-                    if (isKnownPmTitle && cat !== 'OTHER') return true;
-
-                    return false;
+                    const rawTitle = String(r.reward_name || r.rewardName || r.title || '').trim().toLowerCase();
+                    const cat = String(r.category || '').toUpperCase();
+                    const isQuiz = cat === 'FUN QUIZ GAME' || cat === 'QUIZ' || rawTitle.includes('quiz') || rawTitle.includes('brain teaser');
+                    return !isQuiz;
                 });
 
                 const hr = allRewards.filter(r => !pm.includes(r));
@@ -1130,7 +1104,7 @@ const AwardsScreen = ({ onBack }) => {
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                         <div style={{ width: '32px', height: '32px', borderRadius: '10px', backgroundColor: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Zap size={18} color="#22c55e" /></div>
-                                        <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '1000', color: '#15803d' }}>HR & Game Recognition</h2>
+                                        <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '1000', color: '#15803d' }}>Game Recognition</h2>
                                     </div>
                                     <div style={{ padding: '4px 10px', backgroundColor: '#fef3c7', borderRadius: '10px', border: '1px solid #fde68a', fontSize: '10px', fontWeight: '1000', color: '#d97706', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                         <Trophy size={12} />
